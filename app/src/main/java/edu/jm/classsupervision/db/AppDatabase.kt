@@ -16,7 +16,6 @@ import edu.jm.classsupervision.model.AttendanceStatus
     entities = [
         Class::class, 
         Student::class, 
-        // As entidades Activity e Observation foram removidas por enquanto
         ClassSession::class,
         AttendanceRecord::class
     ], 
@@ -29,9 +28,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun classDao(): ClassDao
     abstract fun studentDao(): StudentDao
     abstract fun attendanceDao(): AttendanceDao
+
+    // A função abstrata clearAllTables() foi removida daqui.
 }
 
-// Conversor para que o Room saiba como salvar a enum class AttendanceStatus
 class Converters {
     @androidx.room.TypeConverter
     fun fromAttendanceStatus(value: AttendanceStatus) = value.name

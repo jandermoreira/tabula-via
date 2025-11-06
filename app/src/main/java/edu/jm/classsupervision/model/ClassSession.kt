@@ -4,7 +4,9 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
+@Serializable // Anotação para serialização
 @Entity(
     tableName = "class_sessions",
     foreignKeys = [ForeignKey(
@@ -13,11 +15,11 @@ import androidx.room.PrimaryKey
         childColumns = ["classId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("classId")] // Índice adicionado para otimização
+    indices = [Index("classId")]
 )
 data class ClassSession(
     @PrimaryKey(autoGenerate = true)
     val sessionId: Long = 0,
     val classId: Long,
-    val timestamp: Long = System.currentTimeMillis() // Armazena a data e hora da aula
+    val timestamp: Long = System.currentTimeMillis()
 )

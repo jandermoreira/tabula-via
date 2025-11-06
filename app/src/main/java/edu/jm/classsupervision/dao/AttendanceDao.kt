@@ -11,8 +11,11 @@ import edu.jm.classsupervision.model.ClassSession
 @Dao
 interface AttendanceDao {
     // --- Funções para Sessão de Aula ---
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertClassSession(session: ClassSession): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllSessions(sessions: List<ClassSession>) // Para restauração
 
     @Query("SELECT * FROM class_sessions WHERE classId = :classId ORDER BY timestamp DESC")
     suspend fun getClassSessionsForClass(classId: Long): List<ClassSession>

@@ -6,19 +6,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.ktx.storage
 import edu.jm.classsupervision.db.DatabaseProvider
 import edu.jm.classsupervision.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.serialization.json.Json
 import java.util.Calendar
 
 class ClassViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val classDao = DatabaseProvider.getDatabase(application).classDao()
-    private val studentDao = DatabaseProvider.getDatabase(application).studentDao()
-    private val attendanceDao = DatabaseProvider.getDatabase(application).attendanceDao()
+    private val db = DatabaseProvider.getDatabase(application)
+    private val classDao = db.classDao()
+    private val studentDao = db.studentDao()
+    private val attendanceDao = db.attendanceDao()
+
+    private val storage = Firebase.storage
+    private val auth = Firebase.auth
 
     // --- Estados da UI ---
     private val _classes = MutableStateFlow<List<Class>>(emptyList())
@@ -43,11 +52,9 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
     var className by mutableStateOf("")
     var academicYear by mutableStateOf("")
     var period by mutableStateOf("")
-
     var studentName by mutableStateOf("")
     var studentNumber by mutableStateOf("")
     var bulkStudentText by mutableStateOf("")
-
     var newSessionCalendar by mutableStateOf(Calendar.getInstance())
     var editingSession by mutableStateOf<ClassSession?>(null)
 
@@ -57,9 +64,7 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- LÓGICA DE CARREGAMENTO E LIMPEZA ---
     private fun loadAllClasses() {
-        viewModelScope.launch {
-            _classes.value = classDao.getAllClasses()
-        }
+        viewModelScope.launch { _classes.value = classDao.getAllClasses() }
     }
 
     fun loadClassDetails(classId: Long) {
@@ -82,7 +87,6 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- LÓGICA DE FREQUÊNCIA ---
-
     suspend fun loadFrequencyDetails(session: ClassSession) {
         val records = attendanceDao.getAttendanceRecordsForSession(session.sessionId)
         val studentNameMap = studentsForClass.value.associate { it.studentId to it.name }
@@ -106,12 +110,10 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
             currentHour >= 10 -> 10
             else -> 8
         }
-
         calendar.set(Calendar.HOUR_OF_DAY, defaultHour)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
-
         newSessionCalendar = calendar
     }
 
@@ -148,25 +150,72 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
             _userMessage.value = "Nenhum aluno para registrar."
             return
         }
-
         viewModelScope.launch {
             val sessionId = editingSession?.sessionId ?:
             attendanceDao.insertClassSession(ClassSession(classId = classId, timestamp = newSessionCalendar.timeInMillis))
-
             val records = attendanceMap.map { (studentId, status) ->
                 AttendanceRecord(sessionId = sessionId, studentId = studentId, status = status)
             }
-
             attendanceDao.insertAttendanceRecords(records)
-
             loadClassDetails(classId)
             _userMessage.value = "Frequência de ${records.size} alunos salva com sucesso."
             onSaveComplete()
         }
     }
 
-    // --- LÓGICA DE TURMAS E ALUNOS ---
+    // --- LÓGICA DE BACKUP E RESTAURAÇÃO ---
+    fun backup() {
+        val userId = auth.currentUser?.uid ?: run {
+            _userMessage.value = "Usuário não logado."
+            return
+        }
+        viewModelScope.launch {
+            _userMessage.value = "Iniciando backup..."
+            try {
+                val classes = classDao.getAllClasses()
+                val students = classes.flatMap { studentDao.getStudentsForClass(it.classId) }
+                val sessions = classes.flatMap { attendanceDao.getClassSessionsForClass(it.classId) }
+                val records = sessions.flatMap { attendanceDao.getAttendanceRecordsForSession(it.sessionId) }
+                val backupData = BackupData(classes, students, sessions, records)
+                val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
+                val storageRef = storage.reference.child("backups/$userId/backup.json")
+                storageRef.putBytes(jsonString.toByteArray()).await()
+                _userMessage.value = "Backup concluído com sucesso!"
+            } catch (e: Exception) {
+                _userMessage.value = "Erro no backup: ${e.message}"
+            }
+        }
+    }
 
+    fun restore() {
+        val userId = auth.currentUser?.uid ?: run {
+            _userMessage.value = "Usuário não logado."
+            return
+        }
+        viewModelScope.launch {
+            _userMessage.value = "Iniciando restauração..."
+            try {
+                val storageRef = storage.reference.child("backups/$userId/backup.json")
+                val ONE_MEGABYTE: Long = 1024 * 1024
+                val bytes = storageRef.getBytes(ONE_MEGABYTE).await()
+                val jsonString = String(bytes)
+                val backupData = Json.decodeFromString(BackupData.serializer(), jsonString)
+
+                db.clearAllTables()
+                classDao.insertAll(backupData.classes)
+                studentDao.insertAll(backupData.students)
+                attendanceDao.insertAllSessions(backupData.classSessions)
+                attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
+
+                loadAllClasses()
+                _userMessage.value = "Restauração concluída com sucesso!"
+            } catch (e: Exception) {
+                _userMessage.value = "Erro na restauração: ${e.message}"
+            }
+        }
+    }
+
+    // --- LÓGICA DE TURMAS E ALUNOS ---
     fun addClass(onClassAdded: () -> Unit) {
         if (className.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
             val newClass = Class(className = className, academicYear = academicYear, period = period)
@@ -224,14 +273,12 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
-
                 val message = when {
                     ignoredStudents.isEmpty() -> "$addedCount alunos adicionados com sucesso."
                     addedCount == 0 -> "Nenhum aluno adicionado. ${ignoredStudents.size} já existiam: ${ignoredStudents.joinToString()}"
                     else -> "$addedCount alunos adicionados. ${ignoredStudents.size} ignorados (já existiam): ${ignoredStudents.joinToString()}"
                 }
                 _userMessage.value = message
-
                 bulkStudentText = ""
                 loadClassDetails(classId)
                 onStudentsAdded()

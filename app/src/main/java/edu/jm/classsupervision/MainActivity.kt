@@ -7,6 +7,8 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
@@ -16,13 +18,14 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import edu.jm.classsupervision.ui.*
 import edu.jm.classsupervision.ui.theme.ClassSupervisionTheme
+import edu.jm.classsupervision.viewmodel.AuthViewModel
 import edu.jm.classsupervision.viewmodel.ClassViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    // A instância do ViewModel é obtida corretamente aqui
     private val classViewModel: ClassViewModel by viewModels()
+    private val authViewModel: AuthViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,80 +35,90 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
-                    val scope = rememberCoroutineScope()
+                    val user by authViewModel.user.collectAsState()
+                    val errorMessage by authViewModel.errorMessage.collectAsState()
 
-                    NavHost(navController = navController, startDestination = "classList") {
-                        composable("classList") {
-                            // Passando o ViewModel correto para a tela inicial
-                            ClassListScreen(
-                                viewModel = classViewModel,
-                                onAddClassClicked = { navController.navigate("addClass") },
-                                onClassClicked = { aClass ->
-                                    navController.navigate("classDashboard/${aClass.classId}")
-                                }
-                            )
-                        }
+                    if (user == null) {
+                        LoginScreen(
+                            onLoginClick = { email, password -> authViewModel.login(email, password) },
+                            onSignUpClick = { email, password -> authViewModel.signUp(email, password) },
+                            errorMessage = errorMessage
+                        )
+                    } else {
+                        // Se o usuário está logado, mostra o conteúdo principal do app
+                        val navController = rememberNavController()
+                        val scope = rememberCoroutineScope()
 
-                        composable("addClass") {
-                            AddClassScreen(
-                                viewModel = classViewModel,
-                                onClassAdded = { navController.popBackStack() }
-                            )
-                        }
-
-                        composable(
-                            route = "classDashboard/{classId}",
-                            arguments = listOf(navArgument("classId") { type = NavType.LongType })
-                        ) {
-                            val classId = it.arguments?.getLong("classId") ?: 0L
-                            ClassDashboardScreen(
-                                classId = classId,
-                                viewModel = classViewModel,
-                                navController = navController,
-                                onNavigateBack = {
-                                    classViewModel.clearClassDetails()
-                                    navController.popBackStack()
-                                }
-                            )
-                        }
-
-                        composable(
-                            route = "studentList/{classId}",
-                            arguments = listOf(navArgument("classId") { type = NavType.LongType })
-                        ) {
-                            StudentListScreen(
-                                viewModel = classViewModel,
-                                onNavigateBack = { navController.popBackStack() }
-                            )
-                        }
-
-                        composable(
-                            route = "frequencyDashboard/{classId}",
-                            arguments = listOf(navArgument("classId") { type = NavType.LongType })
-                        ) {
-                            FrequencyDashboardScreen(
-                                viewModel = classViewModel,
-                                onNavigateBack = { navController.popBackStack() },
-                                onStartNewAttendance = {
-                                    // Usando a instância correta do ViewModel
-                                    classViewModel.prepareNewFrequencySession()
-                                    navController.navigate("attendanceScreen")
-                                },
-                                onEditAttendance = {
-                                    scope.launch {
-                                        classViewModel.prepareToEditFrequencySession(it)
-                                        navController.navigate("attendanceScreen")
+                        NavHost(navController = navController, startDestination = "classList") {
+                            composable("classList") {
+                                ClassListScreen(
+                                    viewModel = classViewModel,
+                                    onAddClassClicked = { navController.navigate("addClass") },
+                                    onClassClicked = { aClass ->
+                                        navController.navigate("classDashboard/${aClass.classId}")
                                     }
-                                }
-                            )
-                        }
+                                )
+                            }
 
-                        composable("attendanceScreen") {
-                            AttendanceScreen(
-                                viewModel = classViewModel,
-                                onNavigateBack = { navController.popBackStack() }
-                            )
+                            composable("addClass") {
+                                AddClassScreen(
+                                    viewModel = classViewModel,
+                                    onClassAdded = { navController.popBackStack() }
+                                )
+                            }
+
+                            composable(
+                                route = "classDashboard/{classId}",
+                                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+                            ) { backStackEntry ->
+                                val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
+                                ClassDashboardScreen(
+                                    classId = classId,
+                                    viewModel = classViewModel,
+                                    navController = navController,
+                                    onNavigateBack = {
+                                        classViewModel.clearClassDetails()
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
+
+                            composable(
+                                route = "studentList/{classId}",
+                                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+                            ) {
+                                StudentListScreen(
+                                    viewModel = classViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+
+                            composable(
+                                route = "frequencyDashboard/{classId}",
+                                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+                            ) {
+                                FrequencyDashboardScreen(
+                                    viewModel = classViewModel,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onStartNewAttendance = {
+                                        classViewModel.prepareNewFrequencySession()
+                                        navController.navigate("attendanceScreen")
+                                    },
+                                    onEditAttendance = { session ->
+                                        scope.launch {
+                                            classViewModel.prepareToEditFrequencySession(session)
+                                            navController.navigate("attendanceScreen")
+                                        }
+                                    }
+                                )
+                            }
+
+                            composable("attendanceScreen") {
+                                AttendanceScreen(
+                                    viewModel = classViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
                         }
                     }
                 }
