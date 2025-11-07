@@ -1,13 +1,14 @@
 package edu.jm.classsupervision.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PersonAdd // Ícone alterado
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +26,10 @@ fun StudentListScreen(
     var showAddStudentDialog by remember { mutableStateOf(false) }
     val students by viewModel.studentsForClass.collectAsState()
     val selectedClass by viewModel.selectedClass.collectAsState()
+    
+    // Novo estado para controlar a exibição do dialog de detalhes do aluno
+    var showStudentDetailsDialog by remember { mutableStateOf(false) }
+    val selectedStudent by viewModel.selectedStudentDetails.collectAsState()
 
     Scaffold(
         topBar = {
@@ -46,7 +51,6 @@ fun StudentListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddStudentDialog = true }) {
-                // O ícone e a descrição foram atualizados aqui
                 Icon(
                     imageVector = Icons.Filled.PersonAdd, 
                     contentDescription = "Adicionar Aluno"
@@ -56,7 +60,11 @@ fun StudentListScreen(
     ) { paddingValues ->
         StudentsGrid(
             students = students,
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(paddingValues),
+            onStudentClick = { studentId ->
+                viewModel.loadStudentDetails(studentId)
+                showStudentDetailsDialog = true
+            }
         )
     }
 
@@ -66,11 +74,24 @@ fun StudentListScreen(
             onDismiss = { showAddStudentDialog = false }
         )
     }
+
+    // Dialog para exibir os detalhes do aluno
+    if (showStudentDetailsDialog) {
+        selectedStudent?.let { student ->
+            StudentDetailsDialog(
+                student = student,
+                onDismiss = {
+                    viewModel.clearStudentDetails()
+                    showStudentDetailsDialog = false
+                }
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun StudentsGrid(students: List<Student>, modifier: Modifier = Modifier) {
+fun StudentsGrid(students: List<Student>, modifier: Modifier = Modifier, onStudentClick: (Long) -> Unit) {
     if (students.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Nenhum aluno cadastrado nesta turma.")
@@ -83,9 +104,12 @@ fun StudentsGrid(students: List<Student>, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(students) { student ->
+            items(students) {
+                student ->
                 Card(
-                    modifier = Modifier.aspectRatio(1f),
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .clickable { onStudentClick(student.studentId) }, // Clicável
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Box(
@@ -100,4 +124,28 @@ fun StudentsGrid(students: List<Student>, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+@Composable
+fun StudentDetailsDialog(
+    student: Student,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Detalhes do Aluno") },
+        text = {
+            Column {
+                Text("Nome: ${student.name}")
+                Text("Nº UFSCar: ${student.studentNumber}")
+                // Previsão para mais informações futuras
+                // Text("Observações: ...")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Fechar")
+            }
+        }
+    )
 }
