@@ -1,12 +1,14 @@
 package edu.jm.classsupervision.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import edu.jm.classsupervision.viewmodel.ClassViewModel
 
@@ -25,22 +27,30 @@ fun AddClassScreen(viewModel: ClassViewModel, onClassAdded: () -> Unit) {
             value = viewModel.className,
             onValueChange = { viewModel.className = it },
             label = { Text("Nome da Turma (ex: CAP)") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
 
         OutlinedTextField(
             value = viewModel.academicYear,
-            onValueChange = { viewModel.academicYear = it },
+            onValueChange = {
+                // Permite apenas dígitos e limita o comprimento a 4
+                if (it.all { char -> char.isDigit() } && it.length <= 4) {
+                    viewModel.academicYear = it
+                }
+            },
             label = { Text("Ano (ex: 2025)") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true
         )
 
-        // Novo campo para o período
         OutlinedTextField(
             value = viewModel.period,
             onValueChange = { viewModel.period = it },
             label = { Text("Período/Semestre (ex: 1)") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
 
         Spacer(modifier = Modifier.height(16.dp))
