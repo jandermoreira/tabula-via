@@ -1,5 +1,7 @@
 package edu.jm.classsupervision.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,15 +19,26 @@ import androidx.compose.ui.unit.dp
 import edu.jm.classsupervision.model.Class
 import edu.jm.classsupervision.viewmodel.ClassViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ClassListScreen(
     viewModel: ClassViewModel,
     onAddClassClicked: () -> Unit,
     onClassClicked: (Class) -> Unit,
-    onBackupClicked: () -> Unit // Novo callback
+    onBackupClicked: () -> Unit
 ) {
     val classes by viewModel.classes.collectAsState()
+    val groupedClasses = classes.groupBy { it.academicYear }.toSortedMap(compareByDescending { it })
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val userMessage by viewModel.userMessage.collectAsState()
+
+    LaunchedEffect(userMessage) {
+        userMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.userMessageShown()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -36,7 +49,6 @@ fun ClassListScreen(
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 ),
                 actions = {
-                    // Botão para navegar para a tela de backup
                     IconButton(onClick = onBackupClicked) {
                         Icon(Icons.Default.CloudUpload, contentDescription = "Backup e Restauração")
                     }
@@ -47,16 +59,32 @@ fun ClassListScreen(
             FloatingActionButton(onClick = onAddClassClicked) {
                 Icon(Icons.Default.Add, contentDescription = "Adicionar Turma")
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(8.dp)
         ) {
-            items(classes) { aClass ->
-                ClassItem(aClass, onClick = { onClassClicked(aClass) })
+            groupedClasses.forEach { (year, classesInYear) ->
+                stickyHeader {
+                    Text(
+                        text = year,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+
+                items(classesInYear) {
+                    aClass ->
+                    Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+                        ClassItem(aClass, onClick = { onClassClicked(aClass) })
+                    }
+                }
             }
         }
     }

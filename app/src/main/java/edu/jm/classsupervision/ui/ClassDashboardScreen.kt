@@ -7,8 +7,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Assignment
-import androidx.compose.material.icons.filled.FactCheck
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,7 +49,7 @@ fun ClassDashboardScreen(
 
     val selectedClass by viewModel.selectedClass.collectAsState()
     val students by viewModel.studentsForClass.collectAsState()
-    val activitiesCount = 0
+    val activities by viewModel.activities.collectAsState()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -93,15 +93,15 @@ fun ClassDashboardScreen(
             DashboardCard(
                 title = "Frequência",
                 subtitle = "Histórico de frequência",
-                icon = Icons.Default.FactCheck,
+                icon = Icons.AutoMirrored.Filled.FactCheck,
                 onClick = { navController.navigate("frequencyDashboard/$classId") }
             )
 
             DashboardCard(
                 title = "Atividades",
-                subtitle = "$activitiesCount atividades criadas",
-                icon = Icons.Default.Assignment,
-                onClick = { /* TODO */ }
+                subtitle = "${activities.size} atividades criadas",
+                icon = Icons.AutoMirrored.Filled.Assignment, // Ícone atualizado
+                onClick = { navController.navigate("activityList/$classId") }
             )
         }
     }
