@@ -8,13 +8,15 @@ object DatabaseProvider {
     private var INSTANCE: AppDatabase? = null
 
     fun getDatabase(context: Context): AppDatabase {
-        // Retorna a instância se já existir, senão, cria uma nova.
         return INSTANCE ?: synchronized(this) {
             val instance = Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
-                "class_supervision_database" // Nome do arquivo do banco de dados
-            ).build()
+                "class_supervision_database"
+            )
+            // Adicionando fallbackToDestructiveMigration para lidar com mudanças de schema
+            .fallbackToDestructiveMigration()
+            .build()
             INSTANCE = instance
             instance
         }

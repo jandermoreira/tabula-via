@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color // Importação adicionada
 import androidx.compose.ui.unit.dp
 import edu.jm.classsupervision.model.Student
 import edu.jm.classsupervision.viewmodel.ClassViewModel
@@ -27,9 +28,9 @@ fun StudentListScreen(
     val students by viewModel.studentsForClass.collectAsState()
     val selectedClass by viewModel.selectedClass.collectAsState()
     
-    // Novo estado para controlar a exibição do dialog de detalhes do aluno
     var showStudentDetailsDialog by remember { mutableStateOf(false) }
     val selectedStudent by viewModel.selectedStudentDetails.collectAsState()
+    val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()
 
     Scaffold(
         topBar = {
@@ -75,11 +76,11 @@ fun StudentListScreen(
         )
     }
 
-    // Dialog para exibir os detalhes do aluno
     if (showStudentDetailsDialog) {
         selectedStudent?.let { student ->
             StudentDetailsDialog(
                 student = student,
+                attendancePercentage = attendancePercentage,
                 onDismiss = {
                     viewModel.clearStudentDetails()
                     showStudentDetailsDialog = false
@@ -129,6 +130,7 @@ fun StudentsGrid(students: List<Student>, modifier: Modifier = Modifier, onStude
 @Composable
 fun StudentDetailsDialog(
     student: Student,
+    attendancePercentage: Float?,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -137,9 +139,13 @@ fun StudentDetailsDialog(
         text = {
             Column {
                 Text("Nome: ${student.name}")
-                Text("Nº UFSCar: ${student.studentNumber}")
-                // Previsão para mais informações futuras
-                // Text("Observações: ...")
+                Text("Matrícula: ${student.studentNumber}")
+                Spacer(modifier = Modifier.height(8.dp))
+                if (attendancePercentage != null) {
+                    Text("Frequência: %.0f%%".format(attendancePercentage))
+                } else {
+                    Text("Frequência: Impossível", color = Color.Red)
+                }
             }
         },
         confirmButton = {

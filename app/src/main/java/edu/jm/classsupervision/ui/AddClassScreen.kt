@@ -2,10 +2,8 @@ package edu.jm.classsupervision.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,7 +32,6 @@ fun AddClassScreen(viewModel: ClassViewModel, onClassAdded: () -> Unit) {
         OutlinedTextField(
             value = viewModel.academicYear,
             onValueChange = {
-                // Permite apenas dígitos e limita o comprimento a 4
                 if (it.all { char -> char.isDigit() } && it.length <= 4) {
                     viewModel.academicYear = it
                 }
@@ -50,6 +47,21 @@ fun AddClassScreen(viewModel: ClassViewModel, onClassAdded: () -> Unit) {
             onValueChange = { viewModel.period = it },
             label = { Text("Período/Semestre (ex: 1)") },
             modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        // Novo campo para o número de aulas
+        OutlinedTextField(
+            value = viewModel.numberOfClasses.toString(), // Converte Int para String
+            onValueChange = {
+                val number = it.toIntOrNull()
+                if (number != null) {
+                    viewModel.numberOfClasses = number
+                }
+            },
+            label = { Text("Número de Aulas") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true
         )
 
