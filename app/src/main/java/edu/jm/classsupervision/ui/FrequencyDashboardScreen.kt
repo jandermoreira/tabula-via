@@ -1,3 +1,4 @@
+// kotlin
 package edu.jm.classsupervision.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -7,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddTask
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,16 +51,24 @@ fun FrequencyDashboardScreen(
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 )
             )
-        }
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onStartNewAttendance) {
+                Icon(
+                    imageVector = Icons.Filled.AddTask,
+                    contentDescription = "Adicionar tarefa"
+                )
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End
     ) { paddingValues ->
         Column(
-            modifier = Modifier.padding(paddingValues).padding(16.dp).fillMaxSize(),
+            modifier = Modifier
+                .padding(paddingValues)
+                .padding(16.dp)
+                .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Button(onClick = onStartNewAttendance, modifier = Modifier.fillMaxWidth()) {
-                Text("REGISTRAR FREQUÊNCIA", style = MaterialTheme.typography.titleMedium)
-            }
-
             HorizontalDivider()
 
             if (classSessions.isEmpty()) {
@@ -72,8 +82,8 @@ fun FrequencyDashboardScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .combinedClickable(
-                                    onLongClick = { selectedSessionForOptions = session }, // Toque longo abre o dialog de opções
-                                    onClick = { // Ação no clique simples
+                                    onLongClick = { selectedSessionForOptions = session },
+                                    onClick = {
                                         scope.launch {
                                             viewModel.loadFrequencyDetails(session)
                                             sessionToView = session
@@ -164,16 +174,25 @@ private fun FrequencyDetailsDialog(
         title = { Text("Detalhes de Frequência") },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text("Registro de: ${session.timestamp.toFormattedDateString()}", fontWeight = FontWeight.Bold)
+                Text(
+                    "Registro de: ${session.timestamp.toFormattedDateString()}",
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 if (details.isEmpty()) {
                     CircularProgressIndicator()
                 } else {
                     LazyColumn {
                         items(details.entries.toList()) { (name, status) ->
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
                                 Text(name)
-                                Text(status.displayName, color = if (status == AttendanceStatus.PRESENT) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                Text(
+                                    status.displayName,
+                                    color = if (status == AttendanceStatus.PRESENT) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                )
                             }
                         }
                     }
@@ -190,6 +209,6 @@ private fun FrequencyDetailsDialog(
 
 fun Long.toFormattedDateString(): String {
     val date = Date(this)
-    val format = SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", Locale.getDefault())
+    val format = SimpleDateFormat("dd/MM/yyyy '-' HH:mm", Locale.getDefault())
     return format.format(date)
 }

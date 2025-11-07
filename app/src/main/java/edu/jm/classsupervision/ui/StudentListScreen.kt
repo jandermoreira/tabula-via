@@ -8,12 +8,14 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PersonAddAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color // Importação adicionada
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import edu.jm.classsupervision.model.Student
 import edu.jm.classsupervision.viewmodel.ClassViewModel
@@ -27,7 +29,7 @@ fun StudentListScreen(
     var showAddStudentDialog by remember { mutableStateOf(false) }
     val students by viewModel.studentsForClass.collectAsState()
     val selectedClass by viewModel.selectedClass.collectAsState()
-    
+
     var showStudentDetailsDialog by remember { mutableStateOf(false) }
     val selectedStudent by viewModel.selectedStudentDetails.collectAsState()
     val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()
@@ -53,7 +55,7 @@ fun StudentListScreen(
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddStudentDialog = true }) {
                 Icon(
-                    imageVector = Icons.Filled.PersonAdd, 
+                    imageVector = Icons.Filled.PersonAddAlt,
                     contentDescription = "Adicionar Aluno"
                 )
             }
@@ -105,12 +107,12 @@ fun StudentsGrid(students: List<Student>, modifier: Modifier = Modifier, onStude
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(students) {
+            items(students, key = { it.studentId }) {
                 student ->
                 Card(
                     modifier = Modifier
                         .aspectRatio(1f)
-                        .clickable { onStudentClick(student.studentId) }, // Clicável
+                        .clickable { onStudentClick(student.studentId) },
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Box(
@@ -119,7 +121,12 @@ fun StudentsGrid(students: List<Student>, modifier: Modifier = Modifier, onStude
                             .padding(8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = student.name, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = student.name,
+                            style = MaterialTheme.typography.bodyLarge,
+//                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }
@@ -144,7 +151,7 @@ fun StudentDetailsDialog(
                 if (attendancePercentage != null) {
                     Text("Frequência: %.0f%%".format(attendancePercentage))
                 } else {
-                    Text("Frequência: Impossível", color = Color.Red)
+                    Text("Frequência: Impossível", color = MaterialTheme.colorScheme.error)
                 }
             }
         },
