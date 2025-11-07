@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
                                     onClassClicked = { aClass ->
                                         navController.navigate("classDashboard/${aClass.classId}")
                                     },
-                                    onBackupClicked = { navController.navigate("backup") } // Rota para a nova tela
+                                    onBackupClicked = { navController.navigate("backup") }
                                 )
                             }
 
@@ -120,8 +120,18 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             
-                            composable("backup") { // Definição da nova rota de backup
+                            composable("backup") {
                                 BackupScreen(
+                                    viewModel = classViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+
+                            composable(
+                                route = "activityList/{classId}", // Nova rota
+                                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+                            ) {
+                                ActivityListScreen(
                                     viewModel = classViewModel,
                                     onNavigateBack = { navController.popBackStack() }
                                 )

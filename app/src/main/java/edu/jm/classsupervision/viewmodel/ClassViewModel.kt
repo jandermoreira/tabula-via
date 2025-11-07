@@ -28,6 +28,7 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
     private val classDao = db.classDao()
     private val studentDao = db.studentDao()
     private val attendanceDao = db.attendanceDao()
+    private val activityDao = db.activityDao()
 
     private val storage = Firebase.storage
     private val auth = Firebase.auth
@@ -57,6 +58,9 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
     private val _studentAttendancePercentage = MutableStateFlow<Float?>(null)
     val studentAttendancePercentage: StateFlow<Float?> = _studentAttendancePercentage.asStateFlow()
 
+    private val _activities = MutableStateFlow<List<Activity>>(emptyList())
+    val activities: StateFlow<List<Activity>> = _activities.asStateFlow()
+
     // --- Estados para Formulários ---
     var className by mutableStateOf("")
     var academicYear by mutableStateOf("")
@@ -82,6 +86,7 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
             _selectedClass.value = classDao.getClassById(classId)
             _studentsForClass.value = studentDao.getStudentsForClass(classId)
             _classSessions.value = attendanceDao.getClassSessionsForClass(classId)
+            _activities.value = activityDao.getActivitiesForClass(classId)
         }
     }
 
@@ -89,6 +94,7 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
         _selectedClass.value = null
         _studentsForClass.value = emptyList()
         _classSessions.value = emptyList()
+        _activities.value = emptyList()
         editingSession = null
     }
 
@@ -114,6 +120,13 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
     fun clearStudentDetails() {
         _selectedStudentDetails.value = null
         _studentAttendancePercentage.value = null
+    }
+
+    // --- LÓGICA DE ATIVIDADES ---
+    fun loadActivitiesForClass(classId: Long) {
+        viewModelScope.launch {
+            _activities.value = activityDao.getActivitiesForClass(classId)
+        }
     }
 
     // --- LÓGICA DE FREQUÊNCIA ---
@@ -195,62 +208,58 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- LÓGICA DE BACKUP E RESTAURAÇÃO ---
-    fun backup() {
+    suspend fun backup() {
         val userId = auth.currentUser?.uid ?: run {
             _userMessage.value = "Usuário não logado."
             return
         }
-        viewModelScope.launch {
-            _userMessage.value = "Iniciando backup..."
-            try {
-                val classes = classDao.getAllClasses()
-                val students = classes.flatMap { studentDao.getStudentsForClass(it.classId) }
-                val sessions =
-                    classes.flatMap { attendanceDao.getClassSessionsForClass(it.classId) }
-                val records =
-                    sessions.flatMap { attendanceDao.getAttendanceRecordsForSession(it.sessionId) }
+        _userMessage.value = "Iniciando backup..."
+        try {
+            val classes = classDao.getAllClasses()
+            val students = classes.flatMap { studentDao.getStudentsForClass(it.classId) }
+            val sessions =
+                classes.flatMap { attendanceDao.getClassSessionsForClass(it.classId) }
+            val records =
+                sessions.flatMap { attendanceDao.getAttendanceRecordsForSession(it.sessionId) }
 
-                val backupData = BackupData(classes, students, sessions, records)
-                val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
+            val backupData = BackupData(classes, students, sessions, records)
+            val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
 
-                val storageRef = storage.reference.child("backups/$userId/backup.json")
-                storageRef.putBytes(jsonString.toByteArray()).await()
+            val storageRef = storage.reference.child("backups/$userId/backup.json")
+            storageRef.putBytes(jsonString.toByteArray()).await()
 
-                _userMessage.value = "Backup concluído com sucesso!"
-            } catch (e: Exception) {
-                _userMessage.value = "Erro no backup: ${e.message}"
-            }
+            _userMessage.value = "Backup concluído com sucesso!"
+        } catch (e: Exception) {
+            _userMessage.value = "Erro no backup: ${e.message}"
         }
     }
 
-    fun restore() {
+    suspend fun restore() {
         val userId = auth.currentUser?.uid ?: run {
             _userMessage.value = "Usuário não logado."
             return
         }
-        viewModelScope.launch {
-            _userMessage.value = "Iniciando restauração..."
-            try {
-                val storageRef = storage.reference.child("backups/$userId/backup.json")
-                val ONE_MEGABYTE: Long = 1024 * 1024
-                val bytes = storageRef.getBytes(ONE_MEGABYTE).await()
-                val jsonString = String(bytes)
+        _userMessage.value = "Iniciando restauração..."
+        try {
+            val storageRef = storage.reference.child("backups/$userId/backup.json")
+            val ONE_MEGABYTE: Long = 1024 * 1024
+            val bytes = storageRef.getBytes(ONE_MEGABYTE).await()
+            val jsonString = String(bytes)
 
-                val backupData = Json.decodeFromString(BackupData.serializer(), jsonString)
+            val backupData = Json.decodeFromString(BackupData.serializer(), jsonString)
 
-                withContext(Dispatchers.IO) {
-                    db.clearAllTables()
-                    classDao.insertAll(backupData.classes)
-                    studentDao.insertAll(backupData.students)
-                    attendanceDao.insertAllSessions(backupData.classSessions)
-                    attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
-                }
-
-                loadAllClasses()
-                _userMessage.value = "Restauração concluída com sucesso!"
-            } catch (e: Exception) {
-                _userMessage.value = "Erro na restauração: ${e.message}"
+            withContext(Dispatchers.IO) {
+                db.clearAllTables()
+                classDao.insertAll(backupData.classes)
+                studentDao.insertAll(backupData.students)
+                attendanceDao.insertAllSessions(backupData.classSessions)
+                attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
             }
+
+            loadAllClasses()
+            _userMessage.value = "Restauração concluída com sucesso!"
+        } catch (e: Exception) {
+            _userMessage.value = "Erro na restauração: ${e.message}"
         }
     }
 

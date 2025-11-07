@@ -3,23 +3,21 @@ package edu.jm.classsupervision.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import edu.jm.classsupervision.dao.ActivityDao
 import edu.jm.classsupervision.dao.AttendanceDao
 import edu.jm.classsupervision.dao.ClassDao
 import edu.jm.classsupervision.dao.StudentDao
-import edu.jm.classsupervision.model.Class
-import edu.jm.classsupervision.model.Student
-import edu.jm.classsupervision.model.ClassSession
-import edu.jm.classsupervision.model.AttendanceRecord
-import edu.jm.classsupervision.model.AttendanceStatus
+import edu.jm.classsupervision.model.*
 
 @Database(
     entities = [
         Class::class, 
         Student::class, 
         ClassSession::class,
-        AttendanceRecord::class
+        AttendanceRecord::class,
+        Activity::class // Adicionada a nova entidade
     ], 
-    version = 1, 
+    version = 2, // Versão incrementada
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -28,8 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun classDao(): ClassDao
     abstract fun studentDao(): StudentDao
     abstract fun attendanceDao(): AttendanceDao
-
-    // A função abstrata clearAllTables() foi removida daqui.
+    abstract fun activityDao(): ActivityDao // Adicionado o novo DAO
 }
 
 class Converters {
