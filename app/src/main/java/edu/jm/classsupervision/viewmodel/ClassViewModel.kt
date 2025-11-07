@@ -12,11 +12,13 @@ import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import edu.jm.classsupervision.db.DatabaseProvider
 import edu.jm.classsupervision.model.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.util.Calendar
 
@@ -236,14 +238,16 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
 
                 val backupData = Json.decodeFromString(BackupData.serializer(), jsonString)
 
-                db.clearAllTables()
-                classDao.insertAll(backupData.classes)
-                studentDao.insertAll(backupData.students)
-                attendanceDao.insertAllSessions(backupData.classSessions)
-                attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
+                withContext(Dispatchers.IO) {
+                    db.clearAllTables()
+                    classDao.insertAll(backupData.classes)
+                    studentDao.insertAll(backupData.students)
+                    attendanceDao.insertAllSessions(backupData.classSessions)
+                    attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
+                }
 
                 loadAllClasses()
-                _userMessage.value = "Restauração concluída com sucesso!\""
+                _userMessage.value = "Restauração concluída com sucesso!"
             } catch (e: Exception) {
                 _userMessage.value = "Erro na restauração: ${e.message}"
             }

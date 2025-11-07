@@ -7,10 +7,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.FactCheck
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -51,7 +55,12 @@ fun ClassDashboardScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(selectedClass?.className ?: "Carregando...") },
+                title = {
+                    val titleText = selectedClass?.let {
+                        "${it.className} ${it.academicYear}/${it.period}"
+                    } ?: "Carregando..."
+                    Text(titleText)
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -77,18 +86,21 @@ fun ClassDashboardScreen(
             DashboardCard(
                 title = "Alunos",
                 subtitle = "${students.size} alunos cadastrados",
+                icon = Icons.Default.Group,
                 onClick = { navController.navigate("studentList/$classId") }
             )
 
             DashboardCard(
                 title = "Frequência",
                 subtitle = "Histórico de frequência",
+                icon = Icons.Default.FactCheck,
                 onClick = { navController.navigate("frequencyDashboard/$classId") }
             )
 
             DashboardCard(
                 title = "Atividades",
                 subtitle = "$activitiesCount atividades criadas",
+                icon = Icons.Default.Assignment,
                 onClick = { /* TODO */ }
             )
         }
@@ -96,7 +108,7 @@ fun ClassDashboardScreen(
 }
 
 @Composable
-fun DashboardCard(title: String, subtitle: String, onClick: () -> Unit) {
+fun DashboardCard(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -105,9 +117,15 @@ fun DashboardCard(title: String, subtitle: String, onClick: () -> Unit) {
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(40.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,

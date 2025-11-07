@@ -45,7 +45,6 @@ class MainActivity : ComponentActivity() {
                             errorMessage = errorMessage
                         )
                     } else {
-                        // Se o usuário está logado, mostra o conteúdo principal do app
                         val navController = rememberNavController()
                         val scope = rememberCoroutineScope()
 
@@ -56,7 +55,8 @@ class MainActivity : ComponentActivity() {
                                     onAddClassClicked = { navController.navigate("addClass") },
                                     onClassClicked = { aClass ->
                                         navController.navigate("classDashboard/${aClass.classId}")
-                                    }
+                                    },
+                                    onBackupClicked = { navController.navigate("backup") } // Rota para a nova tela
                                 )
                             }
 
@@ -115,6 +115,13 @@ class MainActivity : ComponentActivity() {
 
                             composable("attendanceScreen") {
                                 AttendanceScreen(
+                                    viewModel = classViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+                            
+                            composable("backup") { // Definição da nova rota de backup
+                                BackupScreen(
                                     viewModel = classViewModel,
                                     onNavigateBack = { navController.popBackStack() }
                                 )
