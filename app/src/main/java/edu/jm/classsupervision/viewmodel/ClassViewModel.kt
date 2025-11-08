@@ -29,6 +29,7 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
     private val studentDao = db.studentDao()
     private val attendanceDao = db.attendanceDao()
     private val activityDao = db.activityDao()
+    private val skillDao = db.skillDao()
 
     private val storage = Firebase.storage
     private val auth = Firebase.auth
@@ -60,6 +61,9 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _activities = MutableStateFlow<List<Activity>>(emptyList())
     val activities: StateFlow<List<Activity>> = _activities.asStateFlow()
+
+    private val _studentSkills = MutableStateFlow<List<StudentSkill>>(emptyList())
+    val studentSkills: StateFlow<List<StudentSkill>> = _studentSkills.asStateFlow()
 
     // --- Estados para Formulários ---
     var className by mutableStateOf("")
@@ -106,11 +110,11 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
     fun loadStudentDetails(studentId: Long) {
         viewModelScope.launch {
             _selectedStudentDetails.value = studentDao.getStudentById(studentId)
+            _studentSkills.value = skillDao.getSkillsForStudent(studentId)
             val totalClasses = _selectedClass.value?.numberOfClasses ?: 0
             if (totalClasses > 0) {
-                val abscences = attendanceDao.countStudentAbsences(studentId)
-                _studentAttendancePercentage.value =
-                    ((totalClasses.toFloat() - abscences.toFloat()) / totalClasses.toFloat()) * 100
+                val absences = attendanceDao.countStudentAbsences(studentId)
+                _studentAttendancePercentage.value = ((totalClasses.toFloat() - absences.toFloat()) / totalClasses.toFloat()) * 100
             } else {
                 _studentAttendancePercentage.value = null
             }
@@ -120,6 +124,26 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
     fun clearStudentDetails() {
         _selectedStudentDetails.value = null
         _studentAttendancePercentage.value = null
+        _studentSkills.value = emptyList()
+    }
+
+    // --- LÓGICA DE HABILIDADES ---
+    private val defaultSkills = listOf(
+        "Participação", "Comunicação", "Escuta", "Organização",
+        "Técnica", "Colaboração", "Reflexão"
+    )
+
+    fun loadSkillsForStudent(studentId: Long) {
+        viewModelScope.launch {
+            _studentSkills.value = skillDao.getSkillsForStudent(studentId)
+        }
+    }
+
+    fun updateStudentSkills(skills: List<StudentSkill>) {
+        viewModelScope.launch {
+            skillDao.insertOrUpdateSkills(skills)
+            _userMessage.value = "Habilidades atualizadas."
+        }
     }
 
     // --- LÓGICA DE ATIVIDADES ---
@@ -217,10 +241,8 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val classes = classDao.getAllClasses()
             val students = classes.flatMap { studentDao.getStudentsForClass(it.classId) }
-            val sessions =
-                classes.flatMap { attendanceDao.getClassSessionsForClass(it.classId) }
-            val records =
-                sessions.flatMap { attendanceDao.getAttendanceRecordsForSession(it.sessionId) }
+            val sessions = classes.flatMap { attendanceDao.getClassSessionsForClass(it.classId) }
+            val records = sessions.flatMap { attendanceDao.getAttendanceRecordsForSession(it.sessionId) }
 
             val backupData = BackupData(classes, students, sessions, records)
             val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
@@ -290,12 +312,14 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
             viewModelScope.launch {
                 val existingStudent = studentDao.getStudentByNumberInClass(studentNumber, classId)
                 if (existingStudent == null) {
-                    val newStudent = Student(
-                        name = studentName,
-                        studentNumber = studentNumber,
-                        classId = classId
-                    )
-                    studentDao.insertStudent(newStudent)
+                    val newStudent = Student(name = studentName, studentNumber = studentNumber, classId = classId)
+                    val newStudentId = studentDao.insertStudent(newStudent)
+
+                    val skillsToCreate = defaultSkills.map { skillName ->
+                        StudentSkill(studentId = newStudentId, skillName = skillName, state = SkillState.NAO_SE_APLICA)
+                    }
+                    skillDao.insertOrUpdateSkills(skillsToCreate)
+
                     _userMessage.value = "Aluno '${studentName}' adicionado com sucesso."
                     onStudentsAdded()
                 } else {
@@ -325,13 +349,13 @@ class ClassViewModel(application: Application) : AndroidViewModel(application) {
                             if (existingNumbers.contains(number)) {
                                 ignoredStudents.add(name)
                             } else {
-                                studentDao.insertStudent(
-                                    Student(
-                                        name = name,
-                                        studentNumber = number,
-                                        classId = classId
-                                    )
-                                )
+                                val newStudent = Student(name = name, studentNumber = number, classId = classId)
+                                val newStudentId = studentDao.insertStudent(newStudent)
+
+                                val skillsToCreate = defaultSkills.map { skillName ->
+                                    StudentSkill(studentId = newStudentId, skillName = skillName, state = SkillState.NAO_SE_APLICA)
+                                }
+                                skillDao.insertOrUpdateSkills(skillsToCreate)
                                 addedCount++
                             }
                         }

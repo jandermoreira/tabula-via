@@ -9,7 +9,7 @@ import edu.jm.classsupervision.model.Student
 @Dao
 interface StudentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertStudent(student: Student)
+    suspend fun insertStudent(student: Student): Long // Modificado para retornar o ID
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(students: List<Student>) // Para restauração

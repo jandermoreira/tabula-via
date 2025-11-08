@@ -52,7 +52,6 @@ class MainActivity : ComponentActivity() {
                                 errorMessage = errorMessage
                             )
                         } else {
-                            // NavHost completo para o usuário logado
                             val navController = rememberNavController()
                             val scope = rememberCoroutineScope()
 
@@ -97,6 +96,21 @@ class MainActivity : ComponentActivity() {
                                     arguments = listOf(navArgument("classId") { type = NavType.LongType })
                                 ) {
                                     StudentListScreen(
+                                        viewModel = classViewModel,
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onNavigateToSkills = { studentId ->
+                                            navController.navigate("studentSkills/$studentId")
+                                        }
+                                    )
+                                }
+
+                                composable(
+                                    route = "studentSkills/{studentId}", // Nova rota
+                                    arguments = listOf(navArgument("studentId") { type = NavType.LongType })
+                                ) { backStackEntry ->
+                                    val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
+                                    StudentSkillsScreen(
+                                        studentId = studentId,
                                         viewModel = classViewModel,
                                         onNavigateBack = { navController.popBackStack() }
                                     )
