@@ -18,7 +18,7 @@ fun SplashScreen() {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "Class Supervision",
+            text = "Tabula Via",
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.primary
         )

@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ClassSupervision"
+rootProject.name = "Tabula Via"
 include(":app")
