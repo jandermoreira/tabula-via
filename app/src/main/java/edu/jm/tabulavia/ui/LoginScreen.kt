@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 fun LoginScreen(
     onLoginClick: (String, String) -> Unit,
     onSignUpClick: (String, String) -> Unit,
+    onGoogleSignInClick: () -> Unit,
     errorMessage: String?
 ) {
     var email by remember { mutableStateOf("") }
@@ -73,6 +74,15 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Criar Conta")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onGoogleSignInClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Entrar com o Google")
         }
     }
 }

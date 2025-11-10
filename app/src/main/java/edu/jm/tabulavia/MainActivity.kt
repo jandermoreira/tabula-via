@@ -3,6 +3,7 @@ package edu.jm.tabulavia
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +15,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import edu.jm.tabulavia.ui.*
 import edu.jm.tabulavia.ui.theme.TabulaViaTheme
 import edu.jm.tabulavia.viewmodel.AuthViewModel
@@ -26,8 +30,25 @@ class MainActivity : ComponentActivity() {
     private val courseViewModel: CourseViewModel by viewModels()
     private val authViewModel: AuthViewModel by viewModels()
 
+    private val googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)!!
+            authViewModel.signInWithGoogle(account.idToken!!)
+        } catch (e: ApiException) {
+            // Handle error
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        val googleSignInClient = GoogleSignIn.getClient(this, gso)
+
         setContent {
             TabulaViaTheme {
                 Surface(
@@ -49,6 +70,7 @@ class MainActivity : ComponentActivity() {
                             LoginScreen(
                                 onLoginClick = { email, password -> authViewModel.login(email, password) },
                                 onSignUpClick = { email, password -> authViewModel.signUp(email, password) },
+                                onGoogleSignInClick = { googleSignInLauncher.launch(googleSignInClient.signInIntent) },
                                 errorMessage = errorMessage
                             )
                         } else {

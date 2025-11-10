@@ -75,6 +75,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     // Serialização
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
