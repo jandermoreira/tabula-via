@@ -28,17 +28,27 @@ fun ActivityListScreen(
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit
 ) {
+    val selectedCourse by viewModel.selectedCourse.collectAsState()
     val activities by viewModel.activities.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Atividades") },
+                title = {
+                    val titleText = selectedCourse?.let {
+                        "${it.className} ${it.academicYear}/${it.period} - Atividades"
+                    } ?: ""
+                    Text(titleText)
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                )
             )
         },
         floatingActionButton = {

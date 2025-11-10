@@ -30,6 +30,7 @@ fun FrequencyDashboardScreen(
     onStartNewAttendance: () -> Unit,
     onEditAttendance: (ClassSession) -> Unit
 ) {
+    val selectedCourse by viewModel.selectedCourse.collectAsState()
     val classSessions by viewModel.classSessions.collectAsState()
     var selectedSessionForOptions by remember { mutableStateOf<ClassSession?>(null) }
     var sessionToDelete by remember { mutableStateOf<ClassSession?>(null) }
@@ -40,7 +41,12 @@ fun FrequencyDashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Frequência") },
+                title = {
+                    val titleText = selectedCourse?.let {
+                        "${it.className} ${it.academicYear}/${it.period} - Frequência"
+                    } ?: ""
+                    Text(titleText)
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")

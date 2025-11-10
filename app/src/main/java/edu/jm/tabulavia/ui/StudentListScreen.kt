@@ -42,7 +42,12 @@ fun StudentListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(selectedCourse?.className ?: "") },
+                title = {
+                    val titleText = selectedCourse?.let {
+                        "${it.className} ${it.academicYear}/${it.period} - Alunos"
+                    } ?: ""
+                    Text(titleText)
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(

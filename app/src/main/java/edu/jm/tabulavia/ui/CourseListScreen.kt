@@ -77,10 +77,8 @@ fun CourseListScreen(
             )
         },
         floatingActionButton = {
-            if (user != null) {
-                FloatingActionButton(onClick = onAddCourseClicked) {
-                    Icon(Icons.Default.GroupAdd, contentDescription = "Adicionar Turma")
-                }
+            FloatingActionButton(onClick = onAddCourseClicked) {
+                Icon(Icons.Default.GroupAdd, contentDescription = "Adicionar Turma")
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
