@@ -4,18 +4,17 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("org.jetbrains.kotlin.kapt")
     id("com.google.gms.google-services")
-    // Adicionando o plugin de serialização
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
 }
 
 android {
-    namespace = "edu.jm.classsupervision"
+    namespace = "edu.jm.tabulavia"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "edu.jm.classsupervision"
+        applicationId = "edu.jm.tabulavia"
         minSdk = 29
         targetSdk = 36
         versionCode = 1
