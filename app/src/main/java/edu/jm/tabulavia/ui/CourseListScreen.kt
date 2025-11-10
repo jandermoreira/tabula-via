@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,21 +24,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Course
+import edu.jm.tabulavia.viewmodel.AuthViewModel
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CourseListScreen(
     viewModel: CourseViewModel,
+    authViewModel: AuthViewModel,
     onAddCourseClicked: () -> Unit,
     onCourseClicked: (Course) -> Unit,
-    onBackupClicked: () -> Unit
+    onBackupClicked: () -> Unit,
+    onLoginClicked: () -> Unit,
+    onLogoutClicked: () -> Unit
 ) {
     val courses by viewModel.courses.collectAsState()
     val groupedCourses = courses.groupBy { it.academicYear }.toSortedMap(compareByDescending { it })
 
     val snackbarHostState = remember { SnackbarHostState() }
     val userMessage by viewModel.userMessage.collectAsState()
+    val user by authViewModel.user.collectAsState()
 
     LaunchedEffect(userMessage) {
         userMessage?.let {
@@ -54,15 +61,26 @@ fun CourseListScreen(
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 ),
                 actions = {
-                    IconButton(onClick = onBackupClicked) {
-                        Icon(Icons.Default.CloudUpload, contentDescription = "Backup e Restauração")
+                    if (user != null) {
+                        IconButton(onClick = onBackupClicked) {
+                            Icon(Icons.Default.CloudUpload, contentDescription = "Backup e Restauração")
+                        }
+                        IconButton(onClick = onLogoutClicked) {
+                            Icon(Icons.Default.Logout, contentDescription = "Logout")
+                        }
+                    } else {
+                        IconButton(onClick = onLoginClicked) {
+                            Icon(Icons.Default.Login, contentDescription = "Login")
+                        }
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddCourseClicked) {
-                Icon(Icons.Default.GroupAdd, contentDescription = "Adicionar Turma")
+            if (user != null) {
+                FloatingActionButton(onClick = onAddCourseClicked) {
+                    Icon(Icons.Default.GroupAdd, contentDescription = "Adicionar Turma")
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
