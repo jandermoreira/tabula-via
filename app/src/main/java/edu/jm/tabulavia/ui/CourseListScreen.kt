@@ -13,10 +13,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Login
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -66,11 +66,11 @@ fun CourseListScreen(
                             Icon(Icons.Default.CloudUpload, contentDescription = "Backup e Restauração")
                         }
                         IconButton(onClick = onLogoutClicked) {
-                            Icon(Icons.Default.Logout, contentDescription = "Logout")
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
                         }
                     } else {
                         IconButton(onClick = onLoginClicked) {
-                            Icon(Icons.Default.Login, contentDescription = "Login")
+                            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = "Login")
                         }
                     }
                 }
