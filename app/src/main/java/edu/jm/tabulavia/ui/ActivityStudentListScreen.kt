@@ -1,7 +1,6 @@
 package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,9 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -34,12 +30,6 @@ fun ActivityStudentListScreen(
 ) {
     val students by viewModel.studentsForClass.collectAsState()
     val activity by viewModel.selectedActivity.collectAsState()
-
-    var showEditStudentDialog by remember { mutableStateOf(false) }
-    var showStudentDetailsDialog by remember { mutableStateOf(false) }
-    val selectedStudent by viewModel.selectedStudentDetails.collectAsState()
-    val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()
-    val studentSkills by viewModel.studentSkills.collectAsState()
 
     LaunchedEffect(activityId) {
         viewModel.loadActivityDetails(activityId)
@@ -79,46 +69,9 @@ fun ActivityStudentListScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(students, key = { it.studentId }) { student ->
-                    Box(modifier = Modifier.combinedClickable(
-                        onClick = {
-                            viewModel.loadStudentDetails(student.studentId)
-                            showStudentDetailsDialog = true
-                        },
-                        onLongClick = {
-                            viewModel.selectStudentForEditing(student)
-                            showEditStudentDialog = true
-                        }
-                    )) {
-                        StudentItem(student = student)
-                    }
+                    StudentItem(student = student)
                 }
             }
-        }
-    }
-
-    if (showEditStudentDialog) {
-        EditStudentDialog(
-            viewModel = viewModel,
-            onDismiss = { showEditStudentDialog = false }
-        )
-    }
-
-    if (showStudentDetailsDialog) {
-        selectedStudent?.let { student ->
-            StudentDetailsDialog(
-                student = student,
-                attendancePercentage = attendancePercentage,
-                skills = studentSkills,
-                onDismiss = {
-                    viewModel.clearStudentDetails()
-                    showStudentDetailsDialog = false
-                },
-                onEditSkills = {
-                    // If you want to navigate to skills from here, implement navigation callback
-                    viewModel.clearStudentDetails()
-                    showStudentDetailsDialog = false
-                }
-            )
         }
     }
 }

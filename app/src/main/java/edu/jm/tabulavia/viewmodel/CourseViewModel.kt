@@ -41,6 +41,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse.asStateFlow()
 
+    private val _selectedActivity = MutableStateFlow<Activity?>(null)
+    val selectedActivity: StateFlow<Activity?> = _selectedActivity.asStateFlow()
+
     private val _studentsForClass = MutableStateFlow<List<Student>>(emptyList())
     val studentsForClass: StateFlow<List<Student>> = _studentsForClass.asStateFlow()
 
@@ -71,10 +74,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     var period by mutableStateOf("")
     var numberOfClasses by mutableIntStateOf(0)
     var studentName by mutableStateOf("")
+    var studentDisplayName by mutableStateOf("")
     var studentNumber by mutableStateOf("")
     var bulkStudentText by mutableStateOf("")
     var newSessionCalendar by mutableStateOf(Calendar.getInstance())
     var editingSession by mutableStateOf<ClassSession?>(null)
+    var activityName by mutableStateOf("")
+    var activityType by mutableStateOf("Individual")
+
 
     init {
         loadAllCourses()
@@ -107,6 +114,27 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // --- LÓGICA DE ALUNOS ---
+    fun selectStudentForEditing(student: Student) {
+        studentName = student.name
+        studentDisplayName = student.displayName
+        studentNumber = student.studentNumber
+        _selectedStudentDetails.value = student
+    }
+
+    fun updateStudent(onDismiss: () -> Unit) {
+        val studentToUpdate = _selectedStudentDetails.value ?: return
+        val updatedStudent = studentToUpdate.copy(
+            name = studentName,
+            displayName = studentDisplayName,
+            studentNumber = studentNumber
+        )
+        viewModelScope.launch {
+            studentDao.updateStudent(updatedStudent)
+            loadCourseDetails(studentToUpdate.classId)
+            onDismiss()
+        }
+    }
+
     fun loadStudentDetails(studentId: Long) {
         viewModelScope.launch {
             _selectedStudentDetails.value = studentDao.getStudentById(studentId)
@@ -147,6 +175,32 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // --- LÓGICA DE ATIVIDADES ---
+    fun loadActivityDetails(activityId: Long) {
+        viewModelScope.launch {
+            _selectedActivity.value = activityDao.getActivityById(activityId)
+        }
+    }
+
+    fun addActivity(onActivityAdded: () -> Unit) {
+        val classId = _selectedCourse.value?.classId ?: return
+        if (activityName.isNotBlank()) {
+            viewModelScope.launch {
+                val savedTitle = activityName
+                val newActivity = Activity(
+                    title = savedTitle,
+                    description = activityType, // Usando description para o tipo
+                    classId = classId
+                )
+                activityDao.insert(newActivity)
+                activityName = ""
+                loadActivitiesForClass(classId)
+                onActivityAdded()
+                _userMessage.value = "Atividade '$savedTitle' adicionada."
+
+            }
+        }
+    }
+
     fun loadActivitiesForClass(classId: Long) {
         viewModelScope.launch {
             _activities.value = activityDao.getActivitiesForClass(classId)
@@ -156,7 +210,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     // --- LÓGICA DE FREQUÊNCIA ---
     suspend fun loadFrequencyDetails(session: ClassSession) {
         val records = attendanceDao.getAttendanceRecordsForSession(session.sessionId)
-        val studentNameMap = studentsForClass.value.associate { it.studentId to it.name }
+        val studentNameMap = studentsForClass.value.associate { it.studentId to it.displayName }
         _frequencyDetails.value = records.mapNotNull { record ->
             studentNameMap[record.studentId]?.let { name -> name to record.status }
         }.toMap()
@@ -243,8 +297,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val students = courses.flatMap { studentDao.getStudentsForClass(it.classId) }
             val sessions = courses.flatMap { attendanceDao.getClassSessionsForClass(it.classId) }
             val records = sessions.flatMap { attendanceDao.getAttendanceRecordsForSession(it.sessionId) }
+            val activities = courses.flatMap { activityDao.getActivitiesForClass(it.classId) }
 
-            val backupData = BackupData(courses, students, sessions, records)
+            val backupData = BackupData(courses, students, sessions, records, activities)
             val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
 
             val storageRef = storage.reference.child("backups/$userId/backup.json")
@@ -274,6 +329,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 db.clearAllTables()
                 courseDao.insertAll(backupData.courses)
                 studentDao.insertAll(backupData.students)
+                activityDao.insertAll(backupData.activities)
                 attendanceDao.insertAllSessions(backupData.classSessions)
                 attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
             }
@@ -312,7 +368,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             viewModelScope.launch {
                 val existingStudent = studentDao.getStudentByNumberInClass(studentNumber, classId)
                 if (existingStudent == null) {
-                    val newStudent = Student(name = studentName, studentNumber = studentNumber, classId = classId)
+                    val newStudent = Student(
+                        name = studentName, 
+                        displayName = studentName,
+                        studentNumber = studentNumber, 
+                        classId = classId
+                    )
                     val newStudentId = studentDao.insertStudent(newStudent)
 
                     val skillsToCreate = defaultSkills.map { skillName ->
@@ -349,7 +410,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                             if (existingNumbers.contains(number)) {
                                 ignoredStudents.add(name)
                             } else {
-                                val newStudent = Student(name = name, studentNumber = number, classId = classId)
+                                val newStudent = Student(
+                                    name = name, 
+                                    displayName = name,
+                                    studentNumber = number, 
+                                    classId = classId
+                                )
                                 val newStudentId = studentDao.insertStudent(newStudent)
 
                                 val skillsToCreate = defaultSkills.map { skillName ->

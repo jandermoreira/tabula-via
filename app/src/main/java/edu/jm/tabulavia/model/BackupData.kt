@@ -7,5 +7,6 @@ data class BackupData(
     val courses: List<Course>,
     val students: List<Student>,
     val classSessions: List<ClassSession>,
-    val attendanceRecords: List<AttendanceRecord>
+    val attendanceRecords: List<AttendanceRecord>,
+    val activities: List<Activity>
 )

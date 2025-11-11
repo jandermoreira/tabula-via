@@ -75,8 +75,6 @@ fun FrequencyDashboardScreen(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            HorizontalDivider()
-
             if (classSessions.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Nenhuma frequência registrada para esta turma.")

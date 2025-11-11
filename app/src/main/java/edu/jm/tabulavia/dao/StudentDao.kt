@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import edu.jm.tabulavia.model.Student
 
 @Dao
@@ -13,6 +14,9 @@ interface StudentDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(students: List<Student>) // Para restauração
+
+    @Update
+    suspend fun updateStudent(student: Student)
 
     @Query("SELECT * FROM students WHERE classId = :classId ORDER BY name ASC")
     suspend fun getStudentsForClass(classId: Long): List<Student>

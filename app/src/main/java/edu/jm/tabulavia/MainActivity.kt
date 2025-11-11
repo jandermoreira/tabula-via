@@ -28,6 +28,15 @@ import edu.jm.tabulavia.viewmodel.CourseViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * Main entry point for the Tabula Via application.
+ *
+ * Tabula Via is a tool designed to assist educators in managing their classes.
+ * The application offers features for registering courses and students,
+ * tracking attendance, creating activities, and monitoring skills.
+ * Navigation is built with Jetpack Compose, and data persistence
+ * is handled locally, with an option for cloud backup via Firebase.
+ */
 class MainActivity : ComponentActivity() {
 
     private val courseViewModel: CourseViewModel by viewModels()
@@ -71,7 +80,7 @@ class MainActivity : ComponentActivity() {
                     if (showSplash) {
                         SplashScreen()
                         LaunchedEffect(Unit) {
-                            delay(1500) // Atraso para exibir a splash
+                            delay(1500) // Delay to show splash screen
                             showSplash = false
                         }
                     } else {
@@ -131,7 +140,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             composable(
-                                route = "studentSkills/{studentId}", // Nova rota
+                                route = "studentSkills/{studentId}", // New route
                                 arguments = listOf(navArgument("studentId") { type = NavType.LongType })
                             ) { backStackEntry ->
                                 val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
@@ -181,6 +190,25 @@ class MainActivity : ComponentActivity() {
                                 arguments = listOf(navArgument("classId") { type = NavType.LongType })
                             ) {
                                 ActivityListScreen(
+                                    viewModel = courseViewModel,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onActivityClicked = { activity ->
+                                        if (activity.description == "Individual") {
+                                            navController.navigate("activityStudentList/${activity.activityId}")
+                                        } else {
+                                            // TODO: Handle group activity click
+                                        }
+                                    }
+                                )
+                            }
+
+                            composable(
+                                route = "activityStudentList/{activityId}",
+                                arguments = listOf(navArgument("activityId") { type = NavType.LongType })
+                            ) { backStackEntry ->
+                                val activityId = backStackEntry.arguments?.getLong("activityId") ?: 0L
+                                ActivityStudentListScreen(
+                                    activityId = activityId,
                                     viewModel = courseViewModel,
                                     onNavigateBack = { navController.popBackStack() }
                                 )

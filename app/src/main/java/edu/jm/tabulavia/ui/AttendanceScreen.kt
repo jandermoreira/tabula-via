@@ -170,7 +170,7 @@ fun AttendanceItem(student: Student, status: AttendanceStatus, onStatusChange: (
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = student.name, modifier = Modifier.weight(1f))
+            Text(text = student.displayName, modifier = Modifier.weight(1f))
 
             SingleChoiceSegmentedButtonRow {
                 SegmentedButton(

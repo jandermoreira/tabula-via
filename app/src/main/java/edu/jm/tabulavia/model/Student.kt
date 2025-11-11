@@ -21,6 +21,7 @@ data class Student(
     @PrimaryKey(autoGenerate = true)
     val studentId: Long = 0,
     val name: String,
+    val displayName: String,
     val studentNumber: String,
     val classId: Long
 )
