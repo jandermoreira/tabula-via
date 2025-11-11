@@ -196,7 +196,7 @@ class MainActivity : ComponentActivity() {
                                         if (activity.description == "Individual") {
                                             navController.navigate("activityStudentList/${activity.activityId}")
                                         } else {
-                                            // TODO: Handle group activity click
+                                            navController.navigate("activityGroupScreen/${activity.activityId}")
                                         }
                                     }
                                 )
@@ -208,6 +208,18 @@ class MainActivity : ComponentActivity() {
                             ) { backStackEntry ->
                                 val activityId = backStackEntry.arguments?.getLong("activityId") ?: 0L
                                 ActivityStudentListScreen(
+                                    activityId = activityId,
+                                    viewModel = courseViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+
+                            composable(
+                                route = "activityGroupScreen/{activityId}",
+                                arguments = listOf(navArgument("activityId") { type = NavType.LongType })
+                            ) { backStackEntry ->
+                                val activityId = backStackEntry.arguments?.getLong("activityId") ?: 0L
+                                ActivityGroupScreen(
                                     activityId = activityId,
                                     viewModel = courseViewModel,
                                     onNavigateBack = { navController.popBackStack() }
