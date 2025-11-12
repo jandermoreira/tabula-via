@@ -19,7 +19,7 @@ import edu.jm.tabulavia.model.*
         Activity::class,
         StudentSkill::class // Adicionada a nova entidade
     ], 
-    version = 3, // Versão incrementada para 3
+    version = 4, // Versão incrementada para 4
     exportSchema = false
 )
 @TypeConverters(Converters::class)
