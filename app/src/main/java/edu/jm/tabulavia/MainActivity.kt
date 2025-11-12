@@ -1,6 +1,8 @@
 package edu.jm.tabulavia
 
 import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.IntentSenderRequest
@@ -16,7 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.google.android.gms.auth.api.identity.BeginSignInRequest
+import com.google.android.gms.auth.api.identity.GetSignInIntentRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.android.gms.common.api.ApiException
@@ -44,39 +46,47 @@ class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
     private lateinit var oneTapClient: SignInClient
 
-    private val oneTapSignInLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            try {
-                val credential = oneTapClient.getSignInCredentialFromIntent(result.data)
-                val idToken = credential.googleIdToken
-                if (idToken != null) {
-                    authViewModel.signInWithGoogle(idToken)
+    private val oneTapSignInLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                try {
+                    val credential = oneTapClient.getSignInCredentialFromIntent(result.data)
+                    val idToken = credential.googleIdToken
+                    if (idToken != null) {
+                        authViewModel.signInWithGoogle(idToken)
+                    } else {
+                        Log.e("MainActivity", "Google ID token was null.")
+                        Toast.makeText(
+                            this,
+                            "Erro no login: token não encontrado.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } catch (e: ApiException) {
+                    Log.e("MainActivity", "Google Sign-In failed", e)
+                    Toast.makeText(this, "Falha no login com Google.", Toast.LENGTH_SHORT).show()
                 }
-            } catch (e: ApiException) {
-                // Handle error
+            } else {
+                Log.w(
+                    "MainActivity",
+                    "One-tap sign-in activity was cancelled or failed. Result code: ${result.resultCode}"
+                )
             }
         }
-    }
 
     private fun signIn() {
-        val signInRequest = BeginSignInRequest.builder()
-            .setGoogleIdTokenRequestOptions(
-                BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
-                    .setSupported(true)
-                    .setServerClientId(getString(R.string.default_web_client_id))
-                    .setFilterByAuthorizedAccounts(false)
-                    .build()
-            )
+        val signInRequest = GetSignInIntentRequest.builder()
+            .setServerClientId(getString(R.string.default_web_client_id))
             .build()
 
-        oneTapClient.beginSignIn(signInRequest)
-            .addOnSuccessListener(this) { result ->
-                val intentSenderRequest = IntentSenderRequest.Builder(result.pendingIntent).build()
+        oneTapClient.getSignInIntent(signInRequest)
+            .addOnSuccessListener(this) { pendingIntent ->
+                val intentSenderRequest = IntentSenderRequest.Builder(pendingIntent).build()
                 oneTapSignInLauncher.launch(intentSenderRequest)
             }
             .addOnFailureListener(this) { e ->
-                // Handle failure
-                e.printStackTrace()
+                Log.e("MainActivity", "Google Sign-In get intent failed", e)
+                Toast.makeText(this, "Falha ao iniciar login com Google.", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -133,7 +143,9 @@ class MainActivity : ComponentActivity() {
 
                             composable(
                                 route = "courseDashboard/{classId}",
-                                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+                                arguments = listOf(navArgument("classId") {
+                                    type = NavType.LongType
+                                })
                             ) { backStackEntry ->
                                 val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
                                 CourseDashboardScreen(
@@ -149,7 +161,9 @@ class MainActivity : ComponentActivity() {
 
                             composable(
                                 route = "studentList/{classId}",
-                                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+                                arguments = listOf(navArgument("classId") {
+                                    type = NavType.LongType
+                                })
                             ) {
                                 StudentListScreen(
                                     viewModel = courseViewModel,
@@ -162,7 +176,9 @@ class MainActivity : ComponentActivity() {
 
                             composable(
                                 route = "studentSkills/{studentId}", // New route
-                                arguments = listOf(navArgument("studentId") { type = NavType.LongType })
+                                arguments = listOf(navArgument("studentId") {
+                                    type = NavType.LongType
+                                })
                             ) { backStackEntry ->
                                 val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
                                 StudentSkillsScreen(
@@ -174,7 +190,9 @@ class MainActivity : ComponentActivity() {
 
                             composable(
                                 route = "frequencyDashboard/{classId}",
-                                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+                                arguments = listOf(navArgument("classId") {
+                                    type = NavType.LongType
+                                })
                             ) {
                                 FrequencyDashboardScreen(
                                     viewModel = courseViewModel,
@@ -208,7 +226,9 @@ class MainActivity : ComponentActivity() {
 
                             composable(
                                 route = "activityList/{classId}",
-                                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+                                arguments = listOf(navArgument("classId") {
+                                    type = NavType.LongType
+                                })
                             ) {
                                 ActivityListScreen(
                                     viewModel = courseViewModel,
@@ -225,9 +245,12 @@ class MainActivity : ComponentActivity() {
 
                             composable(
                                 route = "activityStudentList/{activityId}",
-                                arguments = listOf(navArgument("activityId") { type = NavType.LongType })
+                                arguments = listOf(navArgument("activityId") {
+                                    type = NavType.LongType
+                                })
                             ) { backStackEntry ->
-                                val activityId = backStackEntry.arguments?.getLong("activityId") ?: 0L
+                                val activityId =
+                                    backStackEntry.arguments?.getLong("activityId") ?: 0L
                                 ActivityStudentListScreen(
                                     activityId = activityId,
                                     viewModel = courseViewModel,
@@ -237,9 +260,12 @@ class MainActivity : ComponentActivity() {
 
                             composable(
                                 route = "activityGroupScreen/{activityId}",
-                                arguments = listOf(navArgument("activityId") { type = NavType.LongType })
+                                arguments = listOf(navArgument("activityId") {
+                                    type = NavType.LongType
+                                })
                             ) { backStackEntry ->
-                                val activityId = backStackEntry.arguments?.getLong("activityId") ?: 0L
+                                val activityId =
+                                    backStackEntry.arguments?.getLong("activityId") ?: 0L
                                 ActivityGroupScreen(
                                     activityId = activityId,
                                     viewModel = courseViewModel,
