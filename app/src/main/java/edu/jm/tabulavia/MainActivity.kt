@@ -3,6 +3,7 @@ package edu.jm.tabulavia
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,9 +16,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.auth.api.identity.BeginSignInRequest
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -41,33 +42,53 @@ class MainActivity : ComponentActivity() {
 
     private val courseViewModel: CourseViewModel by viewModels()
     private val authViewModel: AuthViewModel by viewModels()
-    private lateinit var googleSignInClient: GoogleSignInClient
+    private lateinit var oneTapClient: SignInClient
 
-    private val googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)!!
-            authViewModel.signInWithGoogle(account.idToken!!)
-        } catch (e: ApiException) {
-            // Handle error
+    private val oneTapSignInLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            try {
+                val credential = oneTapClient.getSignInCredentialFromIntent(result.data)
+                val idToken = credential.googleIdToken
+                if (idToken != null) {
+                    authViewModel.signInWithGoogle(idToken)
+                }
+            } catch (e: ApiException) {
+                // Handle error
+            }
         }
+    }
+
+    private fun signIn() {
+        val signInRequest = BeginSignInRequest.builder()
+            .setGoogleIdTokenRequestOptions(
+                BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
+                    .setSupported(true)
+                    .setServerClientId(getString(R.string.default_web_client_id))
+                    .setFilterByAuthorizedAccounts(false)
+                    .build()
+            )
+            .build()
+
+        oneTapClient.beginSignIn(signInRequest)
+            .addOnSuccessListener(this) { result ->
+                val intentSenderRequest = IntentSenderRequest.Builder(result.pendingIntent).build()
+                oneTapSignInLauncher.launch(intentSenderRequest)
+            }
+            .addOnFailureListener(this) { e ->
+                // Handle failure
+                e.printStackTrace()
+            }
     }
 
     private fun logout() {
         Firebase.auth.signOut()
-        googleSignInClient.signOut().addOnCompleteListener { 
-            authViewModel.clearUser()
-        }
+        authViewModel.clearUser()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(getString(R.string.default_web_client_id))
-            .requestEmail()
-            .build()
-        googleSignInClient = GoogleSignIn.getClient(this, gso)
+        oneTapClient = Identity.getSignInClient(this)
 
         setContent {
             TabulaViaTheme {
@@ -97,7 +118,7 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("courseDashboard/${course.classId}")
                                     },
                                     onBackupClicked = { navController.navigate("backup") },
-                                    onLoginClicked = { googleSignInLauncher.launch(googleSignInClient.signInIntent) },
+                                    onLoginClicked = { signIn() },
                                     onLogoutClicked = { logout() }
                                 )
                             }

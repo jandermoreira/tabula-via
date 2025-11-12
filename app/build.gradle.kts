@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.kapt")
     id("com.google.gms.google-services")
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
+    id("com.google.devtools.ksp") version "1.9.22-1.0.17"
 }
 
 android {
@@ -37,7 +38,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = JavaVersion.VERSION_11.toString()
     }
     buildFeatures {
         compose = true
@@ -75,7 +76,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
-    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.google.android.gms:play-services-auth:21.4.0")
 
     // Serialização
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
