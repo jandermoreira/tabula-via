@@ -2,6 +2,7 @@ package edu.jm.tabulavia.model
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
@@ -11,7 +12,8 @@ import kotlinx.serialization.Serializable
     foreignKeys = [
         ForeignKey(entity = Activity::class, parentColumns = ["activityId"], childColumns = ["activityId"], onDelete = ForeignKey.CASCADE),
         ForeignKey(entity = Student::class, parentColumns = ["studentId"], childColumns = ["studentId"], onDelete = ForeignKey.CASCADE)
-    ]
+    ],
+    indices = [Index(value = ["activityId"]), Index(value = ["studentId"])]
 )
 data class GroupMember(
     @PrimaryKey(autoGenerate = true)
