@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
@@ -28,6 +29,7 @@ fun StudentListScreen(
     var showEditStudentDialog by remember { mutableStateOf(false) }
     val students by viewModel.studentsForClass.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
+    val todaysAttendance by viewModel.todaysAttendance.collectAsState()
 
     var showStudentDetailsDialog by remember { mutableStateOf(false) }
     val selectedStudent by viewModel.selectedStudentDetails.collectAsState()
@@ -68,6 +70,7 @@ fun StudentListScreen(
     ) { paddingValues ->
         StudentsGrid(
             students = students,
+            todaysAttendance = todaysAttendance,
             modifier = Modifier.padding(paddingValues),
             onStudentClick = { studentId ->
                 viewModel.loadStudentDetails(studentId)
@@ -117,6 +120,7 @@ fun StudentListScreen(
 @Composable
 fun StudentsGrid(
     students: List<Student>,
+    todaysAttendance: Map<Long, AttendanceStatus>,
     modifier: Modifier = Modifier,
     onStudentClick: (Long) -> Unit,
     onStudentLongClick: (Student) -> Unit
@@ -134,8 +138,10 @@ fun StudentsGrid(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(students, key = { it.studentId }) { student ->
+                val isAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
                 StudentItem(
                     student = student,
+                    isAbsent = isAbsent,
                     modifier = Modifier.combinedClickable(
                         onClick = { onStudentClick(student.studentId) },
                         onLongClick = { onStudentLongClick(student) }

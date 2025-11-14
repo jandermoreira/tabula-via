@@ -269,9 +269,25 @@ class MainActivity : ComponentActivity() {
                                 ActivityGroupScreen(
                                     activityId = activityId,
                                     viewModel = courseViewModel,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onGroupClicked = { groupNumber ->
+                                        navController.navigate("groupDetails/$groupNumber")
+                                    }
+                                )
+                            }
+
+                            composable(
+                                route = "groupDetails/{groupNumber}",
+                                arguments = listOf(navArgument("groupNumber") { type = NavType.IntType })
+                            ) { backStackEntry ->
+                                val groupNumber = backStackEntry.arguments?.getInt("groupNumber") ?: 0
+                                GroupDetailsScreen(
+                                    groupNumber = groupNumber,
+                                    viewModel = courseViewModel,
                                     onNavigateBack = { navController.popBackStack() }
                                 )
                             }
+
                         }
                     }
                 }

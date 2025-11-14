@@ -22,4 +22,7 @@ interface ActivityDao {
 
     @Query("SELECT * FROM activities WHERE classId = :classId ORDER BY dueDate DESC")
     suspend fun getActivitiesForClass(classId: Long): List<Activity>
+
+    @Query("SELECT * FROM activities")
+    suspend fun getAllActivities(): List<Activity>
 }

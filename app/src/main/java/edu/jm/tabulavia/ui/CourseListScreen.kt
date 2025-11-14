@@ -48,7 +48,7 @@ fun CourseListScreen(
     LaunchedEffect(userMessage) {
         userMessage?.let {
             snackbarHostState.showSnackbar(it)
-            viewModel.userMessageShown()
+            viewModel.onUserMessageShown()
         }
     }
 
@@ -100,8 +100,7 @@ fun CourseListScreen(
                     )
                 }
 
-                items(coursesInYear) {
-                    course ->
+                items(coursesInYear) { course ->
                     Column(modifier = Modifier.padding(horizontal = 8.dp)) {
                         CourseItem(course, onClick = { onCourseClicked(course) })
                     }

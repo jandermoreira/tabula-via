@@ -30,11 +30,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val attendanceDao = db.attendanceDao()
     private val activityDao = db.activityDao()
     private val skillDao = db.skillDao()
+    private val groupMemberDao = db.groupMemberDao()
 
     private val storage = Firebase.storage
     private val auth = Firebase.auth
 
-    // --- Estados da UI ---
+    // --- UI State ---
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
     val courses: StateFlow<List<Course>> = _courses.asStateFlow()
 
@@ -68,7 +69,16 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _studentSkills = MutableStateFlow<List<StudentSkill>>(emptyList())
     val studentSkills: StateFlow<List<StudentSkill>> = _studentSkills.asStateFlow()
 
-    // --- Estados para Formulários ---
+    private val _generatedGroups = MutableStateFlow<List<List<Student>>>(emptyList())
+    val generatedGroups: StateFlow<List<List<Student>>> = _generatedGroups.asStateFlow()
+
+    private val _todaysAttendance = MutableStateFlow<Map<Long, AttendanceStatus>>(emptyMap())
+    val todaysAttendance: StateFlow<Map<Long, AttendanceStatus>> = _todaysAttendance.asStateFlow()
+
+    private val _selectedGroupDetails = MutableStateFlow<List<Student>>(emptyList())
+    val selectedGroupDetails: StateFlow<List<Student>> = _selectedGroupDetails.asStateFlow()
+
+    // --- Form State ---
     var courseName by mutableStateOf("")
     var academicYear by mutableStateOf("")
     var period by mutableStateOf("")
@@ -81,13 +91,16 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     var editingSession by mutableStateOf<ClassSession?>(null)
     var activityName by mutableStateOf("")
     var activityType by mutableStateOf("Individual")
+    var groupingCriterion by mutableStateOf("Aleatório")
+    var groupFormationType by mutableStateOf("Número de grupos")
+    var groupFormationValue by mutableStateOf("")
 
 
     init {
         loadAllCourses()
     }
 
-    // --- LÓGICA DE CARREGAMENTO E LIMPEZA ---
+    // --- LOADING AND CLEARING LOGIC ---
     private fun loadAllCourses() {
         viewModelScope.launch { _courses.value = courseDao.getAllCourses() }
     }
@@ -96,8 +109,41 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _selectedCourse.value = courseDao.getCourseById(classId)
             _studentsForClass.value = studentDao.getStudentsForClass(classId)
-            _classSessions.value = attendanceDao.getClassSessionsForClass(classId)
+            val allSessions = attendanceDao.getClassSessionsForClass(classId)
+            _classSessions.value = allSessions
             _activities.value = activityDao.getActivitiesForClass(classId)
+
+            // Load today's attendance
+            loadTodaysAttendance(allSessions)
+        }
+    }
+
+    private fun loadTodaysAttendance(sessions: List<ClassSession>) {
+        viewModelScope.launch {
+            val todayStart = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+
+            val todayEnd = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 23)
+                set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59)
+                set(Calendar.MILLISECOND, 999)
+            }.timeInMillis
+
+            val lastSessionToday = sessions
+                .filter { it.timestamp in todayStart..todayEnd }
+                .maxByOrNull { it.timestamp }
+
+            if (lastSessionToday != null) {
+                val records = attendanceDao.getAttendanceRecordsForSession(lastSessionToday.sessionId)
+                _todaysAttendance.value = records.associate { it.studentId to it.status }
+            } else {
+                _todaysAttendance.value = emptyMap()
+            }
         }
     }
 
@@ -107,13 +153,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         _classSessions.value = emptyList()
         _activities.value = emptyList()
         editingSession = null
+        _todaysAttendance.value = emptyMap()
     }
 
-    fun userMessageShown() {
+    fun onUserMessageShown() {
         _userMessage.value = null
     }
 
-    // --- LÓGICA DE ALUNOS ---
+    // --- STUDENT LOGIC ---
     fun selectStudentForEditing(student: Student) {
         studentName = student.name
         studentDisplayName = student.displayName
@@ -155,7 +202,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         _studentSkills.value = emptyList()
     }
 
-    // --- LÓGICA DE HABILIDADES ---
+    // --- SKILL LOGIC ---
     private val defaultSkills = listOf(
         "Participação", "Comunicação", "Escuta", "Organização",
         "Técnica", "Colaboração", "Reflexão"
@@ -174,10 +221,27 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // --- LÓGICA DE ATIVIDADES ---
+    // --- ACTIVITY LOGIC ---
     fun loadActivityDetails(activityId: Long) {
         viewModelScope.launch {
             _selectedActivity.value = activityDao.getActivityById(activityId)
+            loadPersistedGroups(activityId)
+        }
+    }
+
+    private suspend fun loadPersistedGroups(activityId: Long) {
+        val groupMembers = groupMemberDao.getGroupMembersForActivity(activityId)
+        if (groupMembers.isNotEmpty()) {
+            val students = studentDao.getStudentsForClass(_selectedCourse.value?.classId ?: 0)
+            val studentMap = students.associateBy { it.studentId }
+            val groups = groupMembers.groupBy { it.groupNumber }
+                .mapValues { (_, members) ->
+                    members.mapNotNull { studentMap[it.studentId] }
+                }
+                .values.toList()
+            _generatedGroups.value = groups
+        } else {
+            _generatedGroups.value = emptyList()
         }
     }
 
@@ -188,11 +252,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 val savedTitle = activityName
                 val newActivity = Activity(
                     title = savedTitle,
-                    description = activityType, // Usando description para o tipo
+                    description = activityType, // Using description for the type
                     classId = classId
                 )
                 activityDao.insert(newActivity)
                 activityName = ""
+                activityType = "Individual"
                 loadActivitiesForClass(classId)
                 onActivityAdded()
                 _userMessage.value = "Atividade '$savedTitle' adicionada."
@@ -207,7 +272,83 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // --- LÓGICA DE FREQUÊNCIA ---
+    fun createBalancedGroups() {
+        viewModelScope.launch {
+            val activityId = _selectedActivity.value?.activityId ?: return@launch
+            val value = groupFormationValue.toIntOrNull()
+            if (value == null || value <= 0) {
+                _userMessage.value = "Por favor, insira um valor válido."
+                return@launch
+            }
+
+            val presentStudents = _studentsForClass.value
+                .filter { _todaysAttendance.value[it.studentId] != AttendanceStatus.ABSENT }
+                .shuffled()
+
+            if (presentStudents.isEmpty()) {
+                _userMessage.value = "Nenhum aluno presente para formar grupos."
+                return@launch
+            }
+
+            val numGroups = if (groupFormationType == "Número de grupos") {
+                if (value > presentStudents.size) {
+                    _userMessage.value = "O número de grupos não pode ser maior que o de alunos presentes."
+                    return@launch
+                }
+                value
+            } else { // "Alunos por grupo"
+                (presentStudents.size + value - 1) / value
+            }
+
+            val baseGroupSize = presentStudents.size / numGroups
+            val remainder = presentStudents.size % numGroups
+
+            val groups = MutableList(numGroups) { mutableListOf<Student>() }
+            var studentIndex = 0
+
+            for (i in 0 until numGroups) {
+                val extra = if (i < remainder) 1 else 0
+                val currentGroupSize = baseGroupSize + extra
+                for (j in 0 until currentGroupSize) {
+                    if (studentIndex < presentStudents.size) {
+                        groups[i].add(presentStudents[studentIndex])
+                        studentIndex++
+                    }
+                }
+            }
+            _generatedGroups.value = groups
+
+            // Persist groups
+            groupMemberDao.clearGroupMembersForActivity(activityId)
+            val groupMembers = groups.flatMapIndexed { groupIndex, studentList ->
+                studentList.map {
+                    GroupMember(activityId = activityId, studentId = it.studentId, groupNumber = groupIndex + 1)
+                }
+            }
+            groupMemberDao.insertGroupMembers(groupMembers)
+        }
+    }
+
+    fun clearGroups() {
+        viewModelScope.launch {
+            val activityId = _selectedActivity.value?.activityId ?: return@launch
+            groupMemberDao.clearGroupMembersForActivity(activityId)
+            _generatedGroups.value = emptyList()
+            groupFormationValue = ""
+        }
+    }
+
+    fun loadGroupDetails(groupNumber: Int) {
+        val group = _generatedGroups.value.getOrNull(groupNumber - 1)
+        _selectedGroupDetails.value = group ?: emptyList()
+    }
+
+    fun clearGroupDetails() {
+        _selectedGroupDetails.value = emptyList()
+    }
+
+
+    // --- FREQUENCY LOGIC ---
     suspend fun loadFrequencyDetails(session: ClassSession) {
         val records = attendanceDao.getAttendanceRecordsForSession(session.sessionId)
         val studentNameMap = studentsForClass.value.associate { it.studentId to it.displayName }
@@ -285,7 +426,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // --- LÓGICA DE BACKUP E RESTAURAÇÃO ---
+    // --- BACKUP AND RESTORE LOGIC ---
     suspend fun backup() {
         val userId = auth.currentUser?.uid ?: run {
             _userMessage.value = "Usuário não logado."
@@ -293,13 +434,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
         _userMessage.value = "Iniciando backup..."
         try {
-            val courses = courseDao.getAllCourses()
-            val students = courses.flatMap { studentDao.getStudentsForClass(it.classId) }
-            val sessions = courses.flatMap { attendanceDao.getClassSessionsForClass(it.classId) }
-            val records = sessions.flatMap { attendanceDao.getAttendanceRecordsForSession(it.sessionId) }
-            val activities = courses.flatMap { activityDao.getActivitiesForClass(it.classId) }
-
-            val backupData = BackupData(courses, students, sessions, records, activities)
+            val backupData = BackupData(
+                courses = courseDao.getAllCourses(),
+                students = studentDao.getAllStudents(),
+                classSessions = attendanceDao.getAllSessions(),
+                attendanceRecords = attendanceDao.getAllRecords(),
+                activities = activityDao.getAllActivities(),
+                groupMembers = groupMemberDao.getAllGroupMembers()
+            )
             val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
 
             val storageRef = storage.reference.child("backups/$userId/backup.json")
@@ -332,6 +474,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 activityDao.insertAll(backupData.activities)
                 attendanceDao.insertAllSessions(backupData.classSessions)
                 attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
+                groupMemberDao.insertAll(backupData.groupMembers)
             }
 
             loadAllCourses()
@@ -341,7 +484,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // --- LÓGICA DE TURMAS E ALUNOS ---
+    // --- CLASS AND STUDENT LOGIC ---
     fun addCourse(onCourseAdded: () -> Unit) {
         if (courseName.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
             val newCourse = Course(
@@ -381,10 +524,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     skillDao.insertOrUpdateSkills(skillsToCreate)
 
-                    _userMessage.value = "Aluno '${studentName}' adicionado com sucesso."
+                    _userMessage.value = "Aluno '$studentName' adicionado com sucesso."
                     onStudentsAdded()
                 } else {
-                    _userMessage.value = "Erro: Aluno com matrícula '${studentNumber}' já existe."
+                    _userMessage.value = "Erro: Aluno com matrícula '$studentNumber' já existe."
                 }
                 studentName = ""
                 studentNumber = ""

@@ -42,7 +42,7 @@ fun CourseDashboardScreen(
         userMessage?.let { message ->
             scope.launch {
                 snackbarHostState.showSnackbar(message)
-                viewModel.userMessageShown()
+                viewModel.onUserMessageShown()
             }
         }
     }

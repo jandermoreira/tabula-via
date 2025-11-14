@@ -27,7 +27,7 @@ fun BackupScreen(
     LaunchedEffect(userMessage) {
         userMessage?.let {
             snackbarHostState.showSnackbar(it)
-            viewModel.userMessageShown()
+            viewModel.onUserMessageShown()
         }
     }
 

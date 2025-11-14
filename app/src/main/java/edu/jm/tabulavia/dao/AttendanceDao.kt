@@ -21,6 +21,9 @@ interface AttendanceDao {
     @Query("SELECT * FROM class_sessions WHERE classId = :classId ORDER BY timestamp DESC")
     suspend fun getClassSessionsForClass(classId: Long): List<ClassSession>
 
+    @Query("SELECT * FROM class_sessions")
+    suspend fun getAllSessions(): List<ClassSession>
+
     @Delete
     suspend fun deleteSession(session: ClassSession)
 
@@ -30,6 +33,9 @@ interface AttendanceDao {
 
     @Query("SELECT * FROM attendance_records WHERE sessionId = :sessionId")
     suspend fun getAttendanceRecordsForSession(sessionId: Long): List<AttendanceRecord>
+
+    @Query("SELECT * FROM attendance_records")
+    suspend fun getAllRecords(): List<AttendanceRecord>
 
     // Nova função para contar ausências
     @Query("SELECT COUNT(*) FROM attendance_records WHERE studentId = :studentId AND status = :status")

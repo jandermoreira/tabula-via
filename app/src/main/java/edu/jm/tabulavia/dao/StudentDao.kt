@@ -29,4 +29,7 @@ interface StudentDao {
 
     @Query("SELECT studentNumber FROM students WHERE classId = :classId")
     suspend fun getStudentNumbersForClass(classId: Long): List<String>
+
+    @Query("SELECT * FROM students")
+    suspend fun getAllStudents(): List<Student>
 }
