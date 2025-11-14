@@ -68,9 +68,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _activities = MutableStateFlow<List<Activity>>(emptyList())
     val activities: StateFlow<List<Activity>> = _activities.asStateFlow()
-
-    // REMOVED: private val _studentSkills = MutableStateFlow<List<StudentSkill>>(emptyList())
-    // REMOVED: val studentSkills: StateFlow<List<StudentSkill>> = _studentSkills.asStateFlow()
+    
+    private val _skillAssessmentLog = MutableStateFlow<List<SkillAssessment>>(emptyList())
+    val skillAssessmentLog: StateFlow<List<SkillAssessment>> = _skillAssessmentLog.asStateFlow()
 
     private val _studentSkillSummaries = MutableStateFlow<Map<String, SkillAssessmentsSummary>>(emptyMap())
     val studentSkillSummaries: StateFlow<Map<String, SkillAssessmentsSummary>> = _studentSkillSummaries.asStateFlow()
@@ -246,6 +246,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             _courseSkills.value = courseSkillDao.getSkillsForCourse(courseId)
         }
     }
+    
+    fun loadSkillAssessmentLog() {
+        viewModelScope.launch {
+            _skillAssessmentLog.value = skillAssessmentDao.getAllAssessments().first()
+        }
+    }
 
     fun addCourseSkill(onSkillAdded: () -> Unit) {
         val courseId = _selectedCourse.value?.classId ?: return
@@ -280,6 +286,22 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             skillAssessmentDao.insert(assessment)
             // After inserting, reload student details to update the UI
             loadStudentDetails(studentId)
+        }
+    }
+    
+    fun addProfessorSkillAssessments(studentId: Long, assessments: List<Pair<String, SkillLevel>>) {
+        viewModelScope.launch {
+            val newAssessments = assessments.map { (skillName, level) ->
+                SkillAssessment(
+                    studentId = studentId,
+                    skillName = skillName,
+                    level = level,
+                    source = AssessmentSource.PROFESSOR_OBSERVATION,
+                    assessorId = null // Assessor is the current logged-in user (professor)
+                )
+            }
+            skillAssessmentDao.insertAll(newAssessments)
+            loadStudentDetails(studentId) // Reload to update UI
         }
     }
 

@@ -103,7 +103,3 @@ fun StudentDetailsDialog(
         }
     )
 }
-
-// Removidas as funções de extensão toIcon() e toColor() de SkillState
-// porque SkillState foi substituído por SkillLevel e a lógica de exibição
-// agora lida com múltiplas fontes de avaliação.
