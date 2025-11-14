@@ -13,4 +13,7 @@ interface SkillDao {
 
     @Query("SELECT * FROM student_skills WHERE studentId = :studentId")
     suspend fun getSkillsForStudent(studentId: Long): List<StudentSkill>
+
+    @Query("SELECT * FROM student_skills")
+    suspend fun getAllSkills(): List<StudentSkill>
 }

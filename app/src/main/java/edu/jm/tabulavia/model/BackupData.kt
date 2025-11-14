@@ -9,5 +9,6 @@ data class BackupData(
     val classSessions: List<ClassSession>,
     val attendanceRecords: List<AttendanceRecord>,
     val activities: List<Activity>,
-    val groupMembers: List<GroupMember> = emptyList() // Adicionado com valor padrão
+    val groupMembers: List<GroupMember> = emptyList(),
+    val studentSkills: List<StudentSkill> = emptyList()
 )

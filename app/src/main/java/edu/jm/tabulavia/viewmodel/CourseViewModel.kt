@@ -440,7 +440,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 classSessions = attendanceDao.getAllSessions(),
                 attendanceRecords = attendanceDao.getAllRecords(),
                 activities = activityDao.getAllActivities(),
-                groupMembers = groupMemberDao.getAllGroupMembers()
+                groupMembers = groupMemberDao.getAllGroupMembers(),
+                studentSkills = skillDao.getAllSkills() // Adicionado
             )
             val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
 
@@ -475,6 +476,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 attendanceDao.insertAllSessions(backupData.classSessions)
                 attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
                 groupMemberDao.insertAll(backupData.groupMembers)
+                skillDao.insertOrUpdateSkills(backupData.studentSkills) // Adicionado
             }
 
             loadAllCourses()
