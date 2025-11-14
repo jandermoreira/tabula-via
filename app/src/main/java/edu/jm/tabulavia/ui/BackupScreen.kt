@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -70,7 +70,7 @@ fun BackupScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
-                            Icons.Filled.CloudUpload,
+                            Icons.Filled.Psychology,
                             contentDescription = "Fazer Backup"
                         )
                         Spacer(Modifier.size(ButtonDefaults.IconSpacing))

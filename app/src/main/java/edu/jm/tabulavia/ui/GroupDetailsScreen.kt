@@ -1,5 +1,6 @@
 package edu.jm.tabulavia.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,11 +10,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.viewmodel.CourseViewModel
@@ -26,6 +25,7 @@ fun GroupDetailsScreen(
     onNavigateBack: () -> Unit
 ) {
     val students by viewModel.selectedGroupDetails.collectAsState()
+    var showDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(groupNumber) {
         viewModel.loadGroupDetails(groupNumber)
@@ -43,6 +43,11 @@ fun GroupDetailsScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { /* TODO */ }) {
+                        Icon(Icons.Default.Add, contentDescription = "Adicionar")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.primary,
@@ -58,8 +63,21 @@ fun GroupDetailsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(students, key = { it.studentId }) { student ->
-                StudentItem(student = student)
+                StudentItem(student = student, modifier = Modifier.clickable { showDialog = true })
             }
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Aluno") },
+            text = { Text("TODO") },
+            confirmButton = {
+                Button(onClick = { showDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }

@@ -9,7 +9,7 @@ import edu.jm.tabulavia.model.Course
 @Dao
 interface CourseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCourse(course: Course)
+    suspend fun insertCourse(course: Course): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(courses: List<Course>) // Para restauração

@@ -23,17 +23,19 @@ fun StudentSkillsScreen(
     onNavigateBack: () -> Unit
 ) {
     val student by viewModel.selectedStudentDetails.collectAsState()
-    val skills by viewModel.studentSkills.collectAsState()
-    var localSkills by remember { mutableStateOf<List<StudentSkill>>(emptyList()) }
+    val studentSkills by viewModel.studentSkills.collectAsState()
+    val courseSkills by viewModel.courseSkills.collectAsState()
 
-    LaunchedEffect(studentId) {
-        viewModel.loadStudentDetails(studentId) // Para obter o nome do aluno para o título
-        viewModel.loadSkillsForStudent(studentId)
+    var localSkills by remember(studentSkills) { mutableStateOf(studentSkills) }
+
+    // Filtra as habilidades do aluno para mostrar apenas as que existem na turma
+    val filteredSkills = remember(localSkills, courseSkills) {
+        val validSkillNames = courseSkills.map { it.skillName }.toSet()
+        localSkills.filter { it.skillName in validSkillNames }
     }
 
-    // Quando as habilidades são carregadas do viewModel, atualiza a cópia local
-    LaunchedEffect(skills) {
-        localSkills = skills
+    LaunchedEffect(studentId) {
+        viewModel.loadStudentDetails(studentId)
     }
 
     Scaffold(
@@ -47,6 +49,7 @@ fun StudentSkillsScreen(
                 },
                 actions = {
                     IconButton(onClick = {
+                        // Salva todas as habilidades locais, mesmo as que não são exibidas
                         viewModel.updateStudentSkills(localSkills)
                         onNavigateBack()
                     }) {
@@ -63,7 +66,7 @@ fun StudentSkillsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(localSkills) { skill ->
+            items(filteredSkills, key = { it.skillName }) { skill ->
                 SkillItemRow(
                     skill = skill,
                     onStateChange = { newState ->
@@ -104,7 +107,6 @@ fun SkillItemRow(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
-                    // Acesso ao Enum ajustado para .entries
                     SkillState.entries.forEach { state ->
                         DropdownMenuItem(
                             text = { Text(state.displayName) },

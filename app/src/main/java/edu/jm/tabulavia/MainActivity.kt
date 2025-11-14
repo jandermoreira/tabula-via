@@ -146,7 +146,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(
-                            route = "studentSkills/{studentId}", // New route
+                            route = "studentSkills/{studentId}",
                             arguments = listOf(navArgument("studentId") {
                                 type = NavType.LongType
                             })
@@ -154,6 +154,20 @@ class MainActivity : ComponentActivity() {
                             val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
                             StudentSkillsScreen(
                                 studentId = studentId,
+                                viewModel = courseViewModel,
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(
+                            route = "courseSkills/{classId}",
+                            arguments = listOf(navArgument("classId") {
+                                type = NavType.LongType
+                            })
+                        ) { backStackEntry ->
+                            val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
+                            CourseSkillsScreen(
+                                courseId = classId,
                                 viewModel = courseViewModel,
                                 onNavigateBack = { navController.popBackStack() }
                             )

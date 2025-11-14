@@ -35,6 +35,13 @@ fun StudentListScreen(
     val selectedStudent by viewModel.selectedStudentDetails.collectAsState()
     val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()
     val studentSkills by viewModel.studentSkills.collectAsState()
+    val courseSkills by viewModel.courseSkills.collectAsState()
+
+    // Filtra as habilidades do aluno para mostrar apenas as que existem na turma
+    val filteredSkills = remember(studentSkills, courseSkills) {
+        val validSkillNames = courseSkills.map { it.skillName }.toSet()
+        studentSkills.filter { it.skillName in validSkillNames }
+    }
 
     Scaffold(
         topBar = {
@@ -102,7 +109,7 @@ fun StudentListScreen(
             StudentDetailsDialog(
                 student = student,
                 attendancePercentage = attendancePercentage,
-                skills = studentSkills,
+                skills = filteredSkills, // Usa a lista filtrada
                 onDismiss = {
                     viewModel.clearStudentDetails()
                     showStudentDetailsDialog = false

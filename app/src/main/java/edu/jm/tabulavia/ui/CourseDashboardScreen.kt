@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,6 +51,7 @@ fun CourseDashboardScreen(
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val students by viewModel.studentsForClass.collectAsState()
     val activities by viewModel.activities.collectAsState()
+    val courseSkills by viewModel.courseSkills.collectAsState()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -100,8 +102,15 @@ fun CourseDashboardScreen(
             DashboardCard(
                 title = "Atividades",
                 subtitle = "${activities.size} atividades criadas",
-                icon = Icons.AutoMirrored.Filled.Assignment, // Ícone atualizado
+                icon = Icons.AutoMirrored.Filled.Assignment,
                 onClick = { navController.navigate("activityList/$classId") }
+            )
+
+            DashboardCard(
+                title = "Habilidades",
+                subtitle = "${courseSkills.size} habilidades definidas",
+                icon = Icons.Default.Psychology,
+                onClick = { navController.navigate("courseSkills/$classId") }
             )
         }
     }

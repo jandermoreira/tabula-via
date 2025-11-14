@@ -31,6 +31,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val activityDao = db.activityDao()
     private val skillDao = db.skillDao()
     private val groupMemberDao = db.groupMemberDao()
+    private val courseSkillDao = db.courseSkillDao()
 
     private val storage = Firebase.storage
     private val auth = Firebase.auth
@@ -69,6 +70,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _studentSkills = MutableStateFlow<List<StudentSkill>>(emptyList())
     val studentSkills: StateFlow<List<StudentSkill>> = _studentSkills.asStateFlow()
 
+    private val _courseSkills = MutableStateFlow<List<CourseSkill>>(emptyList())
+    val courseSkills: StateFlow<List<CourseSkill>> = _courseSkills.asStateFlow()
+
     private val _generatedGroups = MutableStateFlow<List<List<Student>>>(emptyList())
     val generatedGroups: StateFlow<List<List<Student>>> = _generatedGroups.asStateFlow()
 
@@ -94,7 +98,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     var groupingCriterion by mutableStateOf("Aleatório")
     var groupFormationType by mutableStateOf("Número de grupos")
     var groupFormationValue by mutableStateOf("")
-
+    var skillName by mutableStateOf("")
 
     init {
         loadAllCourses()
@@ -112,6 +116,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val allSessions = attendanceDao.getClassSessionsForClass(classId)
             _classSessions.value = allSessions
             _activities.value = activityDao.getActivitiesForClass(classId)
+            _courseSkills.value = courseSkillDao.getSkillsForCourse(classId)
 
             // Load today's attendance
             loadTodaysAttendance(allSessions)
@@ -154,6 +159,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         _activities.value = emptyList()
         editingSession = null
         _todaysAttendance.value = emptyMap()
+        _courseSkills.value = emptyList()
     }
 
     fun onUserMessageShown() {
@@ -208,9 +214,28 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         "Técnica", "Colaboração", "Reflexão"
     )
 
-    fun loadSkillsForStudent(studentId: Long) {
+    fun loadSkillsForCourse(courseId: Long) {
         viewModelScope.launch {
-            _studentSkills.value = skillDao.getSkillsForStudent(studentId)
+            _courseSkills.value = courseSkillDao.getSkillsForCourse(courseId)
+        }
+    }
+
+    fun addCourseSkill(onSkillAdded: () -> Unit) {
+        val courseId = _selectedCourse.value?.classId ?: return
+        if (skillName.isNotBlank()) {
+            viewModelScope.launch {
+                courseSkillDao.insertCourseSkills(listOf(CourseSkill(courseId, skillName)))
+                skillName = ""
+                loadSkillsForCourse(courseId)
+                onSkillAdded()
+            }
+        }
+    }
+
+    fun deleteCourseSkill(skill: CourseSkill) {
+        viewModelScope.launch {
+            courseSkillDao.deleteCourseSkill(skill)
+            loadSkillsForCourse(skill.courseId)
         }
     }
 
@@ -441,7 +466,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 attendanceRecords = attendanceDao.getAllRecords(),
                 activities = activityDao.getAllActivities(),
                 groupMembers = groupMemberDao.getAllGroupMembers(),
-                studentSkills = skillDao.getAllSkills() // Adicionado
+                studentSkills = skillDao.getAllSkills(),
+                courseSkills = courseSkillDao.getAllCourseSkills()
             )
             val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
 
@@ -476,7 +502,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 attendanceDao.insertAllSessions(backupData.classSessions)
                 attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
                 groupMemberDao.insertAll(backupData.groupMembers)
-                skillDao.insertOrUpdateSkills(backupData.studentSkills) // Adicionado
+                skillDao.insertOrUpdateSkills(backupData.studentSkills)
+                courseSkillDao.insertCourseSkills(backupData.courseSkills)
             }
 
             loadAllCourses()
@@ -489,14 +516,19 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     // --- CLASS AND STUDENT LOGIC ---
     fun addCourse(onCourseAdded: () -> Unit) {
         if (courseName.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
-            val newCourse = Course(
-                className = courseName,
-                academicYear = academicYear,
-                period = period,
-                numberOfClasses = numberOfClasses
-            )
             viewModelScope.launch {
-                courseDao.insertCourse(newCourse)
+                val newCourse = Course(
+                    className = courseName,
+                    academicYear = academicYear,
+                    period = period,
+                    numberOfClasses = numberOfClasses
+                )
+                val courseId = courseDao.insertCourse(newCourse)
+
+                // Adicionar habilidades padrão para o novo curso
+                val skills = defaultSkills.map { CourseSkill(courseId = courseId, skillName = it) }
+                courseSkillDao.insertCourseSkills(skills)
+
                 courseName = ""
                 academicYear = ""
                 period = ""
@@ -521,8 +553,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     val newStudentId = studentDao.insertStudent(newStudent)
 
-                    val skillsToCreate = defaultSkills.map { skillName ->
-                        StudentSkill(studentId = newStudentId, skillName = skillName, state = SkillState.NAO_SE_APLICA)
+                    // Obter habilidades do curso e criar para o aluno
+                    val courseSkills = courseSkillDao.getSkillsForCourse(classId)
+                    val skillsToCreate = courseSkills.map { courseSkill ->
+                        StudentSkill(studentId = newStudentId, skillName = courseSkill.skillName, state = SkillState.NAO_SE_APLICA)
                     }
                     skillDao.insertOrUpdateSkills(skillsToCreate)
 
@@ -546,6 +580,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 val ignoredStudents = mutableListOf<String>()
                 var addedCount = 0
 
+                // Obter habilidades do curso
+                val courseSkills = courseSkillDao.getSkillsForCourse(classId)
+
                 bulkStudentText.lines().forEach { line ->
                     val parts = line.trim().split(Regex("\\s+"), 2)
                     if (parts.size == 2) {
@@ -563,8 +600,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                                 )
                                 val newStudentId = studentDao.insertStudent(newStudent)
 
-                                val skillsToCreate = defaultSkills.map { skillName ->
-                                    StudentSkill(studentId = newStudentId, skillName = skillName, state = SkillState.NAO_SE_APLICA)
+                                val skillsToCreate = courseSkills.map { courseSkill ->
+                                    StudentSkill(studentId = newStudentId, skillName = courseSkill.skillName, state = SkillState.NAO_SE_APLICA)
                                 }
                                 skillDao.insertOrUpdateSkills(skillsToCreate)
                                 addedCount++
