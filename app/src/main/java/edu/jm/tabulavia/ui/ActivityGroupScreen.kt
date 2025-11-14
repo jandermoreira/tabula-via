@@ -16,13 +16,11 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -42,8 +40,17 @@ fun ActivityGroupScreen(
     val groupingCriteria = listOf("Aleatório", "Manual", "Balanceado por habilidade")
     val groupFormationOptions = listOf("Número de grupos", "Alunos por grupo")
 
+    var showConfigView by remember { mutableStateOf(false) }
+
     LaunchedEffect(activityId) {
         viewModel.loadActivityDetails(activityId)
+    }
+
+    // When new groups are generated, hide the config view
+    LaunchedEffect(generatedGroups) {
+        if (generatedGroups.isNotEmpty()) {
+            showConfigView = false
+        }
     }
 
     Scaffold(
@@ -56,8 +63,8 @@ fun ActivityGroupScreen(
                     }
                 },
                 actions = {
-                    if (generatedGroups.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.clearGroups() }) {
+                    if (generatedGroups.isNotEmpty() && !showConfigView) {
+                        IconButton(onClick = { showConfigView = true }) {
                             Icon(Icons.Default.Refresh, contentDescription = "Refazer Grupos")
                         }
                     }
@@ -72,9 +79,14 @@ fun ActivityGroupScreen(
         Column(
             modifier = Modifier.padding(paddingValues)
         ) {
-            if (generatedGroups.isEmpty()) {
+            if (generatedGroups.isEmpty() || showConfigView) {
                 // --- Configuration Mode ---
-                ConfigurationView(viewModel, groupingCriteria, groupFormationOptions)
+                ConfigurationView(
+                    viewModel,
+                    groupingCriteria,
+                    groupFormationOptions,
+                    onCancel = { showConfigView = false }
+                )
             } else {
                 // --- Display Mode ---
                 GroupsView(generatedGroups, onGroupClicked)
@@ -88,7 +100,8 @@ fun ActivityGroupScreen(
 private fun ConfigurationView(
     viewModel: CourseViewModel,
     groupingCriteria: List<String>,
-    groupFormationOptions: List<String>
+    groupFormationOptions: List<String>,
+    onCancel: () -> Unit
 ) {
     Column(modifier = Modifier.padding(16.dp)) {
         // --- Grouping Criterion ---
@@ -142,7 +155,7 @@ private fun ConfigurationView(
         // --- Conditional Options ---
         when (viewModel.groupingCriterion) {
             "Aleatório" -> {
-                RandomGroupOptions(viewModel, groupFormationOptions)
+                RandomGroupOptions(viewModel, groupFormationOptions, onCancel)
             }
             "Manual" -> {
                 // TODO: Implementar UI para agrupamento manual
@@ -159,7 +172,11 @@ private fun ConfigurationView(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RandomGroupOptions(viewModel: CourseViewModel, groupFormationOptions: List<String>) {
+private fun RandomGroupOptions(
+    viewModel: CourseViewModel,
+    groupFormationOptions: List<String>,
+    onCancel: () -> Unit
+) {
     Column {
         Text("Opções de Formação", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(8.dp))
@@ -184,11 +201,22 @@ private fun RandomGroupOptions(viewModel: CourseViewModel, groupFormationOptions
             singleLine = true
         )
         Spacer(Modifier.height(16.dp))
-        Button(
-            onClick = { viewModel.createBalancedGroups() },
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Criar Grupos")
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Cancelar")
+            }
+            Button(
+                onClick = { viewModel.createBalancedGroups() },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Criar Grupos")
+            }
         }
     }
 }
@@ -224,6 +252,7 @@ fun GroupCard(groupNumber: Int, studentCount: Int, onClick: () -> Unit) {
         Text(
             text = "Grupo $groupNumber",
             style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
         Text(

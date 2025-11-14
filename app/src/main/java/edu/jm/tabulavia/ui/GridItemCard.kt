@@ -21,7 +21,7 @@ fun GridItemCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = modifier.aspectRatio(1f),
+        modifier = modifier.aspectRatio(1.25f),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -29,7 +29,7 @@ fun GridItemCard(
                 .fillMaxSize()
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
             content()
         }

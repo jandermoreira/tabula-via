@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Student
@@ -30,7 +31,8 @@ fun StudentItem(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = student.displayName,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
     }
