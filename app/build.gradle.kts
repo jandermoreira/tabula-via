@@ -68,6 +68,11 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material.icons.extended)
 
+    // Credential Manager for Sign-In
+    implementation(libs.androidx.credentials.lib)
+    implementation(libs.androidx.credentials.playservicesauth)
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
+    // Old Play Services Auth - can be removed if not used elsewhere
     implementation(libs.play.services.auth)
 
     implementation(platform(libs.firebase.bom))
