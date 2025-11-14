@@ -15,9 +15,10 @@ import edu.jm.tabulavia.model.*
         Activity::class,
         StudentSkill::class,
         GroupMember::class,
-        CourseSkill::class // Adicionada a nova entidade
+        CourseSkill::class,
+        SkillAssessment::class // Adicionada a nova entidade
     ],
-    version = 6, // Versão incrementada para 6
+    version = 7, // Versão incrementada para 7
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -29,7 +30,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun activityDao(): ActivityDao
     abstract fun skillDao(): SkillDao
     abstract fun groupMemberDao(): GroupMemberDao
-    abstract fun courseSkillDao(): CourseSkillDao // Adicionado o novo DAO
+    abstract fun courseSkillDao(): CourseSkillDao
+    abstract fun skillAssessmentDao(): SkillAssessmentDao // Adicionado o novo DAO
 }
 
 class Converters {
@@ -39,10 +41,15 @@ class Converters {
     @androidx.room.TypeConverter
     fun toAttendanceStatus(value: String) = AttendanceStatus.valueOf(value)
 
-    // Conversores para o novo SkillState
     @androidx.room.TypeConverter
-    fun fromSkillState(value: SkillState) = value.name
+    fun fromSkillLevel(value: SkillLevel) = value.name
 
     @androidx.room.TypeConverter
-    fun toSkillState(value: String) = SkillState.valueOf(value)
+    fun toSkillLevel(value: String) = SkillLevel.valueOf(value)
+
+    @androidx.room.TypeConverter
+    fun fromAssessmentSource(value: AssessmentSource) = value.name
+
+    @androidx.room.TypeConverter
+    fun toAssessmentSource(value: String) = AssessmentSource.valueOf(value)
 }

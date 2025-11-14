@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Remove
@@ -21,23 +22,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import edu.jm.tabulavia.model.SkillState
+import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.model.Student
-import edu.jm.tabulavia.model.StudentSkill
+import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 @Composable
 fun StudentDetailsDialog(
     student: Student,
     attendancePercentage: Float?,
-    skills: List<StudentSkill>,
+    viewModel: CourseViewModel, // Adicionado o ViewModel
     onDismiss: () -> Unit,
     onEditSkills: () -> Unit
 ) {
+    val skillSummaries by viewModel.studentSkillSummaries.collectAsState()
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(student.name) },
@@ -53,22 +58,28 @@ fun StudentDetailsDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Habilidades", style = MaterialTheme.typography.titleMedium)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                if (skills.isEmpty()) {
-                    Text("Nenhuma habilidade registrada.")
+                if (skillSummaries.isEmpty()) {
+                    Text("Nenhuma habilidade registrada para este aluno ou turma.")
                 } else {
-                    skills.forEach { skill ->
+                    skillSummaries.values.forEach { skillSummary ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(bottom = 4.dp)
                         ) {
+                            val hasAnyAssessment = skillSummary.professorAssessment != null ||
+                                    skillSummary.selfAssessment != null ||
+                                    skillSummary.peerAssessment != null
+
+                            // Exibe um ícone simples para indicar se a habilidade tem alguma avaliação
+                            // Para detalhes, o usuário deve ir para a tela de habilidades
                             Icon(
-                                imageVector = skill.state.toIcon(),
-                                contentDescription = skill.state.displayName,
-                                tint = skill.state.toColor(),
+                                imageVector = if (hasAnyAssessment) Icons.Filled.CheckCircle else Icons.Filled.Remove,
+                                contentDescription = if (hasAnyAssessment) "Habilidade Avaliada" else "Habilidade Não Avaliada",
+                                tint = if (hasAnyAssessment) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(skill.skillName, style = MaterialTheme.typography.bodyMedium)
+                            Text(skillSummary.skillName, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -93,21 +104,6 @@ fun StudentDetailsDialog(
     )
 }
 
-fun SkillState.toIcon(): ImageVector {
-    return when (this) {
-        SkillState.ALTO -> Icons.Filled.ArrowUpward
-        SkillState.MEDIO -> Icons.Filled.DragHandle
-        SkillState.BAIXO -> Icons.Filled.ArrowDownward
-        SkillState.NAO_SE_APLICA -> Icons.Filled.Remove
-    }
-}
-
-@Composable
-fun SkillState.toColor(): Color {
-    return when (this) {
-        SkillState.ALTO -> Color(0xFF4CAF50) // Verde
-        SkillState.MEDIO -> Color(0xFFFFC107) // Amarelo
-        SkillState.BAIXO -> MaterialTheme.colorScheme.error // Vermelho
-        SkillState.NAO_SE_APLICA -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) // Cinza
-    }
-}
+// Removidas as funções de extensão toIcon() e toColor() de SkillState
+// porque SkillState foi substituído por SkillLevel e a lógica de exibição
+// agora lida com múltiplas fontes de avaliação.

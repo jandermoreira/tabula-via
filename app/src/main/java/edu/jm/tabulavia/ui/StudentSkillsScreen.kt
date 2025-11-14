@@ -5,14 +5,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import edu.jm.tabulavia.model.SkillState
-import edu.jm.tabulavia.model.StudentSkill
+import edu.jm.tabulavia.model.AssessmentSource
+import edu.jm.tabulavia.model.SkillAssessmentsSummary
+import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,15 +23,14 @@ fun StudentSkillsScreen(
     onNavigateBack: () -> Unit
 ) {
     val student by viewModel.selectedStudentDetails.collectAsState()
-    val studentSkills by viewModel.studentSkills.collectAsState()
-    val courseSkills by viewModel.courseSkills.collectAsState()
+    val skillSummaries by viewModel.studentSkillSummaries.collectAsState()
+    val courseSkills by viewModel.courseSkills.collectAsState() // Still useful for displaying all skills
 
-    var localSkills by remember(studentSkills) { mutableStateOf(studentSkills) }
-
-    // Filtra as habilidades do aluno para mostrar apenas as que existem na turma
-    val filteredSkills = remember(localSkills, courseSkills) {
+    // Filter skillSummaries to show only skills that exist in the courseSkills
+    val filteredSkillSummaries = remember(skillSummaries, courseSkills) {
         val validSkillNames = courseSkills.map { it.skillName }.toSet()
-        localSkills.filter { it.skillName in validSkillNames }
+        skillSummaries.filterKeys { it in validSkillNames }.values.toList()
+            .sortedBy { it.skillName } // Optional: keep them sorted
     }
 
     LaunchedEffect(studentId) {
@@ -46,16 +45,8 @@ fun StudentSkillsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
                     }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        // Salva todas as habilidades locais, mesmo as que não são exibidas
-                        viewModel.updateStudentSkills(localSkills)
-                        onNavigateBack()
-                    }) {
-                        Icon(Icons.Default.Save, "Salvar Habilidades")
-                    }
                 }
+                // Removed actions for save button
             )
         }
     ) { paddingValues ->
@@ -66,18 +57,12 @@ fun StudentSkillsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(filteredSkills, key = { it.skillName }) { skill ->
+            items(filteredSkillSummaries, key = { it.skillName }) { skillSummary ->
                 SkillItemRow(
-                    skill = skill,
-                    onStateChange = { newState ->
-                        val updatedList = localSkills.map {
-                            if (it.skillName == skill.skillName) {
-                                it.copy(state = newState)
-                            } else {
-                                it
-                            }
-                        }
-                        localSkills = updatedList
+                    studentId = studentId,
+                    skillSummary = skillSummary,
+                    onAssessmentChange = { level, source ->
+                        viewModel.addSkillAssessment(studentId, skillSummary.skillName, level, source)
                     }
                 )
             }
@@ -87,35 +72,78 @@ fun StudentSkillsScreen(
 
 @Composable
 fun SkillItemRow(
-    skill: StudentSkill,
-    onStateChange: (SkillState) -> Unit
+    studentId: Long,
+    skillSummary: SkillAssessmentsSummary,
+    onAssessmentChange: (SkillLevel, AssessmentSource) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = skillSummary.skillName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+
+            // Professor Observation
+            AssessmentSourceRow(
+                studentId = studentId,
+                skillName = skillSummary.skillName,
+                source = AssessmentSource.PROFESSOR_OBSERVATION,
+                currentLevel = skillSummary.professorAssessment?.level,
+                onAssessmentChange = onAssessmentChange
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Self-Assessment
+            AssessmentSourceRow(
+                studentId = studentId,
+                skillName = skillSummary.skillName,
+                source = AssessmentSource.SELF_ASSESSMENT,
+                currentLevel = skillSummary.selfAssessment?.level,
+                onAssessmentChange = onAssessmentChange
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Peer Assessment
+            AssessmentSourceRow(
+                studentId = studentId,
+                skillName = skillSummary.skillName,
+                source = AssessmentSource.PEER_ASSESSMENT,
+                currentLevel = skillSummary.peerAssessment?.level,
+                onAssessmentChange = onAssessmentChange
+            )
+        }
+    }
+}
+
+@Composable
+fun AssessmentSourceRow(
+    studentId: Long,
+    skillName: String,
+    source: AssessmentSource,
+    currentLevel: SkillLevel?,
+    onAssessmentChange: (SkillLevel, AssessmentSource) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = skill.skillName, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Box {
-                OutlinedButton(onClick = { expanded = true }) {
-                    Text(skill.state.displayName)
-                }
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    SkillState.entries.forEach { state ->
-                        DropdownMenuItem(
-                            text = { Text(state.displayName) },
-                            onClick = {
-                                onStateChange(state)
-                                expanded = false
-                            }
-                        )
-                    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = source.displayName, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Box {
+            OutlinedButton(onClick = { expanded = true }) {
+                Text(currentLevel?.displayName ?: "Avaliar")
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                SkillLevel.entries.filter { it != SkillLevel.NOT_APPLICABLE }.forEach { level -> // Exclude NOT_APPLICABLE from direct selection
+                    DropdownMenuItem(
+                        text = { Text(level.displayName) },
+                        onClick = {
+                            onAssessmentChange(level, source)
+                            expanded = false
+                        }
+                    )
                 }
             }
         }

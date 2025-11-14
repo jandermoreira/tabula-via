@@ -10,7 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.* // Added for remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -34,14 +34,10 @@ fun StudentListScreen(
     var showStudentDetailsDialog by remember { mutableStateOf(false) }
     val selectedStudent by viewModel.selectedStudentDetails.collectAsState()
     val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()
-    val studentSkills by viewModel.studentSkills.collectAsState()
-    val courseSkills by viewModel.courseSkills.collectAsState()
+    // Removed: val studentSkills by viewModel.studentSkills.collectAsState()
+    // Removed: val courseSkills by viewModel.courseSkills.collectAsState()
 
-    // Filtra as habilidades do aluno para mostrar apenas as que existem na turma
-    val filteredSkills = remember(studentSkills, courseSkills) {
-        val validSkillNames = courseSkills.map { it.skillName }.toSet()
-        studentSkills.filter { it.skillName in validSkillNames }
-    }
+    // Removed: val filteredSkills = remember(studentSkills, courseSkills) { ... }
 
     Scaffold(
         topBar = {
@@ -109,7 +105,8 @@ fun StudentListScreen(
             StudentDetailsDialog(
                 student = student,
                 attendancePercentage = attendancePercentage,
-                skills = filteredSkills, // Usa a lista filtrada
+                // Removed: skills = filteredSkills, // Usa a lista filtrada
+                viewModel = viewModel, // Pass the viewModel to StudentDetailsDialog
                 onDismiss = {
                     viewModel.clearStudentDetails()
                     showStudentDetailsDialog = false
