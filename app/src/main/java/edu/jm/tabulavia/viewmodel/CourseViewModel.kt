@@ -319,16 +319,20 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     // --- NOVO: Lógica para calcular o status das habilidades do aluno ---
     private suspend fun calculateStudentSkillStatus(studentId: Long, historyCount: Int = 3) {
+        // Obtém todas as avaliações do aluno a partir do DAO. O .first() é importante para obter o valor do Flow.
         val allAssessments = skillAssessmentDao.getAllAssessmentsForStudent(studentId).first()
         // Usar _courseSkills.value, que deve ser populado por loadCourseDetails
         val courseSkills = _courseSkills.value 
 
-        val statuses = courseSkills.map { courseSkill ->
+        val statuses = courseSkills.map {
+            courseSkill -> // O operador 'val' foi adicionado para resolver o erro de sintaxe
+            // Para cada habilidade da turma, filtre as avaliações do aluno
             val relevantAssessments = allAssessments
                 .filter { it.skillName == courseSkill.skillName }
                 .sortedByDescending { it.timestamp } // Mais recente primeiro
 
             if (relevantAssessments.isEmpty()) {
+                // Se não houver avaliações, cria um status "Não Avaliado"
                 SkillStatus(
                     skillName = courseSkill.skillName,
                     currentLevel = SkillLevel.NOT_APPLICABLE,
@@ -370,7 +374,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
         _studentSkillStatuses.value = statuses
     }
-}
 
     // --- ACTIVITY LOGIC ---
     fun loadActivityDetails(activityId: Long) {
