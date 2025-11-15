@@ -13,7 +13,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.* // Added for remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.R
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
@@ -65,7 +67,7 @@ fun StudentListScreen(
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddStudentDialog = true }) {
                 Icon(
-                    imageVector = Icons.Filled.PersonAddAlt,
+                    painter = painterResource(id = R.drawable.student_lemonade),
                     contentDescription = "Adicionar Aluno"
                 )
             }

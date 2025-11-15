@@ -15,6 +15,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Student
+import androidx.compose.ui.res.painterResource
+import edu.jm.tabulavia.R
+import androidx.compose.ui.graphics.Color // Adicionar esta importação para Color.Unspecified
 
 @Composable
 fun StudentItem(
@@ -24,9 +27,10 @@ fun StudentItem(
 ) {
     GridItemCard(modifier = modifier.alpha(if (isAbsent) 0.5f else 1f)) {
         Icon(
-            imageVector = Icons.Default.Person,
+            painter = painterResource(id = R.drawable.student_coconut),
             contentDescription = "Ícone do Aluno",
-            modifier = Modifier.size(40.dp)
+            modifier = Modifier.size(40.dp),
+            tint = Color.Unspecified // Definir tint como Unspecified para manter as cores originais da imagem
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
