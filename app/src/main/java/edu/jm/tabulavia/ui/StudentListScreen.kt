@@ -24,8 +24,8 @@ import edu.jm.tabulavia.viewmodel.CourseViewModel
 @Composable
 fun StudentListScreen(
     viewModel: CourseViewModel,
-    onNavigateBack: () -> Unit,
-    onNavigateToSkills: (Long) -> Unit
+    onNavigateBack: () -> Unit
+    // onNavigateToSkills: (Long) -> Unit // Removido: A funcionalidade de edição de habilidades foi removida
 ) {
     var showAddStudentDialog by remember { mutableStateOf(false) }
     var showEditStudentDialog by remember { mutableStateOf(false) }
@@ -112,11 +112,11 @@ fun StudentListScreen(
                 onDismiss = {
                     viewModel.clearStudentDetails()
                     showStudentDetailsDialog = false
-                },
-                onEditSkills = {
-                    onNavigateToSkills(student.studentId)
-                    showStudentDetailsDialog = false
                 }
+                // onEditSkills = { // Removido: A funcionalidade de edição de habilidades foi removida
+                //     onNavigateToSkills(student.studentId)
+                //     showStudentDetailsDialog = false
+                // }
             )
         }
     }

@@ -138,13 +138,13 @@ class MainActivity : ComponentActivity() {
                         ) {
                             StudentListScreen(
                                 viewModel = courseViewModel,
-                                onNavigateBack = { navController.popBackStack() },
-                                onNavigateToSkills = { studentId ->
-                                    navController.navigate("studentSkills/$studentId")
-                                }
+                                onNavigateBack = { navController.popBackStack() }
+                                // Removed onNavigateToSkills lambda here as the feature is removed
                             )
                         }
 
+                        // The 'studentSkills' composable route is commented out and removed from navigation.
+                        /*
                         composable(
                             route = "studentSkills/{studentId}",
                             arguments = listOf(navArgument("studentId") {
@@ -158,6 +158,7 @@ class MainActivity : ComponentActivity() {
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }
+                        */
 
                         composable(
                             route = "courseSkills/{classId}",

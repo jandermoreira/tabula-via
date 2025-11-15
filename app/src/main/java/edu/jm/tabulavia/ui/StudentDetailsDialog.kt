@@ -12,7 +12,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.Edit
+// import androidx.compose.material.icons.filled.Edit // Removido, pois o botão de editar foi removido
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -38,10 +38,10 @@ fun StudentDetailsDialog(
     student: Student,
     attendancePercentage: Float?,
     viewModel: CourseViewModel, // Adicionado o ViewModel
-    onDismiss: () -> Unit,
-    onEditSkills: () -> Unit
+    onDismiss: () -> Unit
+    // onEditSkills: () -> Unit // Removido: A funcionalidade de edição de habilidades foi removida
 ) {
-    val skillSummaries by viewModel.studentSkillSummaries.collectAsState()
+    // val skillSummaries by viewModel.studentSkillSummaries.collectAsState() // Removido: Não é mais necessário exibir habilidades aqui
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -55,6 +55,8 @@ fun StudentDetailsDialog(
                 } else {
                     Text("Frequência: Impossível", color = MaterialTheme.colorScheme.error)
                 }
+                // A seção de habilidades foi completamente removida do diálogo:
+                /*
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Habilidades", style = MaterialTheme.typography.titleMedium)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -70,8 +72,6 @@ fun StudentDetailsDialog(
                                     skillSummary.selfAssessment != null ||
                                     skillSummary.peerAssessment != null
 
-                            // Exibe um ícone simples para indicar se a habilidade tem alguma avaliação
-                            // Para detalhes, o usuário deve ir para a tela de habilidades
                             Icon(
                                 imageVector = if (hasAnyAssessment) Icons.Filled.CheckCircle else Icons.Filled.Remove,
                                 contentDescription = if (hasAnyAssessment) "Habilidade Avaliada" else "Habilidade Não Avaliada",
@@ -83,23 +83,14 @@ fun StudentDetailsDialog(
                         }
                     }
                 }
+                */
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text("Fechar")
             }
-        },
-        dismissButton = {
-            Button(onClick = onEditSkills) {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = "Editar Habilidades",
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("Editar")
-            }
         }
+        // dismissButton com o botão "Editar" foi removido
     )
 }

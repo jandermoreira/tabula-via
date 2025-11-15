@@ -186,7 +186,6 @@ fun AttendanceItem(student: Student, status: AttendanceStatus, onStatusChange: (
                     tint = Color.Unspecified
                 )
             } else {
-                // Fallback icon
                 Icon(
                     painter = painterResource(id = R.drawable.student_0),
                     contentDescription = "Ícone do Aluno Padrão",
