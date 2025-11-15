@@ -67,7 +67,7 @@ fun StudentListScreen(
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddStudentDialog = true }) {
                 Icon(
-                    painter = painterResource(id = R.drawable.student_lemonade),
+                    painter = painterResource(id = R.drawable.student_0),
                     contentDescription = "Adicionar Aluno"
                 )
             }
