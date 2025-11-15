@@ -13,7 +13,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.R
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
@@ -111,7 +115,7 @@ fun AttendanceScreen(
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(students) { student ->
+                    items(students, key = { it.studentId }) { student ->
                         AttendanceItem(
                             student = student,
                             status = attendanceMap[student.studentId] ?: AttendanceStatus.PRESENT,
@@ -164,13 +168,38 @@ fun Calendar.toFormattedDateString(): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttendanceItem(student: Student, status: AttendanceStatus, onStatusChange: (AttendanceStatus) -> Unit) {
+    val context = LocalContext.current
+    val iconIndex = (student.studentId.mod(80L) + 1).toInt()
+    val iconName = "student_${iconIndex}"
+    val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            if (drawableResId != 0) {
+                Icon(
+                    painter = painterResource(id = drawableResId),
+                    contentDescription = "Ícone do Aluno ${iconIndex}",
+                    modifier = Modifier.size(32.dp), // Ícone um pouco menor
+                    tint = Color.Unspecified
+                )
+            } else {
+                // Fallback icon
+                Icon(
+                    painter = painterResource(id = R.drawable.student_0),
+                    contentDescription = "Ícone do Aluno Padrão",
+                    modifier = Modifier.size(32.dp),
+                    tint = Color.Unspecified
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             Text(text = student.displayName, modifier = Modifier.weight(1f))
+
+            Spacer(modifier = Modifier.width(8.dp))
 
             SingleChoiceSegmentedButtonRow {
                 SegmentedButton(
