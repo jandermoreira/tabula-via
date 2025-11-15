@@ -87,6 +87,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _selectedGroupDetails = MutableStateFlow<List<Student>>(emptyList())
     val selectedGroupDetails: StateFlow<List<Student>> = _selectedGroupDetails.asStateFlow()
 
+    // --- NOVO: StateFlow para os status de habilidades calculados ---
+    private val _studentSkillStatuses = MutableStateFlow<List<SkillStatus>>(emptyList())
+    val studentSkillStatuses: StateFlow<List<SkillStatus>> = _studentSkillStatuses.asStateFlow()
+
     // --- Form State ---
     var courseName by mutableStateOf("")
     var academicYear by mutableStateOf("")
@@ -165,6 +169,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         editingSession = null
         _todaysAttendance.value = emptyMap()
         _courseSkills.value = emptyList()
+        _studentSkillStatuses.value = emptyList() // Limpar também os status de habilidades
     }
 
     fun onUserMessageShown() {
@@ -200,8 +205,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
             val classId = _selectedCourse.value?.classId ?: return@launch // Get classId from selectedCourse
             val courseSkills = courseSkillDao.getSkillsForCourse(classId)
-            val allAssessments = skillAssessmentDao.getAllAssessmentsForStudent(studentId).first()
+            _courseSkills.value = courseSkills // Garantir que courseSkills esteja atualizado no StateFlow
 
+            // --- Removido a lógica de summariesMap, pois será substituída por SkillStatus ---
+            /*
+            val allAssessments = skillAssessmentDao.getAllAssessmentsForStudent(studentId).first()
             val summariesMap = courseSkills.associate { courseSkill ->
                 val skillName = courseSkill.skillName
                 val assessmentsForSkill = allAssessments.filter { it.skillName == skillName }
@@ -216,7 +224,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 skillName to SkillAssessmentsSummary(skillName, professorAssessment, selfAssessment, peerAssessment)
             }
             _studentSkillSummaries.value = summariesMap
+            */
 
+            // --- NOVO: Calcular e expor os status das habilidades ---
+            calculateStudentSkillStatus(studentId)
 
             val totalClasses = _selectedCourse.value?.numberOfClasses ?: 0
             if (totalClasses > 0) {
@@ -232,7 +243,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         _selectedStudentDetails.value = null
         _studentAttendancePercentage.value = null
         // REMOVED: _studentSkills.value = emptyList()
-        _studentSkillSummaries.value = emptyMap()
+        _studentSkillSummaries.value = emptyMap() // Manter para compatibilidade por enquanto, se ainda houver referências
+        _studentSkillStatuses.value = emptyList() // Limpar também os status de habilidades
     }
 
     // --- SKILL LOGIC ---
@@ -285,7 +297,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             )
             skillAssessmentDao.insert(assessment)
             // After inserting, reload student details to update the UI
-            loadStudentDetails(studentId)
+            loadStudentDetails(studentId) // Isso acionará o recálculo do SkillStatus
         }
     }
     
@@ -301,9 +313,64 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 )
             }
             skillAssessmentDao.insertAll(newAssessments)
-            loadStudentDetails(studentId) // Reload to update UI
+            loadStudentDetails(studentId) // Isso acionará o recálculo do SkillStatus
         }
     }
+
+    // --- NOVO: Lógica para calcular o status das habilidades do aluno ---
+    private suspend fun calculateStudentSkillStatus(studentId: Long, historyCount: Int = 3) {
+        val allAssessments = skillAssessmentDao.getAllAssessmentsForStudent(studentId).first()
+        // Usar _courseSkills.value, que deve ser populado por loadCourseDetails
+        val courseSkills = _courseSkills.value 
+
+        val statuses = courseSkills.map { courseSkill ->
+            val relevantAssessments = allAssessments
+                .filter { it.skillName == courseSkill.skillName }
+                .sortedByDescending { it.timestamp } // Mais recente primeiro
+
+            if (relevantAssessments.isEmpty()) {
+                SkillStatus(
+                    skillName = courseSkill.skillName,
+                    currentLevel = SkillLevel.NOT_APPLICABLE,
+                    trend = SkillTrend.STABLE, // Ou outro padrão para 'sem avaliações'
+                    assessmentCount = 0,
+                    lastAssessedTimestamp = 0L
+                )
+            } else {
+                // Pegar as últimas `historyCount` avaliações para o cálculo da tendência
+                val assessmentsForTrend = relevantAssessments.take(historyCount)
+
+                // O nível atual é a avaliação mais recente
+                val currentLevel = assessmentsForTrend.first().level
+
+                // Lógica simples para tendência:
+                // Compara o nível mais recente com o nível mais antigo dentro do histórico considerado.
+                val trend = if (assessmentsForTrend.size > 1) {
+                    val newestLevelOrdinal = assessmentsForTrend.first().level.ordinal
+                    val oldestLevelOrdinal = assessmentsForTrend.last().level.ordinal
+
+                    when {
+                        newestLevelOrdinal > oldestLevelOrdinal -> SkillTrend.IMPROVING
+                        newestLevelOrdinal < oldestLevelOrdinal -> SkillTrend.DECLINING
+                        else -> SkillTrend.STABLE
+                    }
+                } else {
+                    // Se houver apenas uma avaliação, consideramos estável
+                    SkillTrend.STABLE
+                }
+
+                SkillStatus(
+                    skillName = courseSkill.skillName,
+                    currentLevel = currentLevel,
+                    trend = trend,
+                    assessmentCount = relevantAssessments.size, // Todas as avaliações para o total
+                    lastAssessedTimestamp = relevantAssessments.first().timestamp
+                )
+            }
+        }
+        _studentSkillStatuses.value = statuses
+    }
+}
 
     // --- ACTIVITY LOGIC ---
     fun loadActivityDetails(activityId: Long) {
@@ -615,7 +682,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     // REMOVED: Obter habilidades do curso e criar para o aluno
                     // REMOVED: val courseSkills = courseSkillDao.getSkillsForCourse(classId)
                     // REMOVED: val skillsToCreate = courseSkills.map { courseSkill ->
-                    // REMOVED: StudentSkill(studentId = newStudentId, skillName = courseSkill.skillName, state = SkillState.NAO_SE_APLICA)
+                    // REMOVED: StudentSkill(studentId = newStudentId, skillName = courseSkill.skillName, state = SkillLevel.NOT_APPLICABLE) // Changed state to SkillLevel
                     // REMOVED: }
                     // REMOVED: skillDao.insertOrUpdateSkills(skillsToCreate)
 
@@ -660,7 +727,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                                 val newStudentId = studentDao.insertStudent(newStudent)
 
                                 // REMOVED: val skillsToCreate = courseSkills.map { courseSkill ->
-                                // REMOVED: StudentSkill(studentId = newStudentId, skillName = courseSkill.skillName, state = SkillState.NAO_SE_APLICA)
+                                // REMOVED: StudentSkill(studentId = newStudentId, skillName = courseSkill.skillName, state = SkillLevel.NOT_APPLICABLE) // Changed state to SkillLevel
                                 // REMOVED: }
                                 // REMOVED: skillDao.insertOrUpdateSkills(skillsToCreate)
                                 addedCount++
