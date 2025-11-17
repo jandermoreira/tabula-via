@@ -19,14 +19,15 @@ import edu.jm.tabulavia.model.AssessmentSource
 import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext // Importar LocalContext
 import androidx.compose.ui.res.painterResource
-import edu.jm.tabulavia.R
+import edu.jm.tabulavia.R // Importar R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.filled.Circle
-import androidx.compose.material.icons.filled.Battery0Bar
-import androidx.compose.material.icons.filled.Battery4Bar
-import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ThumbDown
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.ui.draw.alpha
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,7 +77,8 @@ fun GroupDetailsScreen(
             students.associate { student ->
                 val iconIndex = (student.studentId.mod(80L) + 1).toInt()
                 val iconName = "student_${iconIndex}"
-                val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+                val drawableResId =
+                    context.resources.getIdentifier(iconName, "drawable", context.packageName)
                 // Retorna o ID do recurso, ou R.drawable.student_0 como fallback se não encontrado
                 student.studentId to (drawableResId.takeIf { it != 0 } ?: R.drawable.student_0)
             }
@@ -126,13 +128,11 @@ fun AssignGroupSkillsDialog(
     onDismiss: () -> Unit
 ) {
     val courseSkills by viewModel.courseSkills.collectAsState() // Precisamos das habilidades do curso para exibir
-    // Não precisamos mais carregar studentSkillSummaries, pois vamos iniciar com N.A.
 
     // Estado local para gerenciar os níveis selecionados para cada habilidade, inicializando como NOT_APPLICABLE
     var skillLevels by remember {
         mutableStateOf(
             courseSkills.associate {
-                // Para cada habilidade do curso, inicializa o nível como NOT_APLICABLE
                 it.skillName to SkillLevel.NOT_APPLICABLE
             }
         )
@@ -157,7 +157,8 @@ fun AssignGroupSkillsDialog(
                                     skillLevels = skillLevels.toMutableMap().apply {
                                         this[courseSkill.skillName] = newLevel
                                     }
-                                }
+                                },
+                                // O parâmetro isSelected foi removido, a lógica de alpha será aplicada diretamente aqui
                             )
                         }
                     }
@@ -166,26 +167,17 @@ fun AssignGroupSkillsDialog(
         },
         confirmButton = {
             Button(onClick = {
-                // Mapeia as seleções para o formato que o ViewModel espera (Pair<String, SkillLevel>)
-                // Filtra apenas as habilidades que foram realmente alteradas de N.A.
                 val assessmentsToSave = skillLevels.entries
                     .filter { it.value != SkillLevel.NOT_APPLICABLE } // Apenas salva se for diferente de N.A.
                     .map { Pair(it.key, it.value) }
                 
-                // Chama o ViewModel para adicionar um NOVO registro de habilidade
-                // Assumindo que o ViewModel tem uma função como addSkillAssessment
-                // Se não existir, precisaremos adicioná-la ao ViewModel.
-                // Exemplo: viewModel.addSkillAssessment(student.studentId, skillName, level, AssessmentSource.PROFESSOR_OBSERVATION)
-                // Por enquanto, vamos adicionar uma chamada genérica que salva um único nível por habilidade.
-                // Se você precisar salvar múltiplos níveis por habilidade, ajuste esta parte.
                 if (assessmentsToSave.isNotEmpty()) {
-                    // Como a função addSkillAssessment espera um único nível, vamos chamar ela para cada habilidade selecionada
                     assessmentsToSave.forEach { (skill, level) ->
                         viewModel.addSkillAssessment(
                             studentId = student.studentId,
                             skillName = skill,
                             level = level,
-                            source = AssessmentSource.PROFESSOR_OBSERVATION // Assumindo que esta é uma avaliação do professor
+                            source = AssessmentSource.PROFESSOR_OBSERVATION // Adicionado o parâmetro 'source' corretamente
                         )
                     }
                 }
@@ -202,7 +194,6 @@ fun AssignGroupSkillsDialog(
     )
 }
 
-// Reintroduzindo o Composable SkillAssignmentRow (necessário para o diálogo) - AGORA COM ÍCONES!
 @Composable
 fun SkillAssignmentRow(
     skillName: String,
@@ -218,39 +209,56 @@ fun SkillAssignmentRow(
     ) {
         Text(text = skillName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.width(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // LOW (1 Estrela)
-            IconButton(onClick = { onLevelSelected(SkillLevel.LOW) }) {
-                Icon(
-                    imageVector = Icons.Default.Battery0Bar,
-                    contentDescription = SkillLevel.LOW.displayName,
-                    tint = if (currentLevel.ordinal >= SkillLevel.LOW.ordinal) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                )
-            }
-
-            // MEDIUM (2 Estrelas)
-            IconButton(onClick = { onLevelSelected(SkillLevel.MEDIUM) }) {
-                Icon(
-                    imageVector = Icons.Default.Battery4Bar,
-                    contentDescription = SkillLevel.MEDIUM.displayName,
-                    tint = if (currentLevel.ordinal >= SkillLevel.MEDIUM.ordinal) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                )
-            }
-
-            // HIGH (3 Estrelas)
-            IconButton(onClick = { onLevelSelected(SkillLevel.HIGH) }) {
-                Icon(
-                    imageVector = Icons.Default.BatteryFull,
-                    contentDescription = SkillLevel.HIGH.displayName,
-                    tint = if (currentLevel.ordinal >= SkillLevel.HIGH.ordinal) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                )
-            }
-
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            // Adicionando padding para agrupar melhor os ícones e evitar que fiquem grudados nas bordas
+            modifier = Modifier.padding(vertical = 1.dp, horizontal = 0.dp)
+        ) {
+            // Ícone para NOT_APPLICABLE
             IconButton(onClick = { onLevelSelected(SkillLevel.NOT_APPLICABLE) }) {
                 Icon(
-                    imageVector = Icons.Default.Circle,
+                    imageVector = Icons.Default.Clear,
                     contentDescription = SkillLevel.NOT_APPLICABLE.displayName,
-                    tint = if (currentLevel == SkillLevel.NOT_APPLICABLE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    // Tinta: Primária se selecionado, cinza suave se não selecionado
+                    tint = if (currentLevel == SkillLevel.NOT_APPLICABLE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    // Alfa: 1f se selecionado, 0.7f se não selecionado
+                    modifier = Modifier.alpha(if (currentLevel == SkillLevel.NOT_APPLICABLE) 1f else 0.7f) 
+                )
+            }
+
+            // Ícone para LOW
+            IconButton(onClick = { onLevelSelected(SkillLevel.LOW) }) {
+                Icon(
+                    imageVector = Icons.Default.ThumbDown, // Usando ThumbDown para LOW
+                    contentDescription = SkillLevel.LOW.displayName,
+                    // Tinta: Cor de erro (vermelho) se selecionado, cinza suave se não
+                    tint = if (currentLevel == SkillLevel.LOW) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    // Alfa: 1f se selecionado, 0.7f se não selecionado
+                    modifier = Modifier.alpha(if (currentLevel == SkillLevel.LOW) 1f else 0.7f)
+                )
+            }
+
+            // Ícone para MEDIUM
+            IconButton(onClick = { onLevelSelected(SkillLevel.MEDIUM) }) {
+                Icon(
+                    imageVector = Icons.Default.Circle, // Usando Circle para MEDIUM
+                    contentDescription = SkillLevel.MEDIUM.displayName,
+                    // Tinta: Laranja se selecionado, cinza suave se não
+                    tint = if (currentLevel == SkillLevel.MEDIUM) Color(0xFFFFA500) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    // Alfa: 1f se selecionado, 0.7f se não selecionado
+                    modifier = Modifier.alpha(if (currentLevel == SkillLevel.MEDIUM) 1f else 0.7f)
+                )
+            }
+
+            // Ícone para HIGH
+            IconButton(onClick = { onLevelSelected(SkillLevel.HIGH) }) {
+                Icon(
+                    imageVector = Icons.Default.ThumbUp, // Usando ThumbUp para HIGH
+                    contentDescription = SkillLevel.HIGH.displayName,
+                    // Tinta: Verde se selecionado, cinza suave se não
+                    tint = if (currentLevel == SkillLevel.HIGH) Color(0xFF008000) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    // Alfa: 1f se selecionado, 0.7f se não selecionado
+                    modifier = Modifier.alpha(if (currentLevel == SkillLevel.HIGH) 1f else 0.7f),
                 )
             }
         }

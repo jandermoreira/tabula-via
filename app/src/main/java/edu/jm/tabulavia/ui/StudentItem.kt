@@ -42,6 +42,6 @@ fun StudentItem(
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
