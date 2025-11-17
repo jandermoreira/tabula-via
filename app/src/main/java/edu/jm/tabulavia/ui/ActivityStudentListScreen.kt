@@ -16,10 +16,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.viewmodel.CourseViewModel
+import androidx.compose.ui.platform.LocalContext // Necessário para obter o contexto
+import androidx.compose.ui.res.painterResource
+import edu.jm.tabulavia.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -33,6 +37,17 @@ fun ActivityStudentListScreen(
 
     LaunchedEffect(activityId) {
         viewModel.loadActivityDetails(activityId)
+    }
+
+    // Pré-calcula o mapa de ícones para otimizar a rolagem
+    val context = LocalContext.current
+    val studentIconMap = remember(students, context) {
+        students.associate { student ->
+            val iconIndex = (student.studentId.mod(80L) + 1).toInt()
+            val iconName = "student_${iconIndex}"
+            val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+            student.studentId to (drawableResId.takeIf { it != 0 } ?: R.drawable.student_0) // Fallback icon
+        }
     }
 
     Scaffold(
@@ -69,7 +84,12 @@ fun ActivityStudentListScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(students, key = { it.studentId }) { student ->
-                    StudentItem(student = student)
+                    // Busca o drawableResId pré-calculado do mapa
+                    val studentDrawableResId = studentIconMap[student.studentId] ?: R.drawable.student_0 // Fallback
+                    StudentItem(
+                        student = student,
+                        drawableResId = studentDrawableResId // Passa o ID do drawable pré-calculado
+                    )
                 }
             }
         }

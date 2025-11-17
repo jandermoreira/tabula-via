@@ -19,6 +19,9 @@ import edu.jm.tabulavia.model.AssessmentSource
 import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
+import androidx.compose.ui.platform.LocalContext // Importar LocalContext
+import androidx.compose.ui.res.painterResource
+import edu.jm.tabulavia.R // Importar R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +63,20 @@ fun GroupDetailsScreen(
             )
         }
     ) { paddingValues ->
+        // Obter o contexto para carregar os drawables
+        val context = LocalContext.current
+
+        // Pré-calcular o mapa de ícones para otimizar a rolagem
+        val studentIconMap = remember(students, context) {
+            students.associate { student ->
+                val iconIndex = (student.studentId.mod(80L) + 1).toInt()
+                val iconName = "student_${iconIndex}"
+                val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+                // Retorna o ID do recurso, ou R.drawable.student_0 como fallback se não encontrado
+                student.studentId to (drawableResId.takeIf { it != 0 } ?: R.drawable.student_0)
+            }
+        }
+
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 120.dp),
             modifier = Modifier.padding(paddingValues).fillMaxSize(),
@@ -68,17 +85,13 @@ fun GroupDetailsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(students, key = { it.studentId }) { student ->
+                // Busca o drawableResId pré-calculado para este aluno do mapa
+                val studentDrawableResId = studentIconMap[student.studentId] ?: R.drawable.student_0 // Fallback
                 StudentItem(
                     student = student,
+                    drawableResId = studentDrawableResId // Passa o ID do drawable
                     // Removido: Modifier.clickable que abria o diálogo de habilidades
-                    modifier = Modifier
-                    /*
-                    modifier = Modifier.clickable {
-                        selectedStudentForSkillAssignment = student
-                        viewModel.loadStudentDetails(student.studentId) // Carregar detalhes para o diálogo
-                        showAssignSkillsDialog = true
-                    }
-                    */
+                    // modifier = Modifier.clickable { ... }
                 )
             }
         }
