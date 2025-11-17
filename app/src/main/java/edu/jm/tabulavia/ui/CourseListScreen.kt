@@ -15,8 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -63,7 +63,7 @@ fun CourseListScreen(
                 actions = {
                     if (user != null) {
                         IconButton(onClick = onBackupClicked) {
-                            Icon(Icons.Default.CloudUpload, contentDescription = "Backup e Restauração")
+                            Icon(Icons.Default.Save, contentDescription = "Backup e Restauração")
                         }
                         IconButton(onClick = onLogoutClicked) {
                             Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
