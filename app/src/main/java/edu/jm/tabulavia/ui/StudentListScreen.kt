@@ -10,7 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.* // Added for remember
+import androidx.compose.runtime.* 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -19,13 +19,13 @@ import edu.jm.tabulavia.R
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
+import androidx.compose.ui.platform.LocalContext // Necessário para obter o contexto
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun StudentListScreen(
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit
-    // onNavigateToSkills: (Long) -> Unit // Removido: A funcionalidade de edição de habilidades foi removida
 ) {
     var showAddStudentDialog by remember { mutableStateOf(false) }
     var showEditStudentDialog by remember { mutableStateOf(false) }
@@ -36,10 +36,20 @@ fun StudentListScreen(
     var showStudentDetailsDialog by remember { mutableStateOf(false) }
     val selectedStudent by viewModel.selectedStudentDetails.collectAsState()
     val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()
-    // Removed: val studentSkills by viewModel.studentSkills.collectAsState()
-    // Removed: val courseSkills by viewModel.courseSkills.collectAsState()
 
-    // Removed: val filteredSkills = remember(studentSkills, courseSkills) { ... }
+    val context = LocalContext.current
+
+    // Otimização: Pré-calcula e cacheia o drawableResId para cada aluno.
+    // Isso evita que a busca de recursos seja feita repetidamente durante a rolagem.
+    val studentIconMap = remember(students, context) {
+        students.associate { student ->
+            val iconIndex = (student.studentId.mod(80L) + 1).toInt()
+            val iconName = "student_${iconIndex}"
+            val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+            // Retorna o ID do recurso, ou R.drawable.student_0 como fallback se não encontrado
+            student.studentId to (drawableResId.takeIf { it != 0 } ?: R.drawable.student_0)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -67,7 +77,7 @@ fun StudentListScreen(
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddStudentDialog = true }) {
                 Icon(
-                    painter = painterResource(id = R.drawable.student_0),
+                    painter = painterResource(id = R.drawable.student_0), // Ícone de adicionar
                     contentDescription = "Adicionar Aluno"
                 )
             }
@@ -76,6 +86,7 @@ fun StudentListScreen(
         StudentsGrid(
             students = students,
             todaysAttendance = todaysAttendance,
+            studentIconMap = studentIconMap, // Passa o mapa de ícones pré-calculado
             modifier = Modifier.padding(paddingValues),
             onStudentClick = { studentId ->
                 viewModel.loadStudentDetails(studentId)
@@ -107,16 +118,11 @@ fun StudentListScreen(
             StudentDetailsDialog(
                 student = student,
                 attendancePercentage = attendancePercentage,
-                // Removed: skills = filteredSkills, // Usa a lista filtrada
-                viewModel = viewModel, // Pass the viewModel to StudentDetailsDialog
+                viewModel = viewModel,
                 onDismiss = {
                     viewModel.clearStudentDetails()
                     showStudentDetailsDialog = false
                 }
-                // onEditSkills = { // Removido: A funcionalidade de edição de habilidades foi removida
-                //     onNavigateToSkills(student.studentId)
-                //     showStudentDetailsDialog = false
-                // }
             )
         }
     }
@@ -127,6 +133,7 @@ fun StudentListScreen(
 fun StudentsGrid(
     students: List<Student>,
     todaysAttendance: Map<Long, AttendanceStatus>,
+    studentIconMap: Map<Long, Int>, // Novo parâmetro para os IDs dos drawables
     modifier: Modifier = Modifier,
     onStudentClick: (Long) -> Unit,
     onStudentLongClick: (Student) -> Unit
@@ -145,8 +152,13 @@ fun StudentsGrid(
         ) {
             items(students, key = { it.studentId }) { student ->
                 val isAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
+                
+                // Busca o drawableResId pré-calculado para este aluno do mapa
+                val studentDrawableResId = studentIconMap[student.studentId] ?: R.drawable.student_0 // Fallback
+
                 StudentItem(
                     student = student,
+                    drawableResId = studentDrawableResId, // Passa o ID do drawable
                     isAbsent = isAbsent,
                     modifier = Modifier.combinedClickable(
                         onClick = { onStudentClick(student.studentId) },

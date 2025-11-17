@@ -16,37 +16,21 @@ import edu.jm.tabulavia.model.Student
 import androidx.compose.ui.res.painterResource
 import edu.jm.tabulavia.R
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext // Adicionar esta importação
 
 @Composable
 fun StudentItem(
     student: Student,
+    drawableResId: Int, // Recebe o ID do drawable como parâmetro
     modifier: Modifier = Modifier,
     isAbsent: Boolean = false
 ) {
-    val context = LocalContext.current
-
-    val iconIndex = (student.studentId.mod(80L) + 1).toInt()
-    val iconName = "student_${iconIndex}"
-
-    val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
-
     GridItemCard(modifier = modifier.alpha(if (isAbsent) 0.5f else 1f)) {
-        if (drawableResId != 0) {
-            Icon(
-                painter = painterResource(id = drawableResId),
-                contentDescription = "Ícone do Aluno ${iconIndex}", // Descrição de conteúdo mais específica
-                modifier = Modifier.size(40.dp),
-                tint = Color.Unspecified // Manter para preservar as cores originais do PNG
-            )
-        } else {
-            Icon(
-                painter = painterResource(id = R.drawable.student_0),
-                contentDescription = "Ícone do Aluno Padrão",
-                modifier = Modifier.size(40.dp),
-                tint = Color.Unspecified
-            )
-        }
+        Icon(
+            painter = painterResource(id = drawableResId), // Usa o drawableResId passado como parâmetro
+            contentDescription = "Ícone do Aluno", // Pode ser melhorado para incluir o índice, se necessário
+            modifier = Modifier.size(40.dp),
+            tint = Color.Unspecified // Manter para preservar as cores originais do PNG
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = student.displayName,
