@@ -22,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import androidx.compose.ui.platform.LocalContext // Necessário para obter o contexto
-import androidx.compose.ui.res.painterResource
 import edu.jm.tabulavia.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)

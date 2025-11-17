@@ -19,9 +19,14 @@ import edu.jm.tabulavia.model.AssessmentSource
 import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
-import androidx.compose.ui.platform.LocalContext // Importar LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import edu.jm.tabulavia.R // Importar R
+import edu.jm.tabulavia.R
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Battery0Bar
+import androidx.compose.material.icons.filled.Battery4Bar
+import androidx.compose.material.icons.filled.BatteryFull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,14 +91,13 @@ fun GroupDetailsScreen(
         ) {
             items(students, key = { it.studentId }) { student ->
                 // Busca o drawableResId pré-calculado para este aluno do mapa
-                val studentDrawableResId = studentIconMap[student.studentId] ?: R.drawable.student_0 // Fallback
+                val studentDrawableResId = studentIconMap[student.studentId] ?: R.drawable.student_0
                 StudentItem(
                     student = student,
                     drawableResId = studentDrawableResId,
                     modifier = Modifier.clickable {
                         selectedStudentForSkillAssignment = student
-                        // Ao clicar, carregamos os detalhes do aluno, mas NÃO o histórico de habilidades, pois queremos um estado inicial em branco.
-                        viewModel.loadStudentDetails(student.studentId) 
+                        viewModel.loadStudentDetails(student.studentId)
                         showAssignSkillsDialog = true
                     }
                 )
@@ -101,10 +105,8 @@ fun GroupDetailsScreen(
         }
     }
 
-    // Reintroduzindo o Diálogo para atribuir habilidades
     if (showAssignSkillsDialog) {
         selectedStudentForSkillAssignment?.let { student ->
-            // O AssignGroupSkillsDialog será modificado para iniciar com 'NÃO SE APLICA' para todas as habilidades.
             AssignGroupSkillsDialog(
                 student = student,
                 viewModel = viewModel,
@@ -117,7 +119,6 @@ fun GroupDetailsScreen(
     }
 }
 
-// Reintroduzindo o Composable AssignGroupSkillsDialog com a lógica de resetar para 'NÃO SE APLICA'
 @Composable
 fun AssignGroupSkillsDialog(
     student: Student,
@@ -131,13 +132,11 @@ fun AssignGroupSkillsDialog(
     var skillLevels by remember {
         mutableStateOf(
             courseSkills.associate {
-                // Para cada habilidade do curso, inicializa o nível como NOT_APPLICABLE
+                // Para cada habilidade do curso, inicializa o nível como NOT_APLICABLE
                 it.skillName to SkillLevel.NOT_APPLICABLE
             }
         )
     }
-
-    // Não precisamos mais do LaunchedEffect para sincronizar com studentSkillSummaries, pois estamos inicializando em branco.
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -203,15 +202,13 @@ fun AssignGroupSkillsDialog(
     )
 }
 
-// Reintroduzindo o Composable SkillAssignmentRow (necessário para o diálogo)
+// Reintroduzindo o Composable SkillAssignmentRow (necessário para o diálogo) - AGORA COM ÍCONES!
 @Composable
 fun SkillAssignmentRow(
     skillName: String,
     currentLevel: SkillLevel,
     onLevelSelected: (SkillLevel) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -221,24 +218,40 @@ fun SkillAssignmentRow(
     ) {
         Text(text = skillName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.width(8.dp))
-        Box {
-            OutlinedButton(onClick = { expanded = true }) {
-                Text(currentLevel.displayName)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // LOW (1 Estrela)
+            IconButton(onClick = { onLevelSelected(SkillLevel.LOW) }) {
+                Icon(
+                    imageVector = Icons.Default.Battery0Bar,
+                    contentDescription = SkillLevel.LOW.displayName,
+                    tint = if (currentLevel.ordinal >= SkillLevel.LOW.ordinal) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
             }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                // Oferece todas as opções de nível, exceto NOT_APPLICABLE para seleção, mas o valor padrão é N.A.
-                SkillLevel.entries.filter { it != SkillLevel.NOT_APPLICABLE }.forEach { level ->
-                    DropdownMenuItem(
-                        text = { Text(level.displayName) },
-                        onClick = {
-                            onLevelSelected(level)
-                            expanded = false
-                        }
-                    )
-                }
+
+            // MEDIUM (2 Estrelas)
+            IconButton(onClick = { onLevelSelected(SkillLevel.MEDIUM) }) {
+                Icon(
+                    imageVector = Icons.Default.Battery4Bar,
+                    contentDescription = SkillLevel.MEDIUM.displayName,
+                    tint = if (currentLevel.ordinal >= SkillLevel.MEDIUM.ordinal) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
+
+            // HIGH (3 Estrelas)
+            IconButton(onClick = { onLevelSelected(SkillLevel.HIGH) }) {
+                Icon(
+                    imageVector = Icons.Default.BatteryFull,
+                    contentDescription = SkillLevel.HIGH.displayName,
+                    tint = if (currentLevel.ordinal >= SkillLevel.HIGH.ordinal) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
+
+            IconButton(onClick = { onLevelSelected(SkillLevel.NOT_APPLICABLE) }) {
+                Icon(
+                    imageVector = Icons.Default.Circle,
+                    contentDescription = SkillLevel.NOT_APPLICABLE.displayName,
+                    tint = if (currentLevel == SkillLevel.NOT_APPLICABLE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
             }
         }
     }
