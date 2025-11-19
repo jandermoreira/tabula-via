@@ -55,7 +55,7 @@ fun CourseListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Turmas") },
+                title = { Text("Tabula Via") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.primary,

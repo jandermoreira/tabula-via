@@ -18,7 +18,7 @@ import edu.jm.tabulavia.model.*
         CourseSkill::class,
         SkillAssessment::class // Adicionada a nova entidade
     ],
-    version = 7, // Versão incrementada para 7
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
