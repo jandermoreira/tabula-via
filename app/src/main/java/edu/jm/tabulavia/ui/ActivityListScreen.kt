@@ -39,6 +39,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// Data class para armazenar as avaliações por pares antes da agregação
+private data class PeerAssessmentData(
+    val evaluatedStudentId: Long,
+    val skillName: String,
+    val skillValue: Int, // 1=LOW, 2=MEDIUM, 3=HIGH
+    val timestamp: Long
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityListScreen(
@@ -120,7 +128,8 @@ fun ActivityListScreen(
             ) {
                 Text("Nenhuma atividade cadastrada.")
             }
-        } else {
+        }
+        else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -169,80 +178,127 @@ fun ActivityListScreen(
             )
         }
 
-        // NOVO: Diálogo para entrada de habilidades em lote SIMPLIFICADO
+        // NOVO: Diálogo para entrada de habilidades em lote
         if (showBatchSkillEntryDialog) {
             BatchSkillEntryDialog(
                 viewModel = viewModel,
                 onDismiss = { showBatchSkillEntryDialog = false },
                 onSaveBatch = { pastedText ->
-                    Log.d("BatchEntryCheck", "onSaveBatch called") // Log para verificar se onSaveBatch é chamado
+                    Log.d("BatchEntryCheck", "onSaveBatch called")
+
+                    val peerAssessmentsToAggregate = mutableListOf<PeerAssessmentData>() // Usando a nova data class
+
                     pastedText.lines().forEach { line ->
                         if (line.isNotBlank()) {
-                            val fields = line.split('\t').map { it.trim() }
+                            val fields = line.split('	').map { it.trim() }
                             if (fields.size >= 3 + courseSkills.size) { // Garante que há campos suficientes
                                 try {
                                     val format = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
                                     val date = format.parse(fields[0])
-                                    val timestamp = date?.time ?: System.currentTimeMillis()
+                                    // Usa o timestamp extraído do arquivo, ou 0L se falhar.
+                                    val timestamp = date?.time ?: 0L
 
                                     val evaluatorId = fields[1].toLongOrNull()
                                     val evaluatedId = fields[2].toLongOrNull()
 
-//                                    // Log para verificar evaluatorId e evaluatedId
-//                                    Log.d("BatchEntry", "EvaluatorId: $evaluatorId, EvaluatedId: $evaluatedId")
-//                                    if (evaluatorId == null || evaluatedId == null) {
-//                                        Log.w("BatchEntry", "Erro: evaluatorId ou evaluatedId não são números válidos na linha: '$line'")
-//                                    }
+                                    if (evaluatorId != null && evaluatedId != null) {
+                                        if (evaluatorId == evaluatedId) {
+                                            // É uma autoavaliação (lógica existente)
+                                            val student = studentsInClass.find { it.studentNumber == evaluatedId.toString() } // Usando studentNumber para a busca
+                                            if (student != null) {
+                                                courseSkills.forEachIndexed { index, skill ->
+                                                    val skillValue = fields[3 + index].toIntOrNull()
+                                                    val skillLevel = when (skillValue) {
+                                                        1 -> SkillLevel.LOW
+                                                        2 -> SkillLevel.MEDIUM
+                                                        3 -> SkillLevel.HIGH
+                                                        else -> null
+                                                    }
 
-                                    if (evaluatorId != null && evaluatedId != null && evaluatorId == evaluatedId) {
-                                        // É uma autoavaliação
-//                                        // Log para verificar o studentId e o conteúdo de studentsInClass
-//                                        Log.d("StudentCheck", "Number of students in class: ${studentsInClass.size}")
-//                                        if (studentsInClass.isNotEmpty()) {
-//                                            Log.d("StudentCheck", "First studentId: ${studentsInClass.first().studentId}")
-//                                            // Adicionar um log para verificar o evaluatedId antes de tentar encontrar o student
-//                                            Log.d("StudentCheck", "Attempting to find student with ID: $evaluatedId")
-//                                        }
-
-//                                        // Log para exibir todos os studentIds da lista studentsInClass
-//                                        if (studentsInClass.isNotEmpty()) {
-//                                            val studentIds = studentsInClass.joinToString(", ") { it.studentId.toString() }
-//                                            Log.d("StudentCheck", "All studentIds in studentsInClass: [$studentIds]")
-//                                        }
-
-                                        val student = studentsInClass.find { it.studentNumber == evaluatedId?.toString() } // Usando studentNumber para a busca
-                                        if (student != null) {
-//                                            Log.d("StudentCheck", "Aluno encontrado: ${student.displayName} com studentNumber ${student.studentNumber}")
-                                            courseSkills.forEachIndexed { index, skill ->
-                                                val skillValue = fields[3 + index].toIntOrNull()
-                                                val skillLevel = when (skillValue) {
-                                                    1 -> SkillLevel.LOW
-                                                    2 -> SkillLevel.MEDIUM
-                                                    3 -> SkillLevel.HIGH
-                                                    else -> null
+                                                    if (skillLevel != null) {
+                                                        viewModel.addSkillAssessment(
+                                                            studentId = student.studentId,
+                                                            skillName = skill.skillName,
+                                                            level = skillLevel,
+                                                            source = AssessmentSource.SELF_ASSESSMENT,
+                                                            timestamp = timestamp
+                                                        )
+                                                        Log.d("BatchEntry", "Autoavaliação salva para ${student.displayName}: ${skill.skillName} -> $skillLevel")
+                                                    }
                                                 }
-
-                                                if (skillLevel != null) {
-                                                    viewModel.addSkillAssessment(
-                                                        studentId = student.studentId,
-                                                        skillName = skill.skillName,
-                                                        level = skillLevel,
-                                                        source = AssessmentSource.SELF_ASSESSMENT
-                                                        // timestamp = timestamp // Removido o parâmetro timestamp
-                                                    )
-                                                    Log.d("BatchEntry", "Autoavaliação salva para ${student.displayName}: ${skill.skillName} -> $skillLevel")
-                                                }
+                                            } else {
+                                                Log.d("StudentCheck", "Aluno com evaluatedId (studentNumber provável) $evaluatedId não encontrado na lista de alunos da turma.")
                                             }
                                         } else {
-                                            Log.w("StudentCheck", "Aluno com evaluatedId (studentNumber provável) $evaluatedId não encontrado na lista de alunos da turma.")
+                                            // É uma avaliação entre pares, coletar para agregação
+                                            val evaluatorStudent = studentsInClass.find { it.studentNumber == evaluatorId.toString() }
+                                            val evaluatedStudent = studentsInClass.find { it.studentNumber == evaluatedId.toString() }
+
+                                            if (evaluatorStudent != null && evaluatedStudent != null) {
+                                                courseSkills.forEachIndexed { index, skill ->
+                                                    val skillValue = fields[3 + index].toIntOrNull()
+                                                    if (skillValue != null && skillValue in 1..3) { // Garantir que o valor é válido
+                                                        peerAssessmentsToAggregate.add(
+                                                            PeerAssessmentData(
+                                                                evaluatedStudentId = evaluatedStudent.studentId,
+                                                                skillName = skill.skillName,
+                                                                skillValue = skillValue,
+                                                                timestamp = timestamp
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                            } else {
+                                                Log.d("StudentCheck", "Aluno avaliador ($evaluatorId) ou aluno avaliado ($evaluatedId) não encontrado para avaliação por pares.")
+                                            }
                                         }
                                     }
-
                                 } catch (e: Exception) {
-                                    Log.e("BatchEntry", "Erro ao processar linha: '$line'", e)
+                                    Log.e("BatchEntry", "Erro ao processar linha: '${line}'", e)
                                 }
-                            } else {
-                                Log.w("BatchEntry", "Linha ignorada por ter campos insuficientes: '$line'")
+                            }
+                            else {
+                                Log.w("BatchEntry", "Linha ignorada por ter campos insuficientes: '${line}'")
+                            }
+                        }
+                    }
+
+                    // Processar e agregar avaliações por pares após todas as linhas serem lidas
+                    val aggregatedPeerAssessments = peerAssessmentsToAggregate
+                        .groupBy { it.evaluatedStudentId } // Agrupar por evaluatedStudentId
+                        .mapValues { (_, assessmentsByStudent) ->
+                            assessmentsByStudent.groupBy { it.skillName } // Agrupar por skillName
+                                .mapValues { (_, assessmentsForSkill) ->
+                                    Pair(
+                                        assessmentsForSkill.map { it.skillValue },
+                                        assessmentsForSkill.map { it.timestamp }
+                                    )
+                                }
+                        }
+
+                    aggregatedPeerAssessments.forEach { (evaluatedStudentId, skillsMap) ->
+                        val evaluatedStudent = studentsInClass.find { it.studentId == evaluatedStudentId }
+                        if (evaluatedStudent != null) {
+                            skillsMap.forEach { (skillName, skillData) ->
+                                val (skillValues, timestamps) = skillData
+                                if (skillValues.isNotEmpty()) {
+                                    val averageSkillValue = skillValues.average()
+                                    val latestTimestamp = timestamps.maxOrNull() ?: 0L
+
+                                    val averagedSkillLevel = when {
+                                        averageSkillValue <= 1.5 -> SkillLevel.LOW
+                                        averageSkillValue <= 2.5 -> SkillLevel.MEDIUM
+                                        else -> SkillLevel.HIGH
+                                    }
+                                    viewModel.addSkillAssessment(
+                                        studentId = evaluatedStudentId,
+                                        skillName = skillName,
+                                        level = averagedSkillLevel,
+                                        source = AssessmentSource.PEER_ASSESSMENT,
+                                        timestamp = latestTimestamp // O timestamp da agregação é o mais recente
+                                    )
+                                    Log.d("BatchEntry", "Avaliação por pares agregada salva para ${evaluatedStudent.displayName} em $skillName -> $averagedSkillLevel (Média: $averageSkillValue, Timestamp Mais Recente: $latestTimestamp)")
+                                }
                             }
                         }
                     }

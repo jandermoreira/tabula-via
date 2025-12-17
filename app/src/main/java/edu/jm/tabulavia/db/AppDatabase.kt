@@ -16,9 +16,10 @@ import edu.jm.tabulavia.model.*
         StudentSkill::class,
         GroupMember::class,
         CourseSkill::class,
-        SkillAssessment::class // Adicionada a nova entidade
+        SkillAssessment::class,
+        ActivityHighlightedSkill::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -32,6 +33,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun groupMemberDao(): GroupMemberDao
     abstract fun courseSkillDao(): CourseSkillDao
     abstract fun skillAssessmentDao(): SkillAssessmentDao // Adicionado o novo DAO
+    abstract fun activityHighlightedSkillDao(): edu.jm.tabulavia.dao.ActivityHighlightedSkillDao
 }
 
 class Converters {

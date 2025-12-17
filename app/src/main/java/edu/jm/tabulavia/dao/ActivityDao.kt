@@ -8,14 +8,14 @@ import edu.jm.tabulavia.model.Activity
 
 @Dao
 interface ActivityDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(activity: Activity)
 
-    // Backward-compatible alias in case code calls insertActivity
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(activity: Activity): Long
+
     suspend fun insertActivity(activity: Activity) = insert(activity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(activities: List<Activity>) // For restore
+    suspend fun insertAll(activities: List<Activity>)
 
     @Query("SELECT * FROM activities WHERE activityId = :activityId")
     suspend fun getActivityById(activityId: Long): Activity?

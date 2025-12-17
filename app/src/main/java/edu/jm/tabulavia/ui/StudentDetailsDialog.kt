@@ -3,10 +3,14 @@ package edu.jm.tabulavia.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -47,38 +51,54 @@ fun StudentDetailsDialog(
         onDismissRequest = onDismiss,
         title = { Text(student.name) },
         text = {
-            Column {
-                Text("Matrícula: ${student.studentNumber}")
-                Spacer(modifier = Modifier.height(8.dp))
-                if (attendancePercentage != null) {
-                    Text("Frequência: %.0f%%".format(attendancePercentage))
-                } else {
-                    Text("Frequência: Impossível", color = MaterialTheme.colorScheme.error)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth() // Garante que a coluna tente ocupar a largura disponível do diálogo
+                    .heightIn(max = 450.dp) // Define uma altura máxima para o conteúdo antes de rolar
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Matrícula", style = MaterialTheme.typography.labelMedium)
+                        Text(student.studentNumber, style = MaterialTheme.typography.bodyLarge)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Frequência", style = MaterialTheme.typography.labelMedium)
+                        if (attendancePercentage != null) {
+                            Text("%.0f%%".format(attendancePercentage), style = MaterialTheme.typography.bodyLarge)
+                        } else {
+                            Text("N/A", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
                 }
+
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Habilidades", style = MaterialTheme.typography.titleMedium)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
                 if (skillSummaries.isEmpty()) {
                     Text("Nenhuma habilidade registrada para este aluno ou turma.")
                 } else {
                     // Itera sobre os SkillStatus calculados
                     skillSummaries.forEach { skillStatus ->
+                        // Lógica para definir o ícone e a cor da tendência
+                        val trendIcon = when (skillStatus.trend) {
+                            SkillTrend.IMPROVING -> Icons.Default.ArrowUpward
+                            SkillTrend.DECLINING -> Icons.Default.ArrowDownward
+                            SkillTrend.STABLE -> Icons.Default.DragHandle
+                        }
+                        val trendTint = when (skillStatus.trend) {
+                            SkillTrend.IMPROVING -> MaterialTheme.colorScheme.primary
+                            SkillTrend.DECLINING -> MaterialTheme.colorScheme.error
+                            SkillTrend.STABLE -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        }
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            modifier = Modifier
+                                .padding(vertical = 6.dp)
+                                .fillMaxWidth()
                         ) {
-                            // Ícone indicando a tendência
-                            val trendIcon: ImageVector = when (skillStatus.trend) {
-                                SkillTrend.IMPROVING -> Icons.Default.ArrowUpward
-                                SkillTrend.DECLINING -> Icons.Default.ArrowDownward
-                                SkillTrend.STABLE -> Icons.Default.DragHandle // Um ícone neutro para estável
-                            }
-                            val trendTint: Color = when (skillStatus.trend) {
-                                SkillTrend.IMPROVING -> MaterialTheme.colorScheme.primary // Verde ou cor positiva
-                                SkillTrend.DECLINING -> MaterialTheme.colorScheme.error // Vermelho ou cor de alerta
-                                SkillTrend.STABLE -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            }
-
                             Icon(
                                 imageVector = trendIcon,
                                 contentDescription = "Tendência: ${skillStatus.trend.name}",
@@ -86,11 +106,19 @@ fun StudentDetailsDialog(
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            // Exibe o nome da habilidade e seu nível atual
-                            Text(
-                                text = "${skillStatus.skillName}: ${skillStatus.currentLevel.displayName}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+
+                            Column {
+                                Text(
+                                    text = skillStatus.skillName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = skillStatus.currentLevel.displayName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }

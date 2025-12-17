@@ -7,8 +7,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.ktx.auth
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.ktx.storage
 import edu.jm.tabulavia.db.DatabaseProvider
 import edu.jm.tabulavia.model.*
@@ -33,10 +34,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val skillDao = db.skillDao() // This DAO might become obsolete or need refactoring
     private val groupMemberDao = db.groupMemberDao()
     private val courseSkillDao = db.courseSkillDao()
-    private val skillAssessmentDao = db.skillAssessmentDao() // New DAO
+    private val skillAssessmentDao = db.skillAssessmentDao()
+    private val activityHighlightedSkillDao = db.activityHighlightedSkillDao()
 
-    private val storage = Firebase.storage
-    private val auth = Firebase.auth
+    private val storage: FirebaseStorage = Firebase.storage
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 
     // --- UI State ---
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
@@ -104,10 +106,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     var editingSession by mutableStateOf<ClassSession?>(null)
     var activityName by mutableStateOf("")
     var activityType by mutableStateOf("Individual")
+    var activityHighlightedSkills by mutableStateOf<Set<String>>(emptySet())
+    var skillName by mutableStateOf("")
+
     var groupingCriterion by mutableStateOf("Aleatório")
     var groupFormationType by mutableStateOf("Número de grupos")
     var groupFormationValue by mutableStateOf("")
-    var skillName by mutableStateOf("")
 
     init {
         loadAllCourses()
@@ -286,18 +290,25 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     // REMOVED: fun updateStudentSkills(skills: List<StudentSkill>) { ... }
     // NEW:
-    fun addSkillAssessment(studentId: Long, skillName: String, level: SkillLevel, source: AssessmentSource, assessorId: Long? = null) {
+    fun addSkillAssessment(
+        studentId: Long,
+        skillName: String,
+        level: SkillLevel,
+        source: AssessmentSource,
+        assessorId: Long? = null,
+        timestamp: Long? = null
+    ) {
         viewModelScope.launch {
             val assessment = SkillAssessment(
                 studentId = studentId,
                 skillName = skillName,
                 level = level,
                 source = source,
+                timestamp = timestamp ?: System.currentTimeMillis(),
                 assessorId = assessorId
             )
             skillAssessmentDao.insert(assessment)
-            // After inserting, reload student details to update the UI
-            loadStudentDetails(studentId) // Isso acionará o recálculo do SkillStatus
+            loadStudentDetails(studentId)
         }
     }
     
@@ -409,9 +420,25 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     description = activityType, // Using description for the type
                     classId = classId
                 )
-                activityDao.insert(newActivity)
+
+                val activityId = activityDao.insert(newActivity)
+
+                val rows = activityHighlightedSkills
+                    .sorted()
+                    .map { skillName ->
+                        ActivityHighlightedSkill(
+                            activityId = activityId,
+                            skillName = skillName
+                        )
+                    }
+
+                activityHighlightedSkillDao.clearForActivity(activityId)
+                activityHighlightedSkillDao.insertAll(rows)
+
                 activityName = ""
                 activityType = "Individual"
+                activityHighlightedSkills = emptySet()
+
                 loadActivitiesForClass(classId)
                 onActivityAdded()
                 _userMessage.value = "Atividade '$savedTitle' adicionada."

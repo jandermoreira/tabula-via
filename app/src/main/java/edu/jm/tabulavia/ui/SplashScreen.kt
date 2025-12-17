@@ -16,11 +16,5 @@ fun SplashScreen() {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Tabula Via",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
+    ) {}
 }

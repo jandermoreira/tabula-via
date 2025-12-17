@@ -1,5 +1,6 @@
 package edu.jm.tabulavia.ui
 
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -39,14 +40,12 @@ fun StudentListScreen(
 
     val context = LocalContext.current
 
-    // Otimização: Pré-calcula e cacheia o drawableResId para cada aluno.
-    // Isso evita que a busca de recursos seja feita repetidamente durante a rolagem.
     val studentIconMap = remember(students, context) {
         students.associate { student ->
+            Log.w("StudentListScreen", "Student: $student.studentId")
             val iconIndex = (student.studentId.mod(80L) + 1).toInt()
             val iconName = "student_${iconIndex}"
             val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
-            // Retorna o ID do recurso, ou R.drawable.student_0 como fallback se não encontrado
             student.studentId to (drawableResId.takeIf { it != 0 } ?: R.drawable.student_0)
         }
     }

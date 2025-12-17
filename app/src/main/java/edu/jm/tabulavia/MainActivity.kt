@@ -24,10 +24,10 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import edu.jm.tabulavia.ui.*
 import edu.jm.tabulavia.ui.theme.TabulaViaTheme
 import edu.jm.tabulavia.viewmodel.AuthViewModel
 import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.ui.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -81,9 +81,9 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {
-                            SplashScreen()
+                            //SplashScreen()
                             LaunchedEffect(Unit) {
-                                delay(1500)
+                                delay(600)
                                 navController.navigate("courseList") {
                                     popUpTo("splash") { inclusive = true }
                                 }
@@ -257,17 +257,23 @@ class MainActivity : ComponentActivity() {
                                 viewModel = courseViewModel,
                                 onNavigateBack = { navController.popBackStack() },
                                 onGroupClicked = { groupNumber ->
-                                    navController.navigate("groupDetails/$groupNumber")
+                                    navController.navigate("groupDetails/$activityId/$groupNumber")
                                 }
                             )
                         }
 
                         composable(
-                            route = "groupDetails/{groupNumber}",
-                            arguments = listOf(navArgument("groupNumber") { type = NavType.IntType })
+                            route = "groupDetails/{activityId}/{groupNumber}",
+                            arguments = listOf(
+                                navArgument("activityId") { type = NavType.LongType },
+                                navArgument("groupNumber") { type = NavType.IntType }
+                            )
                         ) { backStackEntry ->
+                            val activityId = backStackEntry.arguments?.getLong("activityId") ?: 0L
                             val groupNumber = backStackEntry.arguments?.getInt("groupNumber") ?: 0
+
                             GroupDetailsScreen(
+                                activityId = activityId,
                                 groupNumber = groupNumber,
                                 viewModel = courseViewModel,
                                 onNavigateBack = { navController.popBackStack() }
