@@ -31,8 +31,10 @@ import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -40,6 +42,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,10 +63,6 @@ import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.runtime.CompositionLocalProvider
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +76,8 @@ fun GroupDetailsScreen(
 
     var showAssignSkillsDialog by remember { mutableStateOf(false) }
     var selectedStudentForSkillAssignment by remember { mutableStateOf<Student?>(null) }
+
+    var showAssignSkillsForAllDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(groupNumber) {
         viewModel.loadGroupDetails(groupNumber)
@@ -95,8 +96,13 @@ fun GroupDetailsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Default.Psychology, contentDescription = "Informações do Grupo")
+                    IconButton(
+                        onClick = { showAssignSkillsForAllDialog = true }
+                    ) {
+                        Icon(
+                            Icons.Default.Psychology,
+                            contentDescription = "Atribuir habilidades ao grupo"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -167,6 +173,121 @@ fun GroupDetailsScreen(
             )
         }
     }
+
+    if (showAssignSkillsForAllDialog) {
+        AssignGroupSkillsForAllDialog(
+            students = students,
+            viewModel = viewModel,
+            activityId = activityId,
+            onDismiss = { showAssignSkillsForAllDialog = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AssignGroupSkillsForAllDialog(
+    students: List<Student>,
+    viewModel: CourseViewModel,
+    activityId: Long?,
+    onDismiss: () -> Unit
+) {
+    val courseSkills by viewModel.courseSkills.collectAsState()
+
+    val context = LocalContext.current
+    var highlightedSkillNames by remember(activityId) { mutableStateOf<Set<String>>(emptySet()) }
+
+    LaunchedEffect(activityId) {
+        if (activityId == null || activityId == 0L) {
+            highlightedSkillNames = emptySet()
+            return@LaunchedEffect
+        }
+
+        val appContext = context.applicationContext
+        val db = DatabaseProvider.getDatabase(appContext)
+        val dao = db.activityHighlightedSkillDao()
+
+        highlightedSkillNames = withContext(Dispatchers.IO) {
+            dao.getHighlightedSkillNamesForActivity(activityId).toSet()
+        }
+    }
+
+    var skillLevels by remember(courseSkills) {
+        mutableStateOf(courseSkills.associate { it.skillName to SkillLevel.NOT_APPLICABLE })
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Habilidades para o grupo (${students.size} alunos)") },
+        text = {
+            Column {
+                Text(
+                    text = "As habilidades selecionadas serão registradas para todos os membros do grupo.",
+                    style = MaterialTheme.typography.labelSmall
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+//                Text(
+//                    text = "Destaques da atividade: ${highlightedSkillNames.size}",
+//                    style = MaterialTheme.typography.labelSmall
+//                )
+//                Spacer(modifier = Modifier.height(8.dp))
+
+                if (courseSkills.isEmpty()) {
+                    Text("Nenhuma habilidade definida para esta turma.")
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                        items(
+                            courseSkills.sortedBy { it.skillName },
+                            key = { it.skillName }
+                        ) { courseSkill ->
+                            val isHighlighted = highlightedSkillNames.contains(courseSkill.skillName)
+
+                            SkillAssignmentRow(
+                                skillName = courseSkill.skillName,
+                                currentLevel = skillLevels[courseSkill.skillName]
+                                    ?: SkillLevel.NOT_APPLICABLE,
+                                onLevelSelected = { newLevel ->
+                                    skillLevels = skillLevels.toMutableMap().apply {
+                                        this[courseSkill.skillName] = newLevel
+                                    }
+                                },
+                                isHighlighted = isHighlighted
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = students.isNotEmpty(),
+                onClick = {
+                    val assessmentsToSave = skillLevels.entries
+                        .filter { it.value != SkillLevel.NOT_APPLICABLE }
+                        .map { it.key to it.value }
+
+                    if (assessmentsToSave.isNotEmpty()) {
+                        students.forEach { student ->
+                            assessmentsToSave.forEach { (skill, level) ->
+                                viewModel.addSkillAssessment(
+                                    studentId = student.studentId,
+                                    skillName = skill,
+                                    level = level,
+                                    source = AssessmentSource.PROFESSOR_OBSERVATION
+                                )
+                            }
+                        }
+                    }
+
+                    onDismiss()
+                }
+            ) { Text("Salvar para o grupo") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -262,7 +383,6 @@ private fun AssignGroupSkillsDialog(
         }
     )
 }
-
 
 @Composable
 private fun SkillAssignmentRow(
