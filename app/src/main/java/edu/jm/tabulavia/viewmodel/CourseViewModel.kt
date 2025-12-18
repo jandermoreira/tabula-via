@@ -72,12 +72,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _activities = MutableStateFlow<List<Activity>>(emptyList())
     val activities: StateFlow<List<Activity>> = _activities.asStateFlow()
-    
+
     private val _skillAssessmentLog = MutableStateFlow<List<SkillAssessment>>(emptyList())
     val skillAssessmentLog: StateFlow<List<SkillAssessment>> = _skillAssessmentLog.asStateFlow()
 
-    private val _studentSkillSummaries = MutableStateFlow<Map<String, SkillAssessmentsSummary>>(emptyMap())
-    val studentSkillSummaries: StateFlow<Map<String, SkillAssessmentsSummary>> = _studentSkillSummaries.asStateFlow()
+    private val _studentSkillSummaries =
+        MutableStateFlow<Map<String, SkillAssessmentsSummary>>(emptyMap())
+    val studentSkillSummaries: StateFlow<Map<String, SkillAssessmentsSummary>> =
+        _studentSkillSummaries.asStateFlow()
 
     private val _courseSkills = MutableStateFlow<List<CourseSkill>>(emptyList())
     val courseSkills: StateFlow<List<CourseSkill>> = _courseSkills.asStateFlow()
@@ -159,7 +161,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 .maxByOrNull { it.timestamp }
 
             if (lastSessionToday != null) {
-                val records = attendanceDao.getAttendanceRecordsForSession(lastSessionToday.sessionId)
+                val records =
+                    attendanceDao.getAttendanceRecordsForSession(lastSessionToday.sessionId)
                 _todaysAttendance.value = records.associate { it.studentId to it.status }
             } else {
                 _todaysAttendance.value = emptyMap()
@@ -217,7 +220,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val totalClasses = _selectedCourse.value?.numberOfClasses ?: 0
             if (totalClasses > 0) {
                 val absences = attendanceDao.countStudentAbsences(studentId)
-                _studentAttendancePercentage.value = ((totalClasses.toFloat() - absences.toFloat()) / totalClasses.toFloat()) * 100
+                _studentAttendancePercentage.value =
+                    ((totalClasses.toFloat() - absences.toFloat()) / totalClasses.toFloat()) * 100
             } else {
                 _studentAttendancePercentage.value = null
             }
@@ -242,7 +246,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             _courseSkills.value = courseSkillDao.getSkillsForCourse(courseId)
         }
     }
-    
+
     fun loadSkillAssessmentLog() {
         viewModelScope.launch {
             _skillAssessmentLog.value = skillAssessmentDao.getAllAssessments().first()
@@ -268,7 +272,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun addSkillAssessment(studentId: Long, skillName: String, level: SkillLevel, source: AssessmentSource, assessorId: Long? = null, timestamp: Long? = null) {
+    fun addSkillAssessment(
+        studentId: Long,
+        skillName: String,
+        level: SkillLevel,
+        source: AssessmentSource,
+        assessorId: Long? = null,
+        timestamp: Long? = null
+    ) {
         viewModelScope.launch {
             val assessment = SkillAssessment(
                 studentId = studentId,
@@ -282,7 +293,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             loadStudentDetails(studentId)
         }
     }
-    
+
     fun addProfessorSkillAssessments(studentId: Long, assessments: List<Pair<String, SkillLevel>>) {
         viewModelScope.launch {
             val newAssessments = assessments.map { (skillName, level) ->
@@ -301,11 +312,17 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     // --- NOVO: Lógica para calcular o status das habilidades do aluno ---
     private suspend fun calculateStudentSkillStatus(studentId: Long, historyCount: Int = 3) {
-        Log.d("CourseViewModel", "Iniciando cálculo de status de habilidades para studentId: $studentId")
+        Log.d(
+            "CourseViewModel",
+            "Iniciando cálculo de status de habilidades para studentId: $studentId"
+        )
         val allAssessments = skillAssessmentDao.getAllAssessmentsForStudent(studentId).first()
         val courseSkills = _courseSkills.value
 
-        Log.d("CourseViewModel", "Total de avaliações encontradas para studentId $studentId: ${allAssessments.size}")
+        Log.d(
+            "CourseViewModel",
+            "Total de avaliações encontradas para studentId $studentId: ${allAssessments.size}"
+        )
         Log.d("CourseViewModel", "Habilidades do curso carregadas: ${courseSkills.size}")
 
         val statuses = courseSkills.map { courseSkill ->
@@ -313,11 +330,18 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val relevantAssessments = allAssessments
                 .filter { it.skillName == courseSkill.skillName }
                 .sortedByDescending { it.timestamp }
+                .distinctBy { it.timestamp }
 
-            Log.d("CourseViewModel", "  ${relevantAssessments.size} avaliações relevantes encontradas para ${courseSkill.skillName}.")
+            Log.d(
+                "CourseViewModel",
+                "  ${relevantAssessments.size} avaliações relevantes encontradas para ${courseSkill.skillName}."
+            )
 
             if (relevantAssessments.isEmpty()) {
-                Log.d("CourseViewModel", "  Nenhuma avaliação encontrada. Definindo como NOT_APPLICABLE.")
+                Log.d(
+                    "CourseViewModel",
+                    "  Nenhuma avaliação encontrada. Definindo como NOT_APPLICABLE."
+                )
                 SkillStatus(
                     skillName = courseSkill.skillName,
                     currentLevel = SkillLevel.NOT_APPLICABLE,
@@ -326,29 +350,42 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     lastAssessedTimestamp = 0L
                 )
             } else {
-                // Mapear SkillAssessment para SkillStatus (ou uma estrutura que SkillTrendCalculator.calculateTrend espera)
-                // Por simplicidade, vamos criar uma lista temporária de SkillStatus a partir de SkillAssessment para o cálculo da tendência.
                 val skillStatusesForTrend = relevantAssessments.map { assessment ->
                     SkillStatus(
                         skillName = assessment.skillName,
                         currentLevel = assessment.level,
-                        trend = SkillTrend.STABLE, // Temporário, será calculado
-                        assessmentCount = 1, // Não usado para cálculo de tendência aqui, mas para manter consistência
+                        trend = SkillTrend.STABLE,
+                        assessmentCount = relevantAssessments.size,
                         lastAssessedTimestamp = assessment.timestamp
                     )
                 }
 
-                // Usando o SkillTrendCalculator para centralizar a lógica de tendência
-                val calculatedTrend = SkillTrendCalculator.calculateTrend(
-                    assessments = skillStatusesForTrend,
-                    method = TrendCalculationMethod.LINEAR_REGRESSION,
-                    historyCount = historyCount
-                )
+                val calculatedTrend =
+                    if (skillStatusesForTrend.size < 2) {
+                        SkillTrend.STABLE
+                    } else {
+                        val distinctScores = skillStatusesForTrend
+                            .mapNotNull { it.currentLevel.score }
+                            .distinct()
+
+                        if (distinctScores.size < 2) {
+                            SkillTrend.STABLE
+                        } else {
+                            SkillTrendCalculator.calculateTrend(
+                                assessments = skillStatusesForTrend,
+                                method = TrendCalculationMethod.LINEAR_REGRESSION,
+                                historyCount = historyCount
+                            )
+                        }
+                    }
 
                 val currentLevel = skillStatusesForTrend.first().currentLevel
                 val lastAssessedTimestamp = skillStatusesForTrend.first().lastAssessedTimestamp
 
-                Log.d("CourseViewModel", "  Habilidade: ${courseSkill.skillName}, Nível Atual: ${currentLevel.name}, Tendência Calculada: ${calculatedTrend.name}")
+                Log.d(
+                    "CourseViewModel",
+                    "  Habilidade: ${courseSkill.skillName}, Nível Atual: ${currentLevel.name}, Tendência Calculada: ${calculatedTrend.name}"
+                )
 
                 SkillStatus(
                     skillName = courseSkill.skillName,

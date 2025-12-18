@@ -1,9 +1,9 @@
 package edu.jm.tabulavia.utils
 
-import edu.jm.tabulavia.model.SkillLevel
-import edu.jm.tabulavia.model.SkillTrend
-import edu.jm.tabulavia.model.SkillStatus
 import android.util.Log
+import edu.jm.tabulavia.model.SkillLevel
+import edu.jm.tabulavia.model.SkillStatus
+import edu.jm.tabulavia.model.SkillTrend
 
 enum class TrendCalculationMethod {
     SIMPLE_DIFFERENCE,
@@ -20,61 +20,49 @@ object SkillTrendCalculator {
         assessments: List<SkillStatus>,
         method: TrendCalculationMethod,
         historyCount: Int = 3
-    ): SkillTrend {
-        return when (method) {
-            TrendCalculationMethod.SIMPLE_DIFFERENCE -> {
+    ): SkillTrend =
+        when (method) {
+            TrendCalculationMethod.SIMPLE_DIFFERENCE ->
                 calculateSimpleDifferenceTrend(assessments, historyCount)
-            }
 
             TrendCalculationMethod.MOVING_AVERAGE -> {
-                // TODO: Implementar cálculo de Média Móvel
                 Log.w(TAG, "Método MOVING_AVERAGE ainda não implementado.")
-                SkillTrend.STABLE // Placeholder
+                SkillTrend.STABLE
             }
 
-            TrendCalculationMethod.LINEAR_REGRESSION -> {
+            TrendCalculationMethod.LINEAR_REGRESSION ->
                 calculateLinearRegressionTrend(assessments, historyCount)
-            }
         }
-    }
 
-    private fun levelToValue(level: SkillLevel): Double = when (level) {
-        SkillLevel.LOW -> 1.0
-        SkillLevel.MEDIUM -> 2.0
-        SkillLevel.HIGH -> 3.0
-        else -> 0.0 // NOT_APPLICABLE deve ser filtrado antes de chamar este método
-    }
+    private fun levelToScore(level: SkillLevel): Double? =
+        level.score?.toDouble()
 
-    // Cálculo de tendência por Regressão Linear
+    // ---------------------------------------------------------------------
+    // REGRESSÃO LINEAR (ordem temporal correta: mais antigo → mais recente)
+    // ---------------------------------------------------------------------
     private fun calculateLinearRegressionTrend(
         assessments: List<SkillStatus>,
         historyCount: Int
     ): SkillTrend {
+
         Log.d(
             TAG,
             "Calculando tendência por REGRESSÃO LINEAR com histórico de $historyCount avaliações."
         )
-        val sortedAssessments = assessments.sortedByDescending { it.lastAssessedTimestamp }
-        val assessmentsForTrend = sortedAssessments.take(historyCount)
 
-        if (assessmentsForTrend.size < 2) {
-            Log.d(TAG, "Regressão Linear: Estável (menos de 2 avaliações válidas).")
-            return SkillTrend.STABLE
-        }
+        val assessmentsForTrend = assessments
+            .sortedBy { it.lastAssessedTimestamp }   // ⬅️ CORREÇÃO
+            .takeLast(historyCount)
 
-        // Prepara os dados: X = Índice temporal reverso (0, 1, 2, ...), Y = Nível de habilidade
         val dataPoints = assessmentsForTrend
-            .mapIndexed { index, status ->
-                // Ponto X é o índice (0 sendo o mais recente)
-                val x = index.toDouble()
-                // Ponto Y é o valor numérico da habilidade
-                val y = levelToValue(status.currentLevel)
-                Pair(x, y)
+            .mapIndexedNotNull { index, status ->
+                levelToScore(status.currentLevel)?.let { score ->
+                    Pair(index.toDouble(), score)     // x cresce com o tempo
+                }
             }
-            .filter { it.second > 0.0 } // Filtra NOT_APPLICABLE (que mapeia para 0.0)
 
         if (dataPoints.size < 2) {
-            Log.d(TAG, "Regressão Linear: Estável (menos de 2 pontos válidos após filtro).")
+            Log.d(TAG, "Regressão Linear: Estável (menos de 2 pontos válidos).")
             return SkillTrend.STABLE
         }
 
@@ -84,7 +72,6 @@ object SkillTrendCalculator {
         val sumXY = dataPoints.sumOf { it.first * it.second }
         val sumX2 = dataPoints.sumOf { it.first * it.first }
 
-        // Fórmula da inclinação (slope): m = (n * Σ(xy) - Σx * Σy) / (n * Σ(x^2) - (Σx)^2)
         val numerator = (n * sumXY) - (sumX * sumY)
         val denominator = (n * sumX2) - (sumX * sumX)
 
@@ -93,64 +80,49 @@ object SkillTrendCalculator {
         Log.d(TAG, "Regressão Linear: Inclinação (Slope) = $slope")
 
         return when {
-            slope > SLOPE_THRESHOLD -> {
-                Log.d(TAG, "Tendência por Regressão Linear: Melhorando (IMPROVING).")
-                SkillTrend.IMPROVING
-            }
-
-            slope < -SLOPE_THRESHOLD -> {
-                Log.d("CourseViewModel", "Tendência por Regressão Linear: Declínio (DECLINING).")
-                SkillTrend.DECLINING
-            }
-
-            else -> {
-                Log.d(TAG, "Tendência por Regressão Linear: Estável (STABLE).")
-                SkillTrend.STABLE
-            }
+            slope > SLOPE_THRESHOLD -> SkillTrend.IMPROVING
+            slope < -SLOPE_THRESHOLD -> SkillTrend.DECLINING
+            else -> SkillTrend.STABLE
         }
     }
 
-    // Cálculo de tendência simples (comparação entre o primeiro e o último de 'historyCount')
+    // ---------------------------------------------------------------------
+    // DIFERENÇA SIMPLES (usa score, sem inversão temporal)
+    // ---------------------------------------------------------------------
     private fun calculateSimpleDifferenceTrend(
         assessments: List<SkillStatus>,
         historyCount: Int
     ): SkillTrend {
-        Log.d(TAG, "Calculando tendência SIMPLES com histórico de $historyCount avaliações.")
-        // Ordena pela data de avaliação mais recente primeiro
-        val sortedAssessments = assessments.sortedByDescending { it.lastAssessedTimestamp }
-        val assessmentsForTrend = sortedAssessments.take(historyCount)
 
-        if (assessmentsForTrend.size <= 1) {
+        Log.d(TAG, "Calculando tendência SIMPLES com histórico de $historyCount avaliações.")
+
+        val assessmentsForTrend = assessments
+            .sortedBy { it.lastAssessedTimestamp }
+            .takeLast(historyCount)
+
+        if (assessmentsForTrend.size < 2) {
             Log.d(TAG, "Tendência: Estável (menos de 2 avaliações no histórico).")
             return SkillTrend.STABLE
         }
 
-        val newestAssessment = assessmentsForTrend.first()
-        val oldestAssessment = assessmentsForTrend.last()
+        val oldestScore = assessmentsForTrend.first().currentLevel.score
+        val newestScore = assessmentsForTrend.last().currentLevel.score
 
-        val newestLevelOrdinal = newestAssessment.currentLevel.ordinal
-        val oldestLevelOrdinal = oldestAssessment.currentLevel.ordinal
+        if (oldestScore == null || newestScore == null) {
+            Log.d(TAG, "Tendência: Estável (score nulo / NOT_APPLICABLE).")
+            return SkillTrend.STABLE
+        }
 
         Log.d(
             TAG,
-            "Tendência para ${newestAssessment.skillName}: Novo Nível=${newestAssessment.currentLevel.name}, Velho Nível=${oldestAssessment.currentLevel.name}"
+            "Tendência para ${assessmentsForTrend.last().skillName}: " +
+                    "Velho Score=$oldestScore, Novo Score=$newestScore"
         )
 
         return when {
-            newestLevelOrdinal > oldestLevelOrdinal -> {
-                Log.d(TAG, "Tendência: Melhorando (IMPROVING).")
-                SkillTrend.IMPROVING
-            }
-
-            newestLevelOrdinal < oldestLevelOrdinal -> {
-                Log.d(TAG, "Tendência: Declínio (DECLINING).")
-                SkillTrend.DECLINING
-            }
-
-            else -> {
-                Log.d(TAG, "Tendência: Estável (STABLE).")
-                SkillTrend.STABLE
-            }
+            newestScore > oldestScore -> SkillTrend.IMPROVING
+            newestScore < oldestScore -> SkillTrend.DECLINING
+            else -> SkillTrend.STABLE
         }
     }
 }
