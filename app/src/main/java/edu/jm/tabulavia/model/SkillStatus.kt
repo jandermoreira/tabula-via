@@ -4,9 +4,9 @@ package edu.jm.tabulavia.model
  * Enum para representar a tendência de uma habilidade com base no histórico de avaliações.
  */
 enum class SkillTrend {
-    IMPROVING, // ("Melhorando"),
-    STABLE, // ("Estável"),
-    DECLINING // ("Regredindo")
+    IMPROVING,
+    STABLE,
+    DECLINING
 }
 
 /**
