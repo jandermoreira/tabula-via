@@ -55,7 +55,8 @@ class MainActivity : ComponentActivity() {
 
             } catch (e: GetCredentialException) {
                 Log.e("MainActivity", "GetCredentialException", e)
-                Toast.makeText(this@MainActivity, "Falha no login com Google.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, "Falha no login com Google.", Toast.LENGTH_SHORT)
+                    .show()
             }
         }
     }
