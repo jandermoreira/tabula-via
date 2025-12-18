@@ -138,7 +138,8 @@ fun GroupDetailsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(students, key = { it.studentId }) { student ->
-                    val studentDrawableResId = studentIconMap[student.studentId] ?: R.drawable.student_0
+                    val studentDrawableResId =
+                        studentIconMap[student.studentId] ?: R.drawable.student_0
                     StudentItem(
                         student = student,
                         drawableResId = studentDrawableResId,
@@ -215,12 +216,16 @@ private fun AssignGroupSkillsDialog(
                     Text("Nenhuma habilidade definida para esta turma.")
                 } else {
                     LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-                        items(courseSkills.sortedBy { it.skillName }, key = { it.skillName }) { courseSkill ->
-                            val isHighlighted = highlightedSkillNames.contains(courseSkill.skillName)
+                        items(
+                            courseSkills.sortedBy { it.skillName },
+                            key = { it.skillName }) { courseSkill ->
+                            val isHighlighted =
+                                highlightedSkillNames.contains(courseSkill.skillName)
 
                             SkillAssignmentRow(
                                 skillName = courseSkill.skillName,
-                                currentLevel = skillLevels[courseSkill.skillName] ?: SkillLevel.NOT_APPLICABLE,
+                                currentLevel = skillLevels[courseSkill.skillName]
+                                    ?: SkillLevel.NOT_APPLICABLE,
                                 onLevelSelected = { newLevel ->
                                     skillLevels = skillLevels.toMutableMap().apply {
                                         this[courseSkill.skillName] = newLevel
@@ -257,9 +262,6 @@ private fun AssignGroupSkillsDialog(
         }
     )
 }
-
-
-
 
 
 @Composable

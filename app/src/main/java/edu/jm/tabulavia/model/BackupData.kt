@@ -10,6 +10,7 @@ data class BackupData(
     val attendanceRecords: List<AttendanceRecord>,
     val activities: List<Activity>,
     val groupMembers: List<GroupMember> = emptyList(),
-    val skillAssessments: List<SkillAssessment> = emptyList(), // Adicionada a nova propriedade
-    val courseSkills: List<CourseSkill> = emptyList()
+    val skillAssessments: List<SkillAssessment> = emptyList(),
+    val courseSkills: List<CourseSkill> = emptyList(),
+    val activityHighlightedSkills: List<ActivityHighlightedSkill> = emptyList()
 )

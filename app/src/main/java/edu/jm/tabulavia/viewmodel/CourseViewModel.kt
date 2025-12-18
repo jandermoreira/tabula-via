@@ -70,12 +70,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _activities = MutableStateFlow<List<Activity>>(emptyList())
     val activities: StateFlow<List<Activity>> = _activities.asStateFlow()
-    
+
     private val _skillAssessmentLog = MutableStateFlow<List<SkillAssessment>>(emptyList())
     val skillAssessmentLog: StateFlow<List<SkillAssessment>> = _skillAssessmentLog.asStateFlow()
 
-    private val _studentSkillSummaries = MutableStateFlow<Map<String, SkillAssessmentsSummary>>(emptyMap())
-    val studentSkillSummaries: StateFlow<Map<String, SkillAssessmentsSummary>> = _studentSkillSummaries.asStateFlow()
+    private val _studentSkillSummaries =
+        MutableStateFlow<Map<String, SkillAssessmentsSummary>>(emptyMap())
+    val studentSkillSummaries: StateFlow<Map<String, SkillAssessmentsSummary>> =
+        _studentSkillSummaries.asStateFlow()
 
     private val _courseSkills = MutableStateFlow<List<CourseSkill>>(emptyList())
     val courseSkills: StateFlow<List<CourseSkill>> = _courseSkills.asStateFlow()
@@ -157,7 +159,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 .maxByOrNull { it.timestamp }
 
             if (lastSessionToday != null) {
-                val records = attendanceDao.getAttendanceRecordsForSession(lastSessionToday.sessionId)
+                val records =
+                    attendanceDao.getAttendanceRecordsForSession(lastSessionToday.sessionId)
                 _todaysAttendance.value = records.associate { it.studentId to it.status }
             } else {
                 _todaysAttendance.value = emptyMap()
@@ -207,9 +210,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             _selectedStudentDetails.value = studentDao.getStudentById(studentId)
             // REMOVED: _studentSkills.value = skillDao.getSkillsForStudent(studentId)
 
-            val classId = _selectedCourse.value?.classId ?: return@launch // Get classId from selectedCourse
+            val classId =
+                _selectedCourse.value?.classId ?: return@launch // Get classId from selectedCourse
             val courseSkills = courseSkillDao.getSkillsForCourse(classId)
-            _courseSkills.value = courseSkills // Garantir que courseSkills esteja atualizado no StateFlow
+            _courseSkills.value =
+                courseSkills // Garantir que courseSkills esteja atualizado no StateFlow
 
             // --- Removido a lógica de summariesMap, pois será substituída por SkillStatus ---
             /*
@@ -236,7 +241,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val totalClasses = _selectedCourse.value?.numberOfClasses ?: 0
             if (totalClasses > 0) {
                 val absences = attendanceDao.countStudentAbsences(studentId)
-                _studentAttendancePercentage.value = ((totalClasses.toFloat() - absences.toFloat()) / totalClasses.toFloat()) * 100
+                _studentAttendancePercentage.value =
+                    ((totalClasses.toFloat() - absences.toFloat()) / totalClasses.toFloat()) * 100
             } else {
                 _studentAttendancePercentage.value = null
             }
@@ -247,7 +253,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         _selectedStudentDetails.value = null
         _studentAttendancePercentage.value = null
         // REMOVED: _studentSkills.value = emptyList()
-        _studentSkillSummaries.value = emptyMap() // Manter para compatibilidade por enquanto, se ainda houver referências
+        _studentSkillSummaries.value =
+            emptyMap() // Manter para compatibilidade por enquanto, se ainda houver referências
         _studentSkillStatuses.value = emptyList() // Limpar também os status de habilidades
     }
 
@@ -262,7 +269,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             _courseSkills.value = courseSkillDao.getSkillsForCourse(courseId)
         }
     }
-    
+
     fun loadSkillAssessmentLog() {
         viewModelScope.launch {
             _skillAssessmentLog.value = skillAssessmentDao.getAllAssessments().first()
@@ -311,7 +318,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             loadStudentDetails(studentId)
         }
     }
-    
+
     fun addProfessorSkillAssessments(studentId: Long, assessments: List<Pair<String, SkillLevel>>) {
         viewModelScope.launch {
             val newAssessments = assessments.map { (skillName, level) ->
@@ -333,56 +340,56 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         // Obtém todas as avaliações do aluno a partir do DAO. O .first() é importante para obter o valor do Flow.
         val allAssessments = skillAssessmentDao.getAllAssessmentsForStudent(studentId).first()
         // Usar _courseSkills.value, que deve ser populado por loadCourseDetails
-        val courseSkills = _courseSkills.value 
+        val courseSkills = _courseSkills.value
 
-        val statuses = courseSkills.map {
-            courseSkill -> // O operador 'val' foi adicionado para resolver o erro de sintaxe
-            // Para cada habilidade da turma, filtre as avaliações do aluno
-            val relevantAssessments = allAssessments
-                .filter { it.skillName == courseSkill.skillName }
-                .sortedByDescending { it.timestamp } // Mais recente primeiro
+        val statuses =
+            courseSkills.map { courseSkill -> // O operador 'val' foi adicionado para resolver o erro de sintaxe
+                // Para cada habilidade da turma, filtre as avaliações do aluno
+                val relevantAssessments = allAssessments
+                    .filter { it.skillName == courseSkill.skillName }
+                    .sortedByDescending { it.timestamp } // Mais recente primeiro
 
-            if (relevantAssessments.isEmpty()) {
-                // Se não houver avaliações, cria um status "Não Avaliado"
-                SkillStatus(
-                    skillName = courseSkill.skillName,
-                    currentLevel = SkillLevel.NOT_APPLICABLE,
-                    trend = SkillTrend.STABLE, // Ou outro padrão para 'sem avaliações'
-                    assessmentCount = 0,
-                    lastAssessedTimestamp = 0L
-                )
-            } else {
-                // Pegar as últimas `historyCount` avaliações para o cálculo da tendência
-                val assessmentsForTrend = relevantAssessments.take(historyCount)
-
-                // O nível atual é a avaliação mais recente
-                val currentLevel = assessmentsForTrend.first().level
-
-                // Lógica simples para tendência:
-                // Compara o nível mais recente com o nível mais antigo dentro do histórico considerado.
-                val trend = if (assessmentsForTrend.size > 1) {
-                    val newestLevelOrdinal = assessmentsForTrend.first().level.ordinal
-                    val oldestLevelOrdinal = assessmentsForTrend.last().level.ordinal
-
-                    when {
-                        newestLevelOrdinal > oldestLevelOrdinal -> SkillTrend.IMPROVING
-                        newestLevelOrdinal < oldestLevelOrdinal -> SkillTrend.DECLINING
-                        else -> SkillTrend.STABLE
-                    }
+                if (relevantAssessments.isEmpty()) {
+                    // Se não houver avaliações, cria um status "Não Avaliado"
+                    SkillStatus(
+                        skillName = courseSkill.skillName,
+                        currentLevel = SkillLevel.NOT_APPLICABLE,
+                        trend = SkillTrend.STABLE, // Ou outro padrão para 'sem avaliações'
+                        assessmentCount = 0,
+                        lastAssessedTimestamp = 0L
+                    )
                 } else {
-                    // Se houver apenas uma avaliação, consideramos estável
-                    SkillTrend.STABLE
-                }
+                    // Pegar as últimas `historyCount` avaliações para o cálculo da tendência
+                    val assessmentsForTrend = relevantAssessments.take(historyCount)
 
-                SkillStatus(
-                    skillName = courseSkill.skillName,
-                    currentLevel = currentLevel,
-                    trend = trend,
-                    assessmentCount = relevantAssessments.size, // Todas as avaliações para o total
-                    lastAssessedTimestamp = relevantAssessments.first().timestamp
-                )
+                    // O nível atual é a avaliação mais recente
+                    val currentLevel = assessmentsForTrend.first().level
+
+                    // Lógica simples para tendência:
+                    // Compara o nível mais recente com o nível mais antigo dentro do histórico considerado.
+                    val trend = if (assessmentsForTrend.size > 1) {
+                        val newestLevelOrdinal = assessmentsForTrend.first().level.ordinal
+                        val oldestLevelOrdinal = assessmentsForTrend.last().level.ordinal
+
+                        when {
+                            newestLevelOrdinal > oldestLevelOrdinal -> SkillTrend.IMPROVING
+                            newestLevelOrdinal < oldestLevelOrdinal -> SkillTrend.DECLINING
+                            else -> SkillTrend.STABLE
+                        }
+                    } else {
+                        // Se houver apenas uma avaliação, consideramos estável
+                        SkillTrend.STABLE
+                    }
+
+                    SkillStatus(
+                        skillName = courseSkill.skillName,
+                        currentLevel = currentLevel,
+                        trend = trend,
+                        assessmentCount = relevantAssessments.size, // Todas as avaliações para o total
+                        lastAssessedTimestamp = relevantAssessments.first().timestamp
+                    )
+                }
             }
-        }
         _studentSkillStatuses.value = statuses
     }
 
@@ -473,7 +480,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
             val numGroups = if (groupFormationType == "Número de grupos") {
                 if (value > presentStudents.size) {
-                    _userMessage.value = "O número de grupos não pode ser maior que o de alunos presentes."
+                    _userMessage.value =
+                        "O número de grupos não pode ser maior que o de alunos presentes."
                     return@launch
                 }
                 value
@@ -503,7 +511,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             groupMemberDao.clearGroupMembersForActivity(activityId)
             val groupMembers = groups.flatMapIndexed { groupIndex, studentList ->
                 studentList.map {
-                    GroupMember(activityId = activityId, studentId = it.studentId, groupNumber = groupIndex + 1)
+                    GroupMember(
+                        activityId = activityId,
+                        studentId = it.studentId,
+                        groupNumber = groupIndex + 1
+                    )
                 }
             }
             groupMemberDao.insertGroupMembers(groupMembers)
@@ -623,7 +635,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 activities = activityDao.getAllActivities(),
                 groupMembers = groupMemberDao.getAllGroupMembers(),
                 skillAssessments = skillAssessmentDao.getAllAssessments().first(), // Corrigido
-                courseSkills = courseSkillDao.getAllCourseSkills()
+                courseSkills = courseSkillDao.getAllCourseSkills(),
+                activityHighlightedSkills = activityHighlightedSkillDao.getAll()
             )
             val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
 
@@ -658,8 +671,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 attendanceDao.insertAllSessions(backupData.classSessions)
                 attendanceDao.insertAttendanceRecords(backupData.attendanceRecords)
                 groupMemberDao.insertAll(backupData.groupMembers)
-                skillAssessmentDao.insertAll(backupData.skillAssessments) // Corrigido
+                skillAssessmentDao.insertAll(backupData.skillAssessments)
                 courseSkillDao.insertCourseSkills(backupData.courseSkills)
+
+                activityHighlightedSkillDao.insertAll(backupData.activityHighlightedSkills)
             }
 
             loadAllCourses()
