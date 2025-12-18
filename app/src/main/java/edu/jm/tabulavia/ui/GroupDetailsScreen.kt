@@ -231,12 +231,6 @@ private fun AssignGroupSkillsForAllDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-//                Text(
-//                    text = "Destaques da atividade: ${highlightedSkillNames.size}",
-//                    style = MaterialTheme.typography.labelSmall
-//                )
-//                Spacer(modifier = Modifier.height(8.dp))
-
                 if (courseSkills.isEmpty()) {
                     Text("Nenhuma habilidade definida para esta turma.")
                 } else {
