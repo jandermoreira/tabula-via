@@ -335,15 +335,13 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // --- NOVO: Lógica para calcular o status das habilidades do aluno ---
+    // --- Lógica para calcular o status das habilidades do aluno ---
     private suspend fun calculateStudentSkillStatus(studentId: Long, historyCount: Int = 3) {
-        // Obtém todas as avaliações do aluno a partir do DAO. O .first() é importante para obter o valor do Flow.
         val allAssessments = skillAssessmentDao.getAllAssessmentsForStudent(studentId).first()
-        // Usar _courseSkills.value, que deve ser populado por loadCourseDetails
         val courseSkills = _courseSkills.value
 
         val statuses =
-            courseSkills.map { courseSkill -> // O operador 'val' foi adicionado para resolver o erro de sintaxe
+            courseSkills.map { courseSkill ->
                 // Para cada habilidade da turma, filtre as avaliações do aluno
                 val relevantAssessments = allAssessments
                     .filter { it.skillName == courseSkill.skillName }
@@ -365,20 +363,22 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     // O nível atual é a avaliação mais recente
                     val currentLevel = assessmentsForTrend.first().level
 
-                    // Lógica simples para tendência:
-                    // Compara o nível mais recente com o nível mais antigo dentro do histórico considerado.
-                    val trend = if (assessmentsForTrend.size > 1) {
-                        val newestLevelOrdinal = assessmentsForTrend.first().level.ordinal
-                        val oldestLevelOrdinal = assessmentsForTrend.last().level.ordinal
+                    val trend = run {
+                        val newestScore = assessmentsForTrend.first().level.score
+                        val oldestScore = assessmentsForTrend.last().level.score
 
-                        when {
-                            newestLevelOrdinal > oldestLevelOrdinal -> SkillTrend.IMPROVING
-                            newestLevelOrdinal < oldestLevelOrdinal -> SkillTrend.DECLINING
-                            else -> SkillTrend.STABLE
+                        if (assessmentsForTrend.size <= 1) {
+                            SkillTrend.STABLE
+                        } else if (newestScore == null || oldestScore == null) {
+                            // Se algum dos pontos for "Não se Aplica", não inferimos tendência
+                            SkillTrend.STABLE
+                        } else {
+                            when {
+                                newestScore > oldestScore -> SkillTrend.IMPROVING
+                                newestScore < oldestScore -> SkillTrend.DECLINING
+                                else -> SkillTrend.STABLE
+                            }
                         }
-                    } else {
-                        // Se houver apenas uma avaliação, consideramos estável
-                        SkillTrend.STABLE
                     }
 
                     SkillStatus(

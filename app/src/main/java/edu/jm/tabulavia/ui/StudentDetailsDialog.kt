@@ -41,11 +41,10 @@ import edu.jm.tabulavia.viewmodel.CourseViewModel
 fun StudentDetailsDialog(
     student: Student,
     attendancePercentage: Float?,
-    viewModel: CourseViewModel, // Adicionado o ViewModel
+    viewModel: CourseViewModel,
     onDismiss: () -> Unit
-    // onEditSkills: () -> Unit // Removido: A funcionalidade de edição de habilidades foi removida
 ) {
-    val skillSummaries by viewModel.studentSkillStatuses.collectAsState() // Coleta os status de habilidades calculados
+    val skillSummaries by viewModel.studentSkillStatuses.collectAsState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -53,8 +52,8 @@ fun StudentDetailsDialog(
         text = {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth() // Garante que a coluna tente ocupar a largura disponível do diálogo
-                    .heightIn(max = 450.dp) // Define uma altura máxima para o conteúdo antes de rolar
+                    .fillMaxWidth()
+                    .heightIn(max = 450.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -79,9 +78,8 @@ fun StudentDetailsDialog(
                 if (skillSummaries.isEmpty()) {
                     Text("Nenhuma habilidade registrada para este aluno ou turma.")
                 } else {
-                    // Itera sobre os SkillStatus calculados
                     skillSummaries.forEach { skillStatus ->
-                        // Lógica para definir o ícone e a cor da tendência
+                        // Checking trend
                         val trendIcon = when (skillStatus.trend) {
                             SkillTrend.IMPROVING -> Icons.Default.ArrowUpward
                             SkillTrend.DECLINING -> Icons.Default.ArrowDownward
@@ -129,6 +127,5 @@ fun StudentDetailsDialog(
                 Text("Fechar")
             }
         }
-        // Dismiss button removido
     )
 }
