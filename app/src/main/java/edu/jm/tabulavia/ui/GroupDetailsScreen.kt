@@ -114,8 +114,12 @@ fun GroupDetailsScreen(
     ) { paddingValues ->
         val context = LocalContext.current
 
-        val studentIconMap = remember(students, context) {
-            students.associate { student ->
+        val studentsSorted = remember(students) {
+            students.sortedBy { it.displayName.trim().lowercase() }
+        }
+
+        val studentIconMap = remember(studentsSorted, context) {
+            studentsSorted.associate { student ->
                 val iconIndex = (student.studentId.mod(80L) + 1).toInt()
                 val iconName = "student_${iconIndex}"
                 val drawableResId =
@@ -124,7 +128,7 @@ fun GroupDetailsScreen(
             }
         }
 
-        if (students.isEmpty()) {
+        if (studentsSorted.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -143,7 +147,7 @@ fun GroupDetailsScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(students, key = { it.studentId }) { student ->
+                items(studentsSorted, key = { it.studentId }) { student ->
                     val studentDrawableResId =
                         studentIconMap[student.studentId] ?: R.drawable.student_0
                     StudentItem(
@@ -176,7 +180,7 @@ fun GroupDetailsScreen(
 
     if (showAssignSkillsForAllDialog) {
         AssignGroupSkillsForAllDialog(
-            students = students,
+            students = remember(students) { students.sortedBy { it.displayName.trim().lowercase() } },
             viewModel = viewModel,
             activityId = activityId,
             onDismiss = { showAssignSkillsForAllDialog = false }
