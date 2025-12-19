@@ -400,11 +400,28 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // --- ACTIVITY LOGIC ---
+    private val _groupsLoaded = MutableStateFlow(false)
+    val groupsLoaded: StateFlow<Boolean> = _groupsLoaded.asStateFlow()
+
+    private val _loadedActivityId = MutableStateFlow<Long?>(null)
+    val loadedActivityId: StateFlow<Long?> = _loadedActivityId.asStateFlow()
+
     fun loadActivityDetails(activityId: Long) {
+        _groupsLoaded.value = false
+        _loadedActivityId.value = null
+
         viewModelScope.launch {
             _selectedActivity.value = activityDao.getActivityById(activityId)
             loadPersistedGroups(activityId)
+            _loadedActivityId.value = activityId
+            _groupsLoaded.value = true
         }
+    }
+
+    fun clearActivityState() {
+        _groupsLoaded.value = false
+        _loadedActivityId.value = null
+        _generatedGroups.value = emptyList()
     }
 
     private suspend fun loadPersistedGroups(activityId: Long) {
@@ -528,14 +545,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun clearGroups() {
-        viewModelScope.launch {
-            val activityId = _selectedActivity.value?.activityId ?: return@launch
-            groupMemberDao.clearGroupMembersForActivity(activityId)
-            _generatedGroups.value = emptyList()
-            groupFormationValue = ""
-        }
-    }
 
     fun loadGroupDetails(groupNumber: Int) {
         val group = _generatedGroups.value.getOrNull(groupNumber - 1)
