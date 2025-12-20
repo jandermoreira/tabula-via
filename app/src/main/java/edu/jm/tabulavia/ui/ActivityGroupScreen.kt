@@ -88,7 +88,9 @@ fun ActivityGroupScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Aguarde…")
+                Text("Aguarde...")
+                Spacer(Modifier.height(8.dp))
+                CircularProgressIndicator()
             }
             return@Scaffold
         }
@@ -102,7 +104,9 @@ fun ActivityGroupScreen(
 
                 GroupUiState.LOADING -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Aguarde…")
+                        Text("Aguarde...")
+                        Spacer(Modifier.height(8.dp))
+                        CircularProgressIndicator()
                     }
                 }
 
