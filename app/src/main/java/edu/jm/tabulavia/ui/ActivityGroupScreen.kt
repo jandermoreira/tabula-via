@@ -2,7 +2,11 @@ package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -57,11 +61,10 @@ fun ActivityGroupScreen(
 
     LaunchedEffect(groupsLoaded) {
         if (groupsLoaded && loadedActivityId == activityId) {
-            uiState = if (groups.isEmpty()) {
+            uiState = if (groups.isEmpty())
                 GroupUiState.NO_GROUPS
-            } else {
+            else
                 GroupUiState.SHOW_GROUPS
-            }
         }
     }
 
@@ -85,7 +88,6 @@ fun ActivityGroupScreen(
         }
     ) { padding ->
 
-        // 🔒 BLOQUEIO DEFINITIVO DE CONTEXTO
         if (loadedActivityId != activityId) {
             Box(
                 modifier = Modifier
@@ -106,11 +108,7 @@ fun ActivityGroupScreen(
             when (uiState) {
 
                 GroupUiState.LOADING -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("Aguarde…")
                     }
                 }
@@ -136,6 +134,7 @@ fun ActivityGroupScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConfigurationView(
     viewModel: CourseViewModel,
@@ -143,34 +142,96 @@ private fun ConfigurationView(
 ) {
     val groupingCriteria = listOf("Aleatório", "Manual", "Balanceado por habilidade")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
+    var isCriterionCompact by remember { mutableStateOf(false) }
+
+    isCriterionCompact = viewModel.groupingCriterion == "Manual"
 
     Column(modifier = Modifier.padding(16.dp)) {
-        Text("Critério de Agrupamento", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(8.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        AnimatedVisibility(
+            visible = !isCriterionCompact,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
         ) {
-            groupingCriteria.forEach { criterion ->
-                Row(
+            Column {
+                Text(
+                    "Critério de Agrupamento",
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+
+        if (viewModel.groupingCriterion == "Manual") {
+
+            var expanded by remember { mutableStateOf(false) }
+
+            if (viewModel.groupingCriterion != "Manual") {
+                Text(
+                    "Critério de Agrupamento",
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = viewModel.groupingCriterion,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Critério") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded)
+                    },
                     modifier = Modifier
+                        .menuAnchor()
                         .fillMaxWidth()
-                        .selectable(
-                            selected = viewModel.groupingCriterion == criterion,
-                            onClick = { viewModel.groupingCriterion = criterion }
-                        )
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
                 ) {
-                    if (viewModel.groupingCriterion == criterion) {
-                        Icon(Icons.Default.Check, null)
-                    } else {
-                        Spacer(Modifier.width(24.dp))
+                    groupingCriteria.forEach { criterion ->
+                        DropdownMenuItem(
+                            text = { Text(criterion) },
+                            onClick = {
+                                viewModel.groupingCriterion = criterion
+                                expanded = false
+                            }
+                        )
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Text(criterion)
+                }
+            }
+
+        } else {
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            ) {
+                groupingCriteria.forEach { criterion ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = viewModel.groupingCriterion == criterion,
+                                onClick = { viewModel.groupingCriterion = criterion }
+                            )
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (viewModel.groupingCriterion == criterion) {
+                            Icon(Icons.Default.Check, null)
+                        } else {
+                            Spacer(Modifier.width(24.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(criterion)
+                    }
                 }
             }
         }
@@ -178,12 +239,11 @@ private fun ConfigurationView(
         Spacer(Modifier.height(16.dp))
 
         if (viewModel.groupingCriterion == "Aleatório") {
+
             Text("Opções", style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(8.dp))
 
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 formationOptions.forEachIndexed { index, option ->
                     SegmentedButton(
                         selected = viewModel.groupFormationType == option,
@@ -194,15 +254,7 @@ private fun ConfigurationView(
                         ),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp) // controla o gap
-                        ) {
-                            Text(
-                                text = option,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                        Text(option, textAlign = TextAlign.Center)
                     }
                 }
             }
