@@ -28,6 +28,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.model.grouping.Group
+import edu.jm.tabulavia.model.grouping.Location
+import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 private enum class GroupUiState {
@@ -155,6 +158,8 @@ private fun ConfigurationView(
     val groupingCriteria = listOf("Aleatório", "Balanceado por habilidade", "Manual")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
 
+    var selectedStudent by remember { mutableStateOf<Student?>(null) }
+    var selectedFrom by remember { mutableStateOf<Location?>(null) }
     val isCriterionCompact = viewModel.groupingCriterion == "Manual"
 
     Column(modifier = Modifier.padding(16.dp)) {
@@ -173,131 +178,122 @@ private fun ConfigurationView(
             }
         }
 
-        if (viewModel.groupingCriterion == "Manual") {
-
-            var expanded by remember { mutableStateOf(false) }
-
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded },
-                modifier = Modifier.animateContentSize()
-            ) {
-                OutlinedTextField(
-                    value = viewModel.groupingCriterion,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Critério") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded)
-                    },
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        ) {
+            groupingCriteria.forEach { criterion ->
+                Row(
                     modifier = Modifier
-                        .menuAnchor()
                         .fillMaxWidth()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    groupingCriteria.forEach { criterion ->
-                        DropdownMenuItem(
-                            text = { Text(criterion) },
+                        .selectable(
+                            selected = viewModel.groupingCriterion == criterion,
                             onClick = {
                                 viewModel.groupingCriterion = criterion
-                                expanded = false
                             }
                         )
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (viewModel.groupingCriterion == criterion) {
+                        Icon(Icons.Default.Check, null)
+                    } else {
+                        Spacer(Modifier.width(24.dp))
                     }
-                }
-            }
-
-        } else {
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-            ) {
-                groupingCriteria.forEach { criterion ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = viewModel.groupingCriterion == criterion,
-                                onClick = { viewModel.groupingCriterion = criterion }
-                            )
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (viewModel.groupingCriterion == criterion) {
-                            Icon(Icons.Default.Check, null)
-                        } else {
-                            Spacer(Modifier.width(24.dp))
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Text(criterion)
-                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(criterion)
                 }
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
-        if (viewModel.groupingCriterion == "Aleatório") {
+        when (viewModel.groupingCriterion) {
 
-            Text("Opções", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(8.dp))
+            "Aleatório" -> {
 
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                formationOptions.forEachIndexed { index, option ->
-                    SegmentedButton(
-                        selected = viewModel.groupFormationType == option,
-                        onClick = { viewModel.groupFormationType = option },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = formationOptions.size
-                        ),
+                Text("Opções", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(8.dp))
+
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    formationOptions.forEachIndexed { index, option ->
+                        SegmentedButton(
+                            selected = viewModel.groupFormationType == option,
+                            onClick = { viewModel.groupFormationType = option },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = formationOptions.size
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(option, textAlign = TextAlign.Center)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = viewModel.groupFormationValue,
+                    onValueChange = {
+                        viewModel.groupFormationValue = it.filter(Char::isDigit)
+                    },
+                    label = { Text(viewModel.groupFormationType) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onCancel,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(option, textAlign = TextAlign.Center)
+                        Text("Cancelar")
+                    }
+                    Button(
+                        onClick = {
+                            viewModel.createBalancedGroups()
+                            onGroupsCreated()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Criar Grupos")
                     }
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            "Manual" -> {
 
-            OutlinedTextField(
-                value = viewModel.groupFormationValue,
-                onValueChange = {
-                    viewModel.groupFormationValue = it.filter(Char::isDigit)
-                },
-                label = { Text(viewModel.groupFormationType) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Cancelar")
+                LaunchedEffect(Unit) {
+                    viewModel.enterManualMode()
                 }
-                Button(
-                    onClick = {
-                        viewModel.createBalancedGroups()
-                        onGroupsCreated()
+
+                ManualGroupEditorView(
+                    groups = viewModel.manualGroups,
+                    unassignedStudents = viewModel.unassignedStudents,
+                    onStudentSelected = { student, from ->
+                        selectedStudent = student
+                        selectedFrom = from
                     },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Criar Grupos")
-                }
+                    onDropTargetSelected = { target ->
+                        val student = selectedStudent
+                        val from = selectedFrom
+                        if (student != null && from != null) {
+                            viewModel.moveStudent(student, from, target)
+                        }
+                        selectedStudent = null
+                        selectedFrom = null
+                    }
+                )
             }
-        } else {
-            Text("Ainda não implementado")
+
+            else -> {
+                Text("Ainda não implementado")
+            }
         }
     }
 }
@@ -347,6 +343,73 @@ private fun GroupCard(
                 "$studentCount componentes",
                 style = MaterialTheme.typography.bodySmall
             )
+        }
+    }
+}
+
+@Composable
+private fun ManualGroupEditorView(
+    groups: List<Group>,
+    unassignedStudents: List<Student>,
+    onStudentSelected: (Student, Location) -> Unit,
+    onDropTargetSelected: (DropTarget) -> Unit
+) {
+    Row(Modifier.fillMaxWidth()) {
+
+        Column(Modifier.weight(1f)) {
+            Text("Não alocados")
+            unassignedStudents.forEach { student ->
+                Text(
+                    student.name,
+                    modifier = Modifier
+                        .clickable {
+                            onStudentSelected(student, Location.Unassigned)
+                        }
+                        .padding(8.dp)
+                )
+            }
+        }
+
+        Column(Modifier.weight(2f)) {
+
+            OutlinedButton(
+                onClick = { onDropTargetSelected(DropTarget.NewGroup) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("+ Criar grupo")
+            }
+
+            groups.forEach { group ->
+                Card(Modifier.padding(vertical = 4.dp)) {
+                    Column(Modifier.padding(8.dp)) {
+                        Text("Grupo")
+
+                        group.students.forEach { student ->
+                            Text(
+                                student.name,
+                                modifier = Modifier
+                                    .clickable {
+                                        onStudentSelected(
+                                            student,
+                                            Location.Group(group.id)
+                                        )
+                                    }
+                                    .padding(4.dp)
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                onDropTargetSelected(
+                                    DropTarget.ExistingGroup(group.id)
+                                )
+                            }
+                        ) {
+                            Text("Mover selecionado aqui")
+                        }
+                    }
+                }
+            }
         }
     }
 }

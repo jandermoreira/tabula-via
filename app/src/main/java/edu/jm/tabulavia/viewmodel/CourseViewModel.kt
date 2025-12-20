@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.compose.runtime.toMutableStateList
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
@@ -25,6 +26,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.util.Calendar
 import android.util.Log
+import androidx.compose.runtime.mutableStateListOf
+import edu.jm.tabulavia.model.grouping.Group
+import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.model.grouping.Location
+import edu.jm.tabulavia.model.grouping.DropTarget
 
 class CourseViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -422,7 +428,30 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         _groupsLoaded.value = false
         _loadedActivityId.value = null
         _generatedGroups.value = emptyList()
+
+        isManualMode = false
+        manualGroups.clear()
+        unassignedStudents.clear()
     }
+
+    private suspend fun persistGroupsToDatabase(
+        activityId: Long,
+        groups: List<List<Student>>
+    ) {
+        groupMemberDao.clearGroupMembersForActivity(activityId)
+
+        val groupMembers = groups.flatMapIndexed { groupIndex, studentList ->
+            studentList.map { student ->
+                GroupMember(
+                    activityId = activityId,
+                    studentId = student.studentId, // Usei studentId pois é a chave primária correta
+                    groupNumber = groupIndex + 1
+                )
+            }
+        }
+        groupMemberDao.insertGroupMembers(groupMembers)
+    }
+
 
     private suspend fun loadPersistedGroups(activityId: Long) {
         val groupMembers = groupMemberDao.getGroupMembersForActivity(activityId)
@@ -529,19 +558,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
             _generatedGroups.value = groups
-
-            // Persist groups
-            groupMemberDao.clearGroupMembersForActivity(activityId)
-            val groupMembers = groups.flatMapIndexed { groupIndex, studentList ->
-                studentList.map {
-                    GroupMember(
-                        activityId = activityId,
-                        studentId = it.studentId,
-                        groupNumber = groupIndex + 1
-                    )
-                }
-            }
-            groupMemberDao.insertGroupMembers(groupMembers)
+            persistGroupsToDatabase(activityId, groups)
         }
     }
 
@@ -807,4 +824,109 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
+
+// --- MANUAL GROUPING STATE ---
+
+    var isManualMode by mutableStateOf(false)
+        private set
+
+    val manualGroups = mutableStateListOf<Group>()
+    val unassignedStudents = mutableStateListOf<Student>()
+
+    private var nextManualGroupId = 1
+
+    private fun generateManualGroupId(): Int = nextManualGroupId++
+
+    fun enterManualMode() {
+        if (isManualMode) return
+
+        manualGroups.clear()
+        unassignedStudents.clear()
+        nextManualGroupId = 1
+
+        val allStudents = _studentsForClass.value
+        val existingGroups = _generatedGroups.value
+
+        val assignedStudentIds = mutableSetOf<Long>()
+
+        existingGroups.forEach { groupStudents ->
+            if (groupStudents.isNotEmpty()) {
+                manualGroups += Group(
+                    id = generateManualGroupId(),
+                    students = groupStudents.toMutableStateList()
+                )
+                groupStudents.forEach { assignedStudentIds += it.studentId }
+            }
+        }
+
+        allStudents
+            .filterNot { it.studentId in assignedStudentIds }
+            .forEach { unassignedStudents += it }
+
+        isManualMode = true
+    }
+
+    fun exitManualMode() {
+        isManualMode = false
+        manualGroups.clear()
+        unassignedStudents.clear()
+    }
+
+
+    fun moveStudent(
+        student: Student,
+        from: Location,
+        to: DropTarget
+    ) {
+        when (from) {
+            Location.Unassigned -> {
+                unassignedStudents.remove(student)
+            }
+            is Location.Group -> {
+                val group = manualGroups.firstOrNull { it.id == from.groupId }
+                group?.students?.remove(student)
+
+                if (group != null && group.students.isEmpty()) {
+                    manualGroups.remove(group)
+                }
+            }
+        }
+
+        when (to) {
+            DropTarget.Unassigned -> {
+                unassignedStudents.add(student)
+            }
+
+            DropTarget.NewGroup -> {
+                manualGroups.add(
+                    Group(
+                        id = generateManualGroupId(),
+                        students = mutableStateListOf(student)
+                    )
+                )
+            }
+
+            is DropTarget.ExistingGroup -> {
+                manualGroups
+                    .firstOrNull { it.id == to.groupId }
+                    ?.students
+                    ?.add(student)
+            }
+        }
+        commitManualGroups()
+    }
+
+    private fun commitManualGroups() {
+        val groups = manualGroups.map { it.students.toList() }
+
+        _generatedGroups.value = groups
+
+        viewModelScope.launch {
+            persistGroupsToDatabase(
+                activityId = _loadedActivityId.value ?: return@launch,
+                groups = groups
+            )
+        }
+    }
 }
+
