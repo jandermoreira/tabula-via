@@ -1,13 +1,11 @@
 package edu.jm.tabulavia.ui
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -115,16 +113,28 @@ fun ActivityGroupScreen(
                 }
 
                 GroupUiState.NO_GROUPS -> {
-                    ConfigurationView(viewModel) {}
+                    ConfigurationView(
+                        viewModel = viewModel,
+                        onCancel = {},
+                        onGroupsCreated = {
+                            uiState = GroupUiState.SHOW_GROUPS
+                        }
+                    )
                 }
 
                 GroupUiState.CONFIGURE -> {
-                    ConfigurationView(viewModel) {
-                        uiState = if (groups.isEmpty())
-                            GroupUiState.NO_GROUPS
-                        else
-                            GroupUiState.SHOW_GROUPS
-                    }
+                    ConfigurationView(
+                        viewModel = viewModel,
+                        onCancel = {
+                            uiState = if (groups.isEmpty())
+                                GroupUiState.NO_GROUPS
+                            else
+                                GroupUiState.SHOW_GROUPS
+                        },
+                        onGroupsCreated = {
+                            uiState = GroupUiState.SHOW_GROUPS
+                        }
+                    )
                 }
 
                 GroupUiState.SHOW_GROUPS -> {
@@ -139,19 +149,20 @@ fun ActivityGroupScreen(
 @Composable
 private fun ConfigurationView(
     viewModel: CourseViewModel,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onGroupsCreated: () -> Unit
 ) {
     val groupingCriteria = listOf("Aleatório", "Balanceado por habilidade", "Manual")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
-    var isCriterionCompact by remember { mutableStateOf(false) }
 
-    isCriterionCompact = viewModel.groupingCriterion == "Manual"
+    val isCriterionCompact = viewModel.groupingCriterion == "Manual"
 
     Column(modifier = Modifier.padding(16.dp)) {
+
         AnimatedVisibility(
             visible = !isCriterionCompact,
             enter = expandVertically(),
-            exit = shrinkVertically(),
+            exit = shrinkVertically()
         ) {
             Column {
                 Text(
@@ -165,14 +176,6 @@ private fun ConfigurationView(
         if (viewModel.groupingCriterion == "Manual") {
 
             var expanded by remember { mutableStateOf(false) }
-
-            if (viewModel.groupingCriterion != "Manual") {
-                Text(
-                    "Critério de Agrupamento",
-                    style = MaterialTheme.typography.labelLarge
-                )
-                Spacer(Modifier.height(8.dp))
-            }
 
             ExposedDropdownMenuBox(
                 expanded = expanded,
@@ -284,7 +287,10 @@ private fun ConfigurationView(
                     Text("Cancelar")
                 }
                 Button(
-                    onClick = { viewModel.createBalancedGroups() },
+                    onClick = {
+                        viewModel.createBalancedGroups()
+                        onGroupsCreated()
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Criar Grupos")
@@ -337,7 +343,10 @@ private fun GroupCard(
             Icon(Icons.Default.Group, null, modifier = Modifier.size(40.dp))
             Spacer(Modifier.height(8.dp))
             Text("Grupo $groupNumber", fontWeight = FontWeight.Bold)
-            Text("$studentCount componentes", style = MaterialTheme.typography.bodySmall)
+            Text(
+                "$studentCount componentes",
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
