@@ -145,7 +145,6 @@ private fun ConfigurationView(
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
 
     Column(modifier = Modifier.padding(16.dp)) {
-
         Text("Critério de Agrupamento", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(8.dp))
 
@@ -179,6 +178,8 @@ private fun ConfigurationView(
         Spacer(Modifier.height(16.dp))
 
         if (viewModel.groupingCriterion == "Aleatório") {
+            Text("Opções", style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(8.dp))
 
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier.fillMaxWidth()
@@ -193,11 +194,15 @@ private fun ConfigurationView(
                         ),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(
-                            text = option,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp) // controla o gap
+                        ) {
+                            Text(
+                                text = option,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
