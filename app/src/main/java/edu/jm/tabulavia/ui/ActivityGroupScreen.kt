@@ -3,6 +3,7 @@ package edu.jm.tabulavia.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
@@ -140,7 +141,7 @@ private fun ConfigurationView(
     viewModel: CourseViewModel,
     onCancel: () -> Unit
 ) {
-    val groupingCriteria = listOf("Aleatório", "Manual", "Balanceado por habilidade")
+    val groupingCriteria = listOf("Aleatório", "Balanceado por habilidade", "Manual")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
     var isCriterionCompact by remember { mutableStateOf(false) }
 
@@ -175,7 +176,8 @@ private fun ConfigurationView(
 
             ExposedDropdownMenuBox(
                 expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
+                onExpandedChange = { expanded = !expanded },
+                modifier = Modifier.animateContentSize()
             ) {
                 OutlinedTextField(
                     value = viewModel.groupingCriterion,
@@ -288,6 +290,8 @@ private fun ConfigurationView(
                     Text("Criar Grupos")
                 }
             }
+        } else {
+            Text("Ainda não implementado")
         }
     }
 }
