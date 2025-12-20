@@ -1,7 +1,6 @@
 package edu.jm.tabulavia.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
@@ -17,7 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,10 +33,7 @@ import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 private enum class GroupUiState {
-    LOADING,
-    NO_GROUPS,
-    SHOW_GROUPS,
-    CONFIGURE
+    LOADING, NO_GROUPS, SHOW_GROUPS, CONFIGURE
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,32 +59,27 @@ fun ActivityGroupScreen(
 
     LaunchedEffect(groupsLoaded) {
         if (groupsLoaded && loadedActivityId == activityId) {
-            uiState = if (groups.isEmpty())
-                GroupUiState.NO_GROUPS
-            else
-                GroupUiState.SHOW_GROUPS
+            uiState = if (groups.isEmpty()) GroupUiState.NO_GROUPS
+            else GroupUiState.SHOW_GROUPS
+
+            viewModel.groupingCriterion = if (groups.isEmpty()) "Aleatório" else "Manual"
         }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(activity?.title ?: "Montar Grupos") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
-                    }
-                },
-                actions = {
-                    if (uiState == GroupUiState.SHOW_GROUPS) {
-                        IconButton(onClick = { uiState = GroupUiState.CONFIGURE }) {
-                            Icon(Icons.Default.Refresh, null)
-                        }
+            TopAppBar(title = { Text(activity?.title ?: "Montar Grupos") }, navigationIcon = {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                }
+            }, actions = {
+                if (uiState == GroupUiState.SHOW_GROUPS) {
+                    IconButton(onClick = { uiState = GroupUiState.CONFIGURE }) {
+                        Icon(Icons.Default.Edit, null)
                     }
                 }
-            )
-        }
-    ) { padding ->
+            })
+        }) { padding ->
 
         if (loadedActivityId != activityId) {
             Box(
@@ -119,25 +110,14 @@ fun ActivityGroupScreen(
                     ConfigurationView(
                         viewModel = viewModel,
                         onCancel = {},
-                        onGroupsCreated = {
-                            uiState = GroupUiState.SHOW_GROUPS
-                        }
-                    )
+                        onGroupsCreated = { uiState = GroupUiState.SHOW_GROUPS })
                 }
 
                 GroupUiState.CONFIGURE -> {
-                    ConfigurationView(
-                        viewModel = viewModel,
-                        onCancel = {
-                            uiState = if (groups.isEmpty())
-                                GroupUiState.NO_GROUPS
-                            else
-                                GroupUiState.SHOW_GROUPS
-                        },
-                        onGroupsCreated = {
-                            uiState = GroupUiState.SHOW_GROUPS
-                        }
-                    )
+                    ConfigurationView(viewModel = viewModel, onCancel = {
+                        uiState = if (groups.isEmpty()) GroupUiState.NO_GROUPS
+                        else GroupUiState.SHOW_GROUPS
+                    }, onGroupsCreated = { uiState = GroupUiState.SHOW_GROUPS })
                 }
 
                 GroupUiState.SHOW_GROUPS -> {
@@ -151,58 +131,83 @@ fun ActivityGroupScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConfigurationView(
-    viewModel: CourseViewModel,
-    onCancel: () -> Unit,
-    onGroupsCreated: () -> Unit
+    viewModel: CourseViewModel, onCancel: () -> Unit, onGroupsCreated: () -> Unit
 ) {
     val groupingCriteria = listOf("Aleatório", "Balanceado por habilidade", "Manual")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
 
     var selectedStudent by remember { mutableStateOf<Student?>(null) }
     var selectedFrom by remember { mutableStateOf<Location?>(null) }
+
     val isCriterionCompact = viewModel.groupingCriterion == "Manual"
 
     Column(modifier = Modifier.padding(16.dp)) {
 
         AnimatedVisibility(
-            visible = !isCriterionCompact,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+            visible = !isCriterionCompact, enter = expandVertically(), exit = shrinkVertically()
         ) {
             Column {
                 Text(
-                    "Critério de Agrupamento",
-                    style = MaterialTheme.typography.labelLarge
+                    "Critério de Agrupamento", style = MaterialTheme.typography.labelLarge
                 )
                 Spacer(Modifier.height(8.dp))
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-        ) {
-            groupingCriteria.forEach { criterion ->
-                Row(
+        if (viewModel.groupingCriterion == "Manual") {
+
+            var expanded by remember { mutableStateOf(false) }
+
+            ExposedDropdownMenuBox(
+                expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+                OutlinedTextField(
+                    value = viewModel.groupingCriterion,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Critério") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded)
+                    },
                     modifier = Modifier
+                        .menuAnchor()
                         .fillMaxWidth()
-                        .selectable(
-                            selected = viewModel.groupingCriterion == criterion,
-                            onClick = {
-                                viewModel.groupingCriterion = criterion
-                            }
-                        )
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (viewModel.groupingCriterion == criterion) {
-                        Icon(Icons.Default.Check, null)
-                    } else {
-                        Spacer(Modifier.width(24.dp))
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded, onDismissRequest = { expanded = false }) {
+                    groupingCriteria.forEach { criterion ->
+                        DropdownMenuItem(text = { Text(criterion) }, onClick = {
+                            viewModel.groupingCriterion = criterion
+                            expanded = false
+                        })
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Text(criterion)
+                }
+            }
+
+        } else {
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            ) {
+                groupingCriteria.forEach { criterion ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = viewModel.groupingCriterion == criterion,
+                                onClick = { viewModel.groupingCriterion = criterion })
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        if (viewModel.groupingCriterion == criterion) {
+                            Icon(Icons.Default.Check, null)
+                        } else {
+                            Spacer(Modifier.width(24.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(criterion)
+                    }
                 }
             }
         }
@@ -222,8 +227,7 @@ private fun ConfigurationView(
                             selected = viewModel.groupFormationType == option,
                             onClick = { viewModel.groupFormationType = option },
                             shape = SegmentedButtonDefaults.itemShape(
-                                index = index,
-                                count = formationOptions.size
+                                index = index, count = formationOptions.size
                             ),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -249,8 +253,7 @@ private fun ConfigurationView(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
-                        onClick = onCancel,
-                        modifier = Modifier.weight(1f)
+                        onClick = onCancel, modifier = Modifier.weight(1f)
                     ) {
                         Text("Cancelar")
                     }
@@ -258,8 +261,7 @@ private fun ConfigurationView(
                         onClick = {
                             viewModel.createBalancedGroups()
                             onGroupsCreated()
-                        },
-                        modifier = Modifier.weight(1f)
+                        }, modifier = Modifier.weight(1f)
                     ) {
                         Text("Criar Grupos")
                     }
@@ -287,8 +289,7 @@ private fun ConfigurationView(
                         }
                         selectedStudent = null
                         selectedFrom = null
-                    }
-                )
+                    })
             }
 
             else -> {
@@ -301,8 +302,7 @@ private fun ConfigurationView(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GroupsView(
-    groups: List<List<Student>>,
-    onGroupClicked: (Int) -> Unit
+    groups: List<List<Student>>, onGroupClicked: (Int) -> Unit
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 120.dp),
@@ -312,8 +312,7 @@ private fun GroupsView(
     ) {
         itemsIndexed(groups) { index, group ->
             GroupCard(
-                groupNumber = index + 1,
-                studentCount = group.size
+                groupNumber = index + 1, studentCount = group.size
             ) {
                 onGroupClicked(index + 1)
             }
@@ -323,9 +322,7 @@ private fun GroupsView(
 
 @Composable
 private fun GroupCard(
-    groupNumber: Int,
-    studentCount: Int,
-    onClick: () -> Unit
+    groupNumber: Int, studentCount: Int, onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -333,15 +330,13 @@ private fun GroupCard(
             .clickable(onClick = onClick)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(Icons.Default.Group, null, modifier = Modifier.size(40.dp))
             Spacer(Modifier.height(8.dp))
             Text("Grupo $groupNumber", fontWeight = FontWeight.Bold)
             Text(
-                "$studentCount componentes",
-                style = MaterialTheme.typography.bodySmall
+                "$studentCount componentes", style = MaterialTheme.typography.bodySmall
             )
         }
     }
@@ -359,14 +354,11 @@ private fun ManualGroupEditorView(
         Column(Modifier.weight(1f)) {
             Text("Não alocados")
             unassignedStudents.forEach { student ->
-                Text(
-                    student.name,
-                    modifier = Modifier
-                        .clickable {
-                            onStudentSelected(student, Location.Unassigned)
-                        }
-                        .padding(8.dp)
-                )
+                Text(student.name, modifier = Modifier
+                    .clickable {
+                        onStudentSelected(student, Location.Unassigned)
+                    }
+                    .padding(8.dp))
             }
         }
 
@@ -385,17 +377,13 @@ private fun ManualGroupEditorView(
                         Text("Grupo")
 
                         group.students.forEach { student ->
-                            Text(
-                                student.name,
-                                modifier = Modifier
-                                    .clickable {
-                                        onStudentSelected(
-                                            student,
-                                            Location.Group(group.id)
-                                        )
-                                    }
-                                    .padding(4.dp)
-                            )
+                            Text(student.name, modifier = Modifier
+                                .clickable {
+                                    onStudentSelected(
+                                        student, Location.Group(group.id)
+                                    )
+                                }
+                                .padding(4.dp))
                         }
 
                         OutlinedButton(
@@ -403,8 +391,7 @@ private fun ManualGroupEditorView(
                                 onDropTargetSelected(
                                     DropTarget.ExistingGroup(group.id)
                                 )
-                            }
-                        ) {
+                            }) {
                             Text("Mover selecionado aqui")
                         }
                     }
