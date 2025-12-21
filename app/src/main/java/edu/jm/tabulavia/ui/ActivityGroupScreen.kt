@@ -6,35 +6,49 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.grouping.Location
-import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 private enum class GroupUiState {
     LOADING, NO_GROUPS, SHOW_GROUPS, CONFIGURE
 }
+
+private data class DraggedStudent(
+    val student: Student, val from: Location
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,9 +73,7 @@ fun ActivityGroupScreen(
 
     LaunchedEffect(groupsLoaded) {
         if (groupsLoaded && loadedActivityId == activityId) {
-            uiState = if (groups.isEmpty()) GroupUiState.NO_GROUPS
-            else GroupUiState.SHOW_GROUPS
-
+            uiState = if (groups.isEmpty()) GroupUiState.NO_GROUPS else GroupUiState.SHOW_GROUPS
             viewModel.groupingCriterion = if (groups.isEmpty()) "Aleatório" else "Manual"
         }
     }
@@ -83,20 +95,17 @@ fun ActivityGroupScreen(
 
         if (loadedActivityId != activityId) {
             Box(
-                modifier = Modifier
+                Modifier
                     .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
+                    .padding(padding), contentAlignment = Alignment.Center
             ) {
-                Text("Aguarde...")
-                Spacer(Modifier.height(8.dp))
                 CircularProgressIndicator()
             }
             return@Scaffold
         }
 
         Column(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
@@ -104,24 +113,15 @@ fun ActivityGroupScreen(
 
                 GroupUiState.LOADING -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Aguarde...")
-                        Spacer(Modifier.height(8.dp))
                         CircularProgressIndicator()
                     }
                 }
 
-                GroupUiState.NO_GROUPS -> {
+                GroupUiState.NO_GROUPS, GroupUiState.CONFIGURE -> {
                     ConfigurationView(
                         viewModel = viewModel,
                         onCancel = {},
                         onGroupsCreated = { uiState = GroupUiState.SHOW_GROUPS })
-                }
-
-                GroupUiState.CONFIGURE -> {
-                    ConfigurationView(viewModel = viewModel, onCancel = {
-                        uiState = if (groups.isEmpty()) GroupUiState.NO_GROUPS
-                        else GroupUiState.SHOW_GROUPS
-                    }, onGroupsCreated = { uiState = GroupUiState.SHOW_GROUPS })
                 }
 
                 GroupUiState.SHOW_GROUPS -> {
@@ -139,13 +139,14 @@ private fun ConfigurationView(
 ) {
     val groupingCriteria = listOf("Aleatório", "Balanceado por habilidade", "Manual")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
-
-    var selectedStudent by remember { mutableStateOf<Student?>(null) }
-    var selectedFrom by remember { mutableStateOf<Location?>(null) }
+    var draggedStudent by remember { mutableStateOf<DraggedStudent?>(null) }
+    var activeDropTarget by remember { mutableStateOf<DropTarget?>(null) }
 
     val isCriterionCompact = viewModel.groupingCriterion == "Manual"
 
-    Column(modifier = Modifier.padding(16.dp)) {
+    Column(
+        modifier = Modifier.padding(16.dp)
+    ) {
 
         AnimatedVisibility(
             visible = !isCriterionCompact, enter = expandVertically(), exit = shrinkVertically()
@@ -173,7 +174,7 @@ private fun ConfigurationView(
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded)
                     },
                     modifier = Modifier
-                        .menuAnchor()
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                         .fillMaxWidth()
                 )
 
@@ -202,8 +203,8 @@ private fun ConfigurationView(
                             .selectable(
                                 selected = viewModel.groupingCriterion == criterion,
                                 onClick = { viewModel.groupingCriterion = criterion })
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
+                            .padding(12.dp), verticalAlignment = Alignment.CenterVertically
+                    ) {
                         if (viewModel.groupingCriterion == criterion) {
                             Icon(Icons.Default.Check, null)
                         } else {
@@ -281,19 +282,16 @@ private fun ConfigurationView(
                 ManualGroupEditorView(
                     groups = viewModel.manualGroups,
                     unassignedStudents = viewModel.unassignedStudents,
-                    onStudentSelected = { student, from ->
-                        selectedStudent = student
-                        selectedFrom = from
-                    },
-                    onDropTargetSelected = { target ->
-                        val student = selectedStudent
-                        val from = selectedFrom
-                        if (student != null && from != null) {
-                            viewModel.moveStudent(student, from, target)
+                    onDragStart = { draggedStudent = it },
+                    onDragEnd = { dropTarget ->
+                        if (draggedStudent != null && dropTarget != null) {
+                            viewModel.moveStudent(
+                                draggedStudent!!.student, draggedStudent!!.from, dropTarget
+                            )
                         }
-                        selectedStudent = null
-                        selectedFrom = null
+                        draggedStudent = null
                     })
+
             }
 
             else -> {
@@ -350,53 +348,133 @@ private fun GroupCard(
 private fun ManualGroupEditorView(
     groups: List<Group>,
     unassignedStudents: List<Student>,
-    onStudentSelected: (Student, Location) -> Unit,
-    onDropTargetSelected: (DropTarget) -> Unit
+    onDragStart: (DraggedStudent) -> Unit,
+    onDragEnd: (DropTarget?) -> Unit
 ) {
-    Row(Modifier.fillMaxWidth()) {
+    var dragPositionWindow by remember { mutableStateOf<Offset?>(null) }
+    var rootCoordinates by remember {
+        mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(
+            null
+        )
+    }
+    val unassignedScrollState = rememberScrollState()
+    val groupsScrollState = rememberScrollState()
 
-        Column(Modifier.weight(1f)) {
+    // bounds
+    var unassignedBounds by remember { mutableStateOf<Rect?>(null) }
+    var newGroupBounds by remember { mutableStateOf<Rect?>(null) }
+    val groupBounds = remember { mutableStateMapOf<Long, Rect>() }
+
+    fun detectDropTarget(): DropTarget? {
+        val pos = dragPositionWindow ?: return null
+
+
+        if (unassignedBounds?.contains(pos) == true) {
+            return DropTarget.Unassigned
+        }
+
+        if (newGroupBounds?.contains(pos) == true) {
+            return DropTarget.NewGroup
+        }
+
+        groupBounds.forEach { (id, rect) ->
+            if (rect.contains(pos)) {
+                return DropTarget.ExistingGroup(id.toInt())
+            }
+        }
+        return null
+    }
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+    ) {
+        // NÃO ALOCADOS
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(unassignedScrollState)
+                .onGloballyPositioned {
+                    unassignedBounds = it.boundsInRoot()
+
+                }
+        ) {
             Text("Não alocados")
+
             unassignedStudents.forEach { student ->
-                Text(student.name, modifier = Modifier
-                    .clickable {
-                        onStudentSelected(student, Location.Unassigned)
-                    }
-                    .padding(8.dp))
+                Text(
+                    student.name, modifier = Modifier
+                        .padding(8.dp)
+                        .pointerInput(student) {
+                            detectDragGestures(onDragStart = { offset ->
+                                dragPositionWindow = rootCoordinates?.localToWindow(offset)
+                                onDragStart(
+                                    DraggedStudent(student, Location.Unassigned)
+                                )
+                            }, onDrag = { change, _ ->
+                                dragPositionWindow = rootCoordinates?.localToWindow(change.position)
+                            }, onDragEnd = {
+                                onDragEnd(detectDropTarget())
+                                dragPositionWindow = null
+                            }, onDragCancel = {
+                                dragPositionWindow = null
+                            })
+                        })
             }
         }
 
-        Column(Modifier.weight(2f)) {
-
+        // GRUPOS
+        Column(
+            Modifier
+                .weight(2f)
+                .fillMaxHeight()
+                .verticalScroll(groupsScrollState)
+        ) {
             OutlinedButton(
-                onClick = { onDropTargetSelected(DropTarget.NewGroup) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("+ Criar grupo")
+                onClick = {}, modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned {
+                        newGroupBounds = it.boundsInRoot()
+                    }) {
+                Text("+ Novo grupo")
             }
 
             groups.forEach { group ->
-                Card(Modifier.padding(vertical = 4.dp)) {
+                Card(
+                    Modifier
+                        .padding(vertical = 4.dp)
+                        .onGloballyPositioned {
+                            groupBounds[group.id.toLong()] = it.boundsInRoot()
+                        }) {
                     Column(Modifier.padding(8.dp)) {
                         Text("Grupo")
 
                         group.students.forEach { student ->
-                            Text(student.name, modifier = Modifier
-                                .clickable {
-                                    onStudentSelected(
-                                        student, Location.Group(group.id)
-                                    )
-                                }
-                                .padding(4.dp))
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                onDropTargetSelected(
-                                    DropTarget.ExistingGroup(group.id)
-                                )
-                            }) {
-                            Text("Mover selecionado aqui")
+                            Text(
+                                student.name,
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .pointerInput(student) {
+                                        detectDragGestures(onDragStart = { offset ->
+                                            dragPositionWindow =
+                                                rootCoordinates?.localToWindow(offset)
+                                            onDragStart(
+                                                DraggedStudent(
+                                                    student, Location.Group(group.id)
+                                                )
+                                            )
+                                        }, onDrag = { change, _ ->
+                                            dragPositionWindow =
+                                                rootCoordinates?.localToWindow(change.position)
+                                        }, onDragEnd = {
+                                            onDragEnd(detectDropTarget())
+                                            dragPositionWindow = null
+                                        }, onDragCancel = {
+                                            dragPositionWindow = null
+                                        })
+                                    })
                         }
                     }
                 }
