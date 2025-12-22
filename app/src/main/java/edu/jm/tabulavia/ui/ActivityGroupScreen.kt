@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
@@ -351,23 +352,17 @@ private fun ManualGroupEditorView(
     onDragStart: (DraggedStudent) -> Unit,
     onDragEnd: (DropTarget?) -> Unit
 ) {
-    var dragPositionWindow by remember { mutableStateOf<Offset?>(null) }
-    var rootCoordinates by remember {
-        mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(
-            null
-        )
-    }
-    val unassignedScrollState = rememberScrollState()
-    val groupsScrollState = rememberScrollState()
+    // Estado global da posição do arrasto (em coordenadas Root/Tela)
+    var dragPositionRoot by remember { mutableStateOf<Offset?>(null) }
 
-    // bounds
+    // Bounds das áreas de soltura (Drop Targets)
     var unassignedBounds by remember { mutableStateOf<Rect?>(null) }
     var newGroupBounds by remember { mutableStateOf<Rect?>(null) }
     val groupBounds = remember { mutableStateMapOf<Long, Rect>() }
 
+    // Função para detectar onde o item foi solto
     fun detectDropTarget(): DropTarget? {
-        val pos = dragPositionWindow ?: return null
-
+        val pos = dragPositionRoot ?: return null
 
         if (unassignedBounds?.contains(pos) == true) {
             return DropTarget.Unassigned
@@ -390,95 +385,140 @@ private fun ManualGroupEditorView(
             .fillMaxWidth()
             .fillMaxHeight()
     ) {
-        // NÃO ALOCADOS
+        // --- COLUNA: NÃO ALOCADOS ---
         Column(
             Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .verticalScroll(unassignedScrollState)
+                .verticalScroll(rememberScrollState())
                 .onGloballyPositioned {
+                    // Captura a área da coluna "Não Alocados"
                     unassignedBounds = it.boundsInRoot()
-
                 }
         ) {
-            Text("Não alocados")
+            Text("Não alocados", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(8.dp))
 
             unassignedStudents.forEach { student ->
-                Text(
-                    student.name, modifier = Modifier
-                        .padding(8.dp)
-                        .pointerInput(student) {
-                            detectDragGestures(onDragStart = { offset ->
-                                dragPositionWindow = rootCoordinates?.localToWindow(offset)
-                                onDragStart(
-                                    DraggedStudent(student, Location.Unassigned)
-                                )
-                            }, onDrag = { change, _ ->
-                                dragPositionWindow = rootCoordinates?.localToWindow(change.position)
-                            }, onDragEnd = {
-                                onDragEnd(detectDropTarget())
-                                dragPositionWindow = null
-                            }, onDragCancel = {
-                                dragPositionWindow = null
-                            })
-                        })
+                DraggableStudentItem(
+                    student = student,
+                    location = Location.Unassigned,
+                    onDragStart = { startPos ->
+                        dragPositionRoot = startPos
+                        onDragStart(DraggedStudent(student, Location.Unassigned))
+                    },
+                    onDrag = { dragAmount ->
+                        // Atualiza a posição somando o delta do movimento
+                        dragPositionRoot = dragPositionRoot?.plus(dragAmount)
+                    },
+                    onDragEnd = {
+                        onDragEnd(detectDropTarget())
+                        dragPositionRoot = null
+                    }
+                )
             }
         }
 
-        // GRUPOS
+        // --- COLUNA: GRUPOS ---
         Column(
             Modifier
                 .weight(2f)
                 .fillMaxHeight()
-                .verticalScroll(groupsScrollState)
+                .verticalScroll(rememberScrollState())
         ) {
             OutlinedButton(
-                onClick = {}, modifier = Modifier
+                onClick = {},
+                modifier = Modifier
                     .fillMaxWidth()
+                    .padding(8.dp)
                     .onGloballyPositioned {
                         newGroupBounds = it.boundsInRoot()
-                    }) {
+                    }
+            ) {
                 Text("+ Novo grupo")
             }
 
             groups.forEach { group ->
                 Card(
                     Modifier
-                        .padding(vertical = 4.dp)
+                        .padding(4.dp)
+                        .fillMaxWidth()
                         .onGloballyPositioned {
                             groupBounds[group.id.toLong()] = it.boundsInRoot()
-                        }) {
+                        }
+                ) {
                     Column(Modifier.padding(8.dp)) {
-                        Text("Grupo")
+                        Text("Grupo ${group.id}", fontWeight = FontWeight.Bold)
 
                         group.students.forEach { student ->
-                            Text(
-                                student.name,
-                                modifier = Modifier
-                                    .padding(4.dp)
-                                    .pointerInput(student) {
-                                        detectDragGestures(onDragStart = { offset ->
-                                            dragPositionWindow =
-                                                rootCoordinates?.localToWindow(offset)
-                                            onDragStart(
-                                                DraggedStudent(
-                                                    student, Location.Group(group.id)
-                                                )
-                                            )
-                                        }, onDrag = { change, _ ->
-                                            dragPositionWindow =
-                                                rootCoordinates?.localToWindow(change.position)
-                                        }, onDragEnd = {
-                                            onDragEnd(detectDropTarget())
-                                            dragPositionWindow = null
-                                        }, onDragCancel = {
-                                            dragPositionWindow = null
-                                        })
-                                    })
+                            DraggableStudentItem(
+                                student = student,
+                                location = Location.Group(group.id),
+                                onDragStart = { startPos ->
+                                    dragPositionRoot = startPos
+                                    onDragStart(DraggedStudent(student, Location.Group(group.id)))
+                                },
+                                onDrag = { dragAmount ->
+                                    dragPositionRoot = dragPositionRoot?.plus(dragAmount)
+                                },
+                                onDragEnd = {
+                                    onDragEnd(detectDropTarget())
+                                    dragPositionRoot = null
+                                }
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DraggableStudentItem(
+    student: Student,
+    location: Location,
+    onDragStart: (Offset) -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    var itemCoordinates by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+
+    // Usamos uma Row para separar o Texto do Ícone
+    Row(
+        modifier = Modifier
+            .padding(4.dp)
+            .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Área de Texto: Livre para Scroll
+        Text(
+            text = student.name,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Área do Ícone: Exclusiva para Drag
+        Icon(
+            imageVector = Icons.Default.DragHandle, // Ou Icons.Default.Menu
+            contentDescription = "Arrastar",
+            modifier = Modifier
+                .size(24.dp)
+                .onGloballyPositioned { itemCoordinates = it }
+                .pointerInput(student) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val rootOffset = itemCoordinates?.localToRoot(offset)
+                            if (rootOffset != null) {
+                                onDragStart(rootOffset)
+                            }
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            onDrag(dragAmount)
+                        },
+                        onDragEnd = { onDragEnd() },
+                        onDragCancel = { onDragEnd() }
+                    )
+                }
+        )
     }
 }
