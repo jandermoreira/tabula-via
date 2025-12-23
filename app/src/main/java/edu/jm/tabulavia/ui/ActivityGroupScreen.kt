@@ -32,13 +32,16 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.R
 import edu.jm.tabulavia.model.Student
@@ -393,24 +396,26 @@ private fun ManualGroupEditorView(
                     .verticalScroll(rememberScrollState())
                     .onGloballyPositioned { unassignedBounds = it.boundsInRoot() }
             ) {
-                Text("Não alocados", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(8.dp))
+                Text(
+                    "Não alocados",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(8.dp)
+                )
 
                 unassignedStudents.forEach { student ->
                     DraggableStudentItem(
                         student = student,
-                        isBeingDragged = (draggedItem == student), // Para ocultar o original
-                        onDragStart = { startPos ->
-                            dragPositionRoot = startPos
-                            draggedItem = student // Define quem estamos arrastando visualmente
-                            onDragStart(DraggedStudent(student, Location.Unassigned)) // Lógica de negócio
+                        isBeingDragged = (draggedItem == student),
+                        onDragStart = { pos ->
+                            dragPositionRoot = pos
+                            draggedItem = student
+                            onDragStart(DraggedStudent(student, Location.Unassigned))
                         },
-                        onDrag = { dragAmount ->
-                            dragPositionRoot = dragPositionRoot?.plus(dragAmount)
-                        },
+                        onDrag = { delta -> dragPositionRoot = dragPositionRoot?.plus(delta) },
                         onDragEnd = {
                             onDragEnd(detectDropTarget())
                             dragPositionRoot = null
-                            draggedItem = null // Limpa o visual
+                            draggedItem = null
                         }
                     )
                 }
@@ -438,7 +443,9 @@ private fun ManualGroupEditorView(
                         Modifier
                             .padding(4.dp)
                             .fillMaxWidth()
-                            .onGloballyPositioned { groupBounds[group.id.toLong()] = it.boundsInRoot() }
+                            .onGloballyPositioned {
+                                groupBounds[group.id.toLong()] = it.boundsInRoot()
+                            }
                     ) {
                         Column(Modifier.padding(8.dp)) {
                             Text("Grupo ${group.id}", fontWeight = FontWeight.Bold)
@@ -450,7 +457,12 @@ private fun ManualGroupEditorView(
                                     onDragStart = { startPos ->
                                         dragPositionRoot = startPos
                                         draggedItem = student
-                                        onDragStart(DraggedStudent(student, Location.Group(group.id)))
+                                        onDragStart(
+                                            DraggedStudent(
+                                                student,
+                                                Location.Group(group.id)
+                                            )
+                                        )
                                     },
                                     onDrag = { dragAmount ->
                                         dragPositionRoot = dragPositionRoot?.plus(dragAmount)
@@ -471,7 +483,7 @@ private fun ManualGroupEditorView(
         // 2. O "Fantasma" (Renderizado por cima de tudo)
         if (dragPositionRoot != null && draggedItem != null) {
             FloatingDragItem(
-                text = draggedItem!!.name,
+                student = draggedItem!!, // Passa o objeto student completo
                 offset = dragPositionRoot!!
             )
         }
@@ -479,26 +491,41 @@ private fun ManualGroupEditorView(
 }
 
 @Composable
-private fun FloatingDragItem(text: String, offset: Offset) {
-    Card(
-        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+private fun FloatingDragItem(student: Student, offset: Offset) {
+    val context = LocalContext.current
+    val iconIndex = (student.studentId.mod(80L) + 1).toInt()
+    val iconName = "student_${iconIndex}"
+    val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+    val finalResId = if (drawableResId != 0) drawableResId else R.drawable.student_0
+
+    Surface(
+        tonalElevation = 12.dp,
+        shadowElevation = 12.dp,
         shape = MaterialTheme.shapes.medium,
-        modifier = Modifier
-            .sizeIn(minWidth = 150.dp) // Garante que o card tenha um tamanho bom para ver
-            .offset {
-                androidx.compose.ui.unit.IntOffset(
-                    x = offset.x.toInt() - 100, // Centraliza um pouco mais horizontalmente
-                    y = offset.y.toInt() - 120  // Posiciona acima do dedo para visibilidade
-                )
-            }
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        modifier = Modifier.offset {
+            IntOffset(
+                x = offset.x.toInt() - 75,
+                y = offset.y.toInt() - 180 // Ajustado para ficar bem visível acima do dedo
+            )
+        }
     ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
-        )
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                painter = painterResource(id = finalResId),
+                contentDescription = null,
+                modifier = Modifier.size(55.dp),
+                tint = Color.Unspecified
+            )
+            Text(
+                text = student.displayName,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
@@ -510,60 +537,53 @@ private fun DraggableStudentItem(
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit
 ) {
-    var itemCoordinates by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+    val context = LocalContext.current
+    var itemCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
-    Card(
+    // Lógica do ícone que você forneceu
+    val iconIndex = (student.studentId.mod(80L) + 1).toInt()
+    val iconName = "student_${iconIndex}"
+    val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+    val finalResId = if (drawableResId != 0) drawableResId else R.drawable.student_0
+
+    Column(
         modifier = Modifier
-            .padding(vertical = 2.dp, horizontal = 4.dp)
-            .fillMaxWidth()
-            .alpha(if (isBeingDragged) 0.0f else 1f), // Esconde o original enquanto arrasta
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(8.dp)
+            .alpha(if (isBeingDragged) 0.0f else 1f),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
+        // O ÍCONE é o Drag Handle
+        Icon(
+            painter = painterResource(id = finalResId),
+            contentDescription = "Arraste para mover",
             modifier = Modifier
-                .padding(8.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // O texto não tem pointerInput, logo não bloqueia o scroll da Column
-            Text(
-                text = student.name,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium
-            )
+                .size(55.dp)
+                .onGloballyPositioned { itemCoordinates = it }
+                .pointerInput(student) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val rootOffset = itemCoordinates?.localToRoot(offset)
+                            if (rootOffset != null) onDragStart(rootOffset)
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            onDrag(dragAmount)
+                        },
+                        onDragEnd = onDragEnd,
+                        onDragCancel = onDragEnd
+                    )
+                },
+            tint = Color.Unspecified
+        )
 
-            // O ícone de alça é o único que inicia o Drag
-            val context = LocalContext.current
-            val iconIndex = (student.studentId.mod(80L) + 1).toInt()
-            val iconName = "student_${iconIndex}"
-            val drawableResId =
-                context.resources.getIdentifier(iconName, "drawable", context.packageName)
-            student.studentId to (drawableResId.takeIf { it != 0 } ?: R.drawable.student_0)
-            Icon(
-                imageVector = androidx.compose.material.icons.Icons.Default.DragHandle, // Ou DragHandle se disponível
-                contentDescription = "Arrastar",
-                modifier = Modifier
-                    .size(24.dp)
-                    .onGloballyPositioned { itemCoordinates = it }
-                    .pointerInput(student) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                // Convertemos a posição local do ícone para a posição global da tela
-                                val rootOffset = itemCoordinates?.localToRoot(offset)
-                                if (rootOffset != null) {
-                                    onDragStart(rootOffset)
-                                }
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                onDrag(dragAmount)
-                            },
-                            onDragEnd = { onDragEnd() },
-                            onDragCancel = { onDragEnd() }
-                        )
-                    },
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = student.displayName,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
