@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -25,6 +26,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -33,10 +35,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.R
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.model.grouping.Group
@@ -352,173 +356,214 @@ private fun ManualGroupEditorView(
     onDragStart: (DraggedStudent) -> Unit,
     onDragEnd: (DropTarget?) -> Unit
 ) {
-    // Estado global da posição do arrasto (em coordenadas Root/Tela)
+    // Estado da posição (Coordenadas da tela/Root)
     var dragPositionRoot by remember { mutableStateOf<Offset?>(null) }
 
-    // Bounds das áreas de soltura (Drop Targets)
+    // Estado do item sendo arrastado (para desenhar o "fantasma")
+    var draggedItem by remember { mutableStateOf<Student?>(null) }
+
+    // Bounds das áreas de soltura
     var unassignedBounds by remember { mutableStateOf<Rect?>(null) }
     var newGroupBounds by remember { mutableStateOf<Rect?>(null) }
     val groupBounds = remember { mutableStateMapOf<Long, Rect>() }
 
-    // Função para detectar onde o item foi solto
     fun detectDropTarget(): DropTarget? {
         val pos = dragPositionRoot ?: return null
-
-        if (unassignedBounds?.contains(pos) == true) {
-            return DropTarget.Unassigned
-        }
-
-        if (newGroupBounds?.contains(pos) == true) {
-            return DropTarget.NewGroup
-        }
-
+        if (unassignedBounds?.contains(pos) == true) return DropTarget.Unassigned
+        if (newGroupBounds?.contains(pos) == true) return DropTarget.NewGroup
         groupBounds.forEach { (id, rect) ->
-            if (rect.contains(pos)) {
-                return DropTarget.ExistingGroup(id.toInt())
-            }
+            if (rect.contains(pos)) return DropTarget.ExistingGroup(id.toInt())
         }
         return null
     }
 
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
-    ) {
-        // --- COLUNA: NÃO ALOCADOS ---
-        Column(
-            Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
-                .onGloballyPositioned {
-                    // Captura a área da coluna "Não Alocados"
-                    unassignedBounds = it.boundsInRoot()
-                }
-        ) {
-            Text("Não alocados", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(8.dp))
+    // 1. Envolvemos tudo em um Box para permitir camadas (z-index)
+    Box(modifier = Modifier.fillMaxSize()) {
 
-            unassignedStudents.forEach { student ->
-                DraggableStudentItem(
-                    student = student,
-                    location = Location.Unassigned,
-                    onDragStart = { startPos ->
-                        dragPositionRoot = startPos
-                        onDragStart(DraggedStudent(student, Location.Unassigned))
-                    },
-                    onDrag = { dragAmount ->
-                        // Atualiza a posição somando o delta do movimento
-                        dragPositionRoot = dragPositionRoot?.plus(dragAmount)
-                    },
-                    onDragEnd = {
-                        onDragEnd(detectDropTarget())
-                        dragPositionRoot = null
+        // Camada de Conteúdo (Listas)
+        Row(
+            Modifier
+                .fillMaxSize()
+        ) {
+            // --- COLUNA: NÃO ALOCADOS ---
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .onGloballyPositioned { unassignedBounds = it.boundsInRoot() }
+            ) {
+                Text("Não alocados", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(8.dp))
+
+                unassignedStudents.forEach { student ->
+                    DraggableStudentItem(
+                        student = student,
+                        isBeingDragged = (draggedItem == student), // Para ocultar o original
+                        onDragStart = { startPos ->
+                            dragPositionRoot = startPos
+                            draggedItem = student // Define quem estamos arrastando visualmente
+                            onDragStart(DraggedStudent(student, Location.Unassigned)) // Lógica de negócio
+                        },
+                        onDrag = { dragAmount ->
+                            dragPositionRoot = dragPositionRoot?.plus(dragAmount)
+                        },
+                        onDragEnd = {
+                            onDragEnd(detectDropTarget())
+                            dragPositionRoot = null
+                            draggedItem = null // Limpa o visual
+                        }
+                    )
+                }
+            }
+
+            // --- COLUNA: GRUPOS ---
+            Column(
+                Modifier
+                    .weight(2f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                OutlinedButton(
+                    onClick = {},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .onGloballyPositioned { newGroupBounds = it.boundsInRoot() }
+                ) {
+                    Text("+ Novo grupo")
+                }
+
+                groups.forEach { group ->
+                    Card(
+                        Modifier
+                            .padding(4.dp)
+                            .fillMaxWidth()
+                            .onGloballyPositioned { groupBounds[group.id.toLong()] = it.boundsInRoot() }
+                    ) {
+                        Column(Modifier.padding(8.dp)) {
+                            Text("Grupo ${group.id}", fontWeight = FontWeight.Bold)
+
+                            group.students.forEach { student ->
+                                DraggableStudentItem(
+                                    student = student,
+                                    isBeingDragged = (draggedItem == student),
+                                    onDragStart = { startPos ->
+                                        dragPositionRoot = startPos
+                                        draggedItem = student
+                                        onDragStart(DraggedStudent(student, Location.Group(group.id)))
+                                    },
+                                    onDrag = { dragAmount ->
+                                        dragPositionRoot = dragPositionRoot?.plus(dragAmount)
+                                    },
+                                    onDragEnd = {
+                                        onDragEnd(detectDropTarget())
+                                        dragPositionRoot = null
+                                        draggedItem = null
+                                    }
+                                )
+                            }
+                        }
                     }
+                }
+            }
+        }
+
+        // 2. O "Fantasma" (Renderizado por cima de tudo)
+        if (dragPositionRoot != null && draggedItem != null) {
+            FloatingDragItem(
+                text = draggedItem!!.name,
+                offset = dragPositionRoot!!
+            )
+        }
+    }
+}
+
+@Composable
+private fun FloatingDragItem(text: String, offset: Offset) {
+    Card(
+        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier
+            .sizeIn(minWidth = 150.dp) // Garante que o card tenha um tamanho bom para ver
+            .offset {
+                androidx.compose.ui.unit.IntOffset(
+                    x = offset.x.toInt() - 100, // Centraliza um pouco mais horizontalmente
+                    y = offset.y.toInt() - 120  // Posiciona acima do dedo para visibilidade
                 )
             }
-        }
-
-        // --- COLUNA: GRUPOS ---
-        Column(
-            Modifier
-                .weight(2f)
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
-        ) {
-            OutlinedButton(
-                onClick = {},
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .onGloballyPositioned {
-                        newGroupBounds = it.boundsInRoot()
-                    }
-            ) {
-                Text("+ Novo grupo")
-            }
-
-            groups.forEach { group ->
-                Card(
-                    Modifier
-                        .padding(4.dp)
-                        .fillMaxWidth()
-                        .onGloballyPositioned {
-                            groupBounds[group.id.toLong()] = it.boundsInRoot()
-                        }
-                ) {
-                    Column(Modifier.padding(8.dp)) {
-                        Text("Grupo ${group.id}", fontWeight = FontWeight.Bold)
-
-                        group.students.forEach { student ->
-                            DraggableStudentItem(
-                                student = student,
-                                location = Location.Group(group.id),
-                                onDragStart = { startPos ->
-                                    dragPositionRoot = startPos
-                                    onDragStart(DraggedStudent(student, Location.Group(group.id)))
-                                },
-                                onDrag = { dragAmount ->
-                                    dragPositionRoot = dragPositionRoot?.plus(dragAmount)
-                                },
-                                onDragEnd = {
-                                    onDragEnd(detectDropTarget())
-                                    dragPositionRoot = null
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(16.dp),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     }
 }
 
 @Composable
 private fun DraggableStudentItem(
     student: Student,
-    location: Location,
+    isBeingDragged: Boolean,
     onDragStart: (Offset) -> Unit,
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit
 ) {
     var itemCoordinates by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
 
-    // Usamos uma Row para separar o Texto do Ícone
-    Row(
+    Card(
         modifier = Modifier
-            .padding(4.dp)
-            .fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 2.dp, horizontal = 4.dp)
+            .fillMaxWidth()
+            .alpha(if (isBeingDragged) 0.0f else 1f), // Esconde o original enquanto arrasta
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
-        // Área de Texto: Livre para Scroll
-        Text(
-            text = student.name,
-            modifier = Modifier.weight(1f)
-        )
-
-        // Área do Ícone: Exclusiva para Drag
-        Icon(
-            imageVector = Icons.Default.DragHandle, // Ou Icons.Default.Menu
-            contentDescription = "Arrastar",
+        Row(
             modifier = Modifier
-                .size(24.dp)
-                .onGloballyPositioned { itemCoordinates = it }
-                .pointerInput(student) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            val rootOffset = itemCoordinates?.localToRoot(offset)
-                            if (rootOffset != null) {
-                                onDragStart(rootOffset)
-                            }
-                        },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            onDrag(dragAmount)
-                        },
-                        onDragEnd = { onDragEnd() },
-                        onDragCancel = { onDragEnd() }
-                    )
-                }
-        )
+                .padding(8.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // O texto não tem pointerInput, logo não bloqueia o scroll da Column
+            Text(
+                text = student.name,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // O ícone de alça é o único que inicia o Drag
+            val context = LocalContext.current
+            val iconIndex = (student.studentId.mod(80L) + 1).toInt()
+            val iconName = "student_${iconIndex}"
+            val drawableResId =
+                context.resources.getIdentifier(iconName, "drawable", context.packageName)
+            student.studentId to (drawableResId.takeIf { it != 0 } ?: R.drawable.student_0)
+            Icon(
+                imageVector = androidx.compose.material.icons.Icons.Default.DragHandle, // Ou DragHandle se disponível
+                contentDescription = "Arrastar",
+                modifier = Modifier
+                    .size(24.dp)
+                    .onGloballyPositioned { itemCoordinates = it }
+                    .pointerInput(student) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                // Convertemos a posição local do ícone para a posição global da tela
+                                val rootOffset = itemCoordinates?.localToRoot(offset)
+                                if (rootOffset != null) {
+                                    onDragStart(rootOffset)
+                                }
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                onDrag(dragAmount)
+                            },
+                            onDragEnd = { onDragEnd() },
+                            onDragCancel = { onDragEnd() }
+                        )
+                    },
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
