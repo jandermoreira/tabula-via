@@ -359,13 +359,9 @@ private fun ManualGroupEditorView(
     onDragStart: (DraggedStudent) -> Unit,
     onDragEnd: (DropTarget?) -> Unit
 ) {
-    // Estado da posição (Coordenadas da tela/Root)
     var dragPositionRoot by remember { mutableStateOf<Offset?>(null) }
-
-    // Estado do item sendo arrastado (para desenhar o "fantasma")
     var draggedItem by remember { mutableStateOf<Student?>(null) }
 
-    // Bounds das áreas de soltura
     var unassignedBounds by remember { mutableStateOf<Rect?>(null) }
     var newGroupBounds by remember { mutableStateOf<Rect?>(null) }
     val groupBounds = remember { mutableStateMapOf<Long, Rect>() }
@@ -380,99 +376,156 @@ private fun ManualGroupEditorView(
         return null
     }
 
-    // 1. Envolvemos tudo em um Box para permitir camadas (z-index)
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // Camada de Conteúdo (Listas)
-        Row(
-            Modifier
-                .fillMaxSize()
-        ) {
-            // --- COLUNA: NÃO ALOCADOS ---
+        Row(modifier = Modifier.fillMaxSize()) {
+
+            /* =========================
+               COLUNA: NÃO ALOCADOS
+               ========================= */
+
             Column(
-                Modifier
+                modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .verticalScroll(rememberScrollState())
-                    .onGloballyPositioned { unassignedBounds = it.boundsInRoot() }
             ) {
+
+                // Cabeçalho fixo
                 Text(
-                    "Não alocados",
+                    text = "Não alocados",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(8.dp)
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .onGloballyPositioned {
+                            unassignedBounds = it.boundsInRoot()
+                        }
                 )
 
-                unassignedStudents.forEach { student ->
-                    DraggableStudentItem(
-                        student = student,
-                        isBeingDragged = (draggedItem == student),
-                        onDragStart = { pos ->
-                            dragPositionRoot = pos
-                            draggedItem = student
-                            onDragStart(DraggedStudent(student, Location.Unassigned))
-                        },
-                        onDrag = { delta -> dragPositionRoot = dragPositionRoot?.plus(delta) },
-                        onDragEnd = {
-                            onDragEnd(detectDropTarget())
-                            dragPositionRoot = null
-                            draggedItem = null
+                // Conteúdo rolável
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    unassignedStudents.forEach { student ->
+                        Box(
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .width(85.dp)
+                        ) {
+                            DraggableStudentItem(
+                                student = student,
+                                isBeingDragged = draggedItem == student,
+                                onDragStart = { pos ->
+                                    dragPositionRoot = pos
+                                    draggedItem = student
+                                    onDragStart(
+                                        DraggedStudent(student, Location.Unassigned)
+                                    )
+                                },
+                                onDrag = { delta ->
+                                    dragPositionRoot =
+                                        dragPositionRoot?.plus(delta)
+                                },
+                                onDragEnd = {
+                                    onDragEnd(detectDropTarget())
+                                    dragPositionRoot = null
+                                    draggedItem = null
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
 
-            // --- COLUNA: GRUPOS ---
+            /* =========================
+               COLUNA: GRUPOS
+               ========================= */
+
             Column(
-                Modifier
+                modifier = Modifier
                     .weight(2f)
                     .fillMaxHeight()
-                    .verticalScroll(rememberScrollState())
             ) {
+
+                // Cabeçalho fixo
                 OutlinedButton(
                     onClick = {},
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp)
-                        .onGloballyPositioned { newGroupBounds = it.boundsInRoot() }
+                        .onGloballyPositioned {
+                            newGroupBounds = it.boundsInRoot()
+                        }
                 ) {
                     Text("+ Novo grupo")
                 }
 
-                groups.forEach { group ->
-                    Card(
-                        Modifier
-                            .padding(4.dp)
-                            .fillMaxWidth()
-                            .onGloballyPositioned {
-                                groupBounds[group.id.toLong()] = it.boundsInRoot()
-                            }
-                    ) {
-                        Column(Modifier.padding(8.dp)) {
-                            Text("Grupo ${group.id}", fontWeight = FontWeight.Bold)
+                // Conteúdo rolável
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    groups.forEach { group ->
+                        Card(
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .fillMaxWidth()
+                                .onGloballyPositioned {
+                                    groupBounds[group.id.toLong()] =
+                                        it.boundsInRoot()
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
 
-                            group.students.forEach { student ->
-                                DraggableStudentItem(
-                                    student = student,
-                                    isBeingDragged = (draggedItem == student),
-                                    onDragStart = { startPos ->
-                                        dragPositionRoot = startPos
-                                        draggedItem = student
-                                        onDragStart(
-                                            DraggedStudent(
-                                                student,
-                                                Location.Group(group.id)
-                                            )
-                                        )
-                                    },
-                                    onDrag = { dragAmount ->
-                                        dragPositionRoot = dragPositionRoot?.plus(dragAmount)
-                                    },
-                                    onDragEnd = {
-                                        onDragEnd(detectDropTarget())
-                                        dragPositionRoot = null
-                                        draggedItem = null
-                                    }
+                                Text(
+                                    text = "Grupo ${group.id}",
+                                    fontWeight = FontWeight.ExtraBold
                                 )
+
+                                Spacer(Modifier.height(12.dp))
+
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Start,
+                                    maxItemsInEachRow = 3
+                                ) {
+                                    group.students.forEach { student ->
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(4.dp)
+                                                .width(85.dp)
+                                        ) {
+                                            DraggableStudentItem(
+                                                student = student,
+                                                isBeingDragged =
+                                                    draggedItem == student,
+                                                onDragStart = { startPos ->
+                                                    dragPositionRoot = startPos
+                                                    draggedItem = student
+                                                    onDragStart(
+                                                        DraggedStudent(
+                                                            student,
+                                                            Location.Group(group.id)
+                                                        )
+                                                    )
+                                                },
+                                                onDrag = { dragAmount ->
+                                                    dragPositionRoot =
+                                                        dragPositionRoot?.plus(dragAmount)
+                                                },
+                                                onDragEnd = {
+                                                    onDragEnd(detectDropTarget())
+                                                    dragPositionRoot = null
+                                                    draggedItem = null
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -480,10 +533,10 @@ private fun ManualGroupEditorView(
             }
         }
 
-        // 2. O "Fantasma" (Renderizado por cima de tudo)
+        // Item "fantasma" durante o drag
         if (dragPositionRoot != null && draggedItem != null) {
             FloatingDragItem(
-                student = draggedItem!!, // Passa o objeto student completo
+                student = draggedItem!!,
                 offset = dragPositionRoot!!
             )
         }
@@ -499,14 +552,14 @@ private fun FloatingDragItem(student: Student, offset: Offset) {
     val finalResId = if (drawableResId != 0) drawableResId else R.drawable.student_0
 
     Surface(
-        tonalElevation = 12.dp,
-        shadowElevation = 12.dp,
+        tonalElevation = 16.dp,
+        shadowElevation = 16.dp,
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
         modifier = Modifier.offset {
             IntOffset(
-                x = offset.x.toInt() - 75,
-                y = offset.y.toInt() - 180 // Ajustado para ficar bem visível acima do dedo
+                x = offset.x.toInt() - 200,
+                y = offset.y.toInt() - 600
             )
         }
     ) {
@@ -552,7 +605,6 @@ private fun DraggableStudentItem(
             .alpha(if (isBeingDragged) 0.0f else 1f),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // O ÍCONE é o Drag Handle
         Icon(
             painter = painterResource(id = finalResId),
             contentDescription = "Arraste para mover",

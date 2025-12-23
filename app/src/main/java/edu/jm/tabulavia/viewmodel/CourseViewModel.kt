@@ -27,6 +27,7 @@ import kotlinx.serialization.json.Json
 import java.util.Calendar
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.grouping.Location
@@ -830,8 +831,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     var isManualMode by mutableStateOf(false)
         private set
 
-    val manualGroups = mutableStateListOf<Group>()
-    val unassignedStudents = mutableStateListOf<Student>()
+    var manualGroups = mutableStateListOf<Group>()
+    var unassignedStudents = mutableStateListOf<Student>()
 
     private var nextManualGroupId = 1
 
@@ -847,7 +848,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         val allStudents = _studentsForClass.value
         val existingGroups = _generatedGroups.value
 
-        val assignedStudentIds = mutableSetOf<Long>()
+        var assignedStudentIds = mutableSetOf<Long>()
 
         existingGroups.forEach { groupStudents ->
             if (groupStudents.isNotEmpty()) {
@@ -882,6 +883,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             Location.Unassigned -> {
                 unassignedStudents.remove(student)
             }
+
             is Location.Group -> {
                 val group = manualGroups.firstOrNull { it.id == from.groupId }
                 group?.students?.remove(student)
@@ -913,6 +915,15 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     ?.add(student)
             }
         }
+
+        // >>> ORDENAÇÃO AQUI <<<
+
+        unassignedStudents.sortBy { it.displayName.lowercase() }
+
+        manualGroups.forEach { group ->
+            group.students.sortBy { it.displayName.lowercase() }
+        }
+
         commitManualGroups()
     }
 
