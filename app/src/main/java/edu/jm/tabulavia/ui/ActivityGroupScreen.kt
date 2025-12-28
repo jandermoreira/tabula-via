@@ -145,7 +145,11 @@ fun ActivityGroupScreen(
 private fun ConfigurationView(
     viewModel: CourseViewModel, onCancel: () -> Unit, onGroupsCreated: () -> Unit
 ) {
-    val groupingCriteria = listOf("Aleatório", "Balanceado por habilidade", "Manual")
+    val groupingCriteria = listOf(
+        "Aleatório",
+//        "Balanceado por habilidade",
+        "Manual"
+    )
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
     var draggedStudent by remember { mutableStateOf<DraggedStudent?>(null) }
     var activeDropTarget by remember { mutableStateOf<DropTarget?>(null) }
@@ -388,6 +392,9 @@ private fun ManualGroupEditorView(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .onGloballyPositioned {
+                        unassignedBounds = it.boundsInRoot()
+                    }
             ) {
 
                 // Cabeçalho fixo
@@ -396,9 +403,9 @@ private fun ManualGroupEditorView(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier
                         .padding(8.dp)
-                        .onGloballyPositioned {
-                            unassignedBounds = it.boundsInRoot()
-                        }
+//                        .onGloballyPositioned {
+//                            unassignedBounds = it.boundsInRoot()
+//                        }
                 )
 
                 // Conteúdo rolável
