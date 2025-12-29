@@ -4,21 +4,28 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ThumbDown
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +39,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -39,11 +47,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.R
+import edu.jm.tabulavia.db.DatabaseProvider
+import edu.jm.tabulavia.model.AssessmentSource
+import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.grouping.Location
 import edu.jm.tabulavia.viewmodel.CourseViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private enum class GroupUiState {
     LOADING, NO_GROUPS, SHOW_GROUPS, CONFIGURE
@@ -59,12 +72,20 @@ fun ActivityGroupScreen(
     activityId: Long,
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit,
-    onGroupClicked: (Int) -> Unit
+    onGroupClicked: (Int) -> Unit // Mantido para compatibilidade, mas não usado na nova lógica visual
 ) {
     val activity by viewModel.selectedActivity.collectAsState()
     val groups by viewModel.generatedGroups.collectAsState()
     val groupsLoaded by viewModel.groupsLoaded.collectAsState()
     val loadedActivityId by viewModel.loadedActivityId.collectAsState()
+
+    // --- Estados para os Diálogos de Habilidade ---
+    var showAssignSkillsDialog by remember { mutableStateOf(false) }
+    var selectedStudentForSkillAssignment by remember { mutableStateOf<Student?>(null) }
+
+    var showAssignGroupSkillsDialog by remember { mutableStateOf(false) }
+    var selectedGroupForSkillAssignment by remember { mutableStateOf<List<Student>?>(null) }
+    // ----------------------------------------------
 
     var uiState by remember(activityId) { mutableStateOf(GroupUiState.LOADING) }
 
@@ -132,12 +153,457 @@ fun ActivityGroupScreen(
                 }
 
                 GroupUiState.SHOW_GROUPS -> {
-                    GroupsView(groups, onGroupClicked)
+                    GroupsExpandedView(
+                        groups = groups,
+                        onStudentClick = { student ->
+                            selectedStudentForSkillAssignment = student
+                            viewModel.loadStudentDetails(student.studentId)
+                            showAssignSkillsDialog = true
+                        },
+                        onGroupActionClick = { groupStudents ->
+                            selectedGroupForSkillAssignment = groupStudents
+                            showAssignGroupSkillsDialog = true
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // --- DIÁLOGOS ---
+
+    if (showAssignSkillsDialog) {
+        selectedStudentForSkillAssignment?.let { student ->
+            AssignGroupSkillsDialog(
+                student = student,
+                viewModel = viewModel,
+                activityId = activityId,
+                onDismiss = {
+                    showAssignSkillsDialog = false
+                    selectedStudentForSkillAssignment = null
+                }
+            )
+        }
+    }
+
+    if (showAssignGroupSkillsDialog) {
+        selectedGroupForSkillAssignment?.let { groupStudents ->
+            AssignGroupSkillsForAllDialog(
+                students = groupStudents,
+                viewModel = viewModel,
+                activityId = activityId,
+                onDismiss = {
+                    showAssignGroupSkillsDialog = false
+                    selectedGroupForSkillAssignment = null
+                }
+            )
+        }
+    }
+}
+
+/**
+ * Visualização expandida onde os grupos e seus membros aparecem diretamente.
+ * Substitui o antigo GroupsView com cards pequenos.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GroupsExpandedView(
+    groups: List<List<Student>>,
+    onStudentClick: (Student) -> Unit,
+    onGroupActionClick: (List<Student>) -> Unit
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        itemsIndexed(groups) { index, groupStudents ->
+            Card(
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    // Cabeçalho do Grupo
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Grupo ${index + 1}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "${groupStudents.size} alunos",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Botão para avaliar o grupo inteiro
+                        IconButton(
+                            onClick = { onGroupActionClick(groupStudents) },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Psychology,
+                                contentDescription = "Avaliar Grupo"
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Lista de alunos em FlowRow (quebra de linha automática)
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalArrangement = Arrangement.Top,
+                        maxItemsInEachRow = Int.MAX_VALUE
+                    ) {
+                        groupStudents.sortedBy { it.displayName }.forEach { student ->
+                            Box(
+                                modifier = Modifier
+                                    .width(90.dp) // Largura fixa para alinhar na grade visual
+                                    .clickable { onStudentClick(student) }
+                                    .padding(4.dp)
+                            ) {
+                                StudentVisualContent(student = student)
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
+
+
+// --- COMPONENTES COPIADOS/ADAPTADOS DE GROUP DETAILS SCREEN ---
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AssignGroupSkillsForAllDialog(
+    students: List<Student>,
+    viewModel: CourseViewModel,
+    activityId: Long?,
+    onDismiss: () -> Unit
+) {
+    val courseSkills by viewModel.courseSkills.collectAsState()
+    val context = LocalContext.current
+    var highlightedSkillNames by remember(activityId) { mutableStateOf<Set<String>>(emptySet()) }
+
+    LaunchedEffect(activityId) {
+        if (activityId == null || activityId == 0L) {
+            highlightedSkillNames = emptySet()
+            return@LaunchedEffect
+        }
+        val appContext = context.applicationContext
+        val db = DatabaseProvider.getDatabase(appContext)
+        val dao = db.activityHighlightedSkillDao()
+        highlightedSkillNames = withContext(Dispatchers.IO) {
+            dao.getHighlightedSkillNamesForActivity(activityId).toSet()
+        }
+    }
+
+    var skillLevels by remember(courseSkills) {
+        mutableStateOf(courseSkills.associate { it.skillName to SkillLevel.NOT_APPLICABLE })
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Habilidades para o Grupo") },
+        text = {
+            Column {
+                Text(
+                    text = "Aplicar a todos os ${students.size} alunos:",
+                    style = MaterialTheme.typography.labelSmall
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (courseSkills.isEmpty()) {
+                    Text("Nenhuma habilidade definida para esta turma.")
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                        items(
+                            courseSkills.sortedBy { it.skillName },
+                            key = { it.skillName }
+                        ) { courseSkill ->
+                            val isHighlighted = highlightedSkillNames.contains(courseSkill.skillName)
+
+                            SkillAssignmentRow(
+                                skillName = courseSkill.skillName,
+                                currentLevel = skillLevels[courseSkill.skillName]
+                                    ?: SkillLevel.NOT_APPLICABLE,
+                                onLevelSelected = { newLevel ->
+                                    skillLevels = skillLevels.toMutableMap().apply {
+                                        this[courseSkill.skillName] = newLevel
+                                    }
+                                },
+                                isHighlighted = isHighlighted
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = students.isNotEmpty(),
+                onClick = {
+                    val assessmentsToSave = skillLevels.entries
+                        .filter { it.value != SkillLevel.NOT_APPLICABLE }
+                        .map { it.key to it.value }
+
+                    if (assessmentsToSave.isNotEmpty()) {
+                        students.forEach { student ->
+                            assessmentsToSave.forEach { (skill, level) ->
+                                viewModel.addSkillAssessment(
+                                    studentId = student.studentId,
+                                    skillName = skill,
+                                    level = level,
+                                    source = AssessmentSource.PROFESSOR_OBSERVATION
+                                )
+                            }
+                        }
+                    }
+                    onDismiss()
+                }
+            ) { Text("Salvar Grupo") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AssignGroupSkillsDialog(
+    student: Student,
+    viewModel: CourseViewModel,
+    activityId: Long?,
+    onDismiss: () -> Unit
+) {
+    val courseSkills by viewModel.courseSkills.collectAsState()
+    val context = LocalContext.current
+    var highlightedSkillNames by remember(activityId) { mutableStateOf<Set<String>>(emptySet()) }
+
+    LaunchedEffect(activityId) {
+        if (activityId == null || activityId == 0L) {
+            highlightedSkillNames = emptySet()
+            return@LaunchedEffect
+        }
+        val appContext = context.applicationContext
+        val db = DatabaseProvider.getDatabase(appContext)
+        val dao = db.activityHighlightedSkillDao()
+        highlightedSkillNames = withContext(Dispatchers.IO) {
+            dao.getHighlightedSkillNamesForActivity(activityId).toSet()
+        }
+    }
+
+    var skillLevels by remember(courseSkills) {
+        mutableStateOf(courseSkills.associate { it.skillName to SkillLevel.NOT_APPLICABLE })
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Avaliar ${student.displayName.split(" ").first()}") },
+        text = {
+            Column {
+                if(highlightedSkillNames.isNotEmpty()) {
+                    Text(
+                        text = "Destaques da atividade: ${highlightedSkillNames.size}",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (courseSkills.isEmpty()) {
+                    Text("Nenhuma habilidade definida para esta turma.")
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(
+                            courseSkills.sortedBy { it.skillName },
+                            key = { it.skillName }) { courseSkill ->
+                            val isHighlighted =
+                                highlightedSkillNames.contains(courseSkill.skillName)
+
+                            SkillAssignmentRow(
+                                skillName = courseSkill.skillName,
+                                currentLevel = skillLevels[courseSkill.skillName]
+                                    ?: SkillLevel.NOT_APPLICABLE,
+                                onLevelSelected = { newLevel ->
+                                    skillLevels = skillLevels.toMutableMap().apply {
+                                        this[courseSkill.skillName] = newLevel
+                                    }
+                                },
+                                isHighlighted = isHighlighted
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val assessmentsToSave = skillLevels.entries
+                        .filter { it.value != SkillLevel.NOT_APPLICABLE }
+                        .map { it.key to it.value }
+
+                    assessmentsToSave.forEach { (skill, level) ->
+                        viewModel.addSkillAssessment(
+                            studentId = student.studentId,
+                            skillName = skill,
+                            level = level,
+                            source = AssessmentSource.PROFESSOR_OBSERVATION
+                        )
+                    }
+                    onDismiss()
+                }
+            ) { Text("Salvar") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@Composable
+private fun SkillAssignmentRow(
+    skillName: String,
+    currentLevel: SkillLevel,
+    onLevelSelected: (SkillLevel) -> Unit,
+    isHighlighted: Boolean
+) {
+    val rowBackground =
+        if (isHighlighted) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+
+    val textColor =
+        if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer
+        else MaterialTheme.colorScheme.onSurface
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowBackground, RoundedCornerShape(10.dp))
+            .padding(horizontal = 4.dp, vertical = 6.dp), // Padding levemente reduzido
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isHighlighted) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = "Habilidade em destaque",
+                    tint = textColor,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+
+            Text(
+                text = skillName,
+                style = MaterialTheme.typography.bodyMedium.copy(color = textColor),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val buttonSize = 28.dp // Reduzido ligeiramente
+                val iconSize = 16.dp
+
+                IconButton(
+                    onClick = { onLevelSelected(SkillLevel.NOT_APPLICABLE) },
+                    modifier = Modifier.size(buttonSize)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = SkillLevel.NOT_APPLICABLE.displayName,
+                        tint = if (currentLevel == SkillLevel.NOT_APPLICABLE) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        },
+                        modifier = Modifier
+                            .size(iconSize)
+                            .alpha(if (currentLevel == SkillLevel.NOT_APPLICABLE) 1f else 0.7f)
+                    )
+                }
+
+                IconButton(
+                    onClick = { onLevelSelected(SkillLevel.LOW) },
+                    modifier = Modifier.size(buttonSize)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ThumbDown,
+                        contentDescription = SkillLevel.LOW.displayName,
+                        tint = if (currentLevel == SkillLevel.LOW) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        },
+                        modifier = Modifier
+                            .size(iconSize)
+                            .alpha(if (currentLevel == SkillLevel.LOW) 1f else 0.7f)
+                    )
+                }
+
+                IconButton(
+                    onClick = { onLevelSelected(SkillLevel.MEDIUM) },
+                    modifier = Modifier.size(buttonSize)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Circle,
+                        contentDescription = SkillLevel.MEDIUM.displayName,
+                        tint = if (currentLevel == SkillLevel.MEDIUM) {
+                            Color(0xFFFFA500)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        },
+                        modifier = Modifier
+                            .size(iconSize)
+                            .alpha(if (currentLevel == SkillLevel.MEDIUM) 1f else 0.7f)
+                    )
+                }
+
+                IconButton(
+                    onClick = { onLevelSelected(SkillLevel.HIGH) },
+                    modifier = Modifier.size(buttonSize)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ThumbUp,
+                        contentDescription = SkillLevel.HIGH.displayName,
+                        tint = if (currentLevel == SkillLevel.HIGH) {
+                            Color(0xFF008000)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        },
+                        modifier = Modifier
+                            .size(iconSize)
+                            .alpha(if (currentLevel == SkillLevel.HIGH) 1f else 0.7f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+// --- CONFIGURAÇÃO E EDITOR MANUAL (MANTIDOS ORIGINAIS) ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -355,7 +821,7 @@ private fun ManualGroupEditorView(
                         .fillMaxWidth()
                         .padding(8.dp)
                         .onGloballyPositioned { newGroupBounds = it.boundsInRoot() }
-                ) { Text("+ Novo grupo") }
+                ) { Text("+ Arraste aqui para criar novo grupo") }
 
                 Column(
                     modifier = Modifier
@@ -501,41 +967,5 @@ private fun StudentVisualContent(student: Student) {
             maxLines = 3,
             softWrap = true
         )
-    }
-}
-
-@Composable
-private fun GroupsView(groups: List<List<Student>>, onGroupClicked: (Int) -> Unit) {
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 120.dp),
-        contentPadding = PaddingValues(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        itemsIndexed(groups) { index, group ->
-            GroupCard(
-                groupNumber = index + 1,
-                studentCount = group.size
-            ) { onGroupClicked(index + 1) }
-        }
-    }
-}
-
-@Composable
-private fun GroupCard(groupNumber: Int, studentCount: Int, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(Icons.Default.Group, null, modifier = Modifier.size(40.dp))
-            Spacer(Modifier.height(8.dp))
-            Text("Grupo $groupNumber", fontWeight = FontWeight.Bold)
-            Text("$studentCount componentes", style = MaterialTheme.typography.bodySmall)
-        }
     }
 }
