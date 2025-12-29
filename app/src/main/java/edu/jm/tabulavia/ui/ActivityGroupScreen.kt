@@ -740,20 +740,24 @@ private fun ManualGroupEditorView(
     var dragPositionInContainer by remember { mutableStateOf<Offset?>(null) }
     var containerCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
+    // Bounds para detecção de colisão
     var unassignedBounds by remember { mutableStateOf<Rect?>(null) }
     var newGroupBounds by remember { mutableStateOf<Rect?>(null) }
-    val groupBounds = remember { mutableStateMapOf<Long, Rect>() }
+    val groupBounds = remember { mutableStateMapOf<Int, Rect>() }
 
     fun detectDropTarget(): DropTarget? {
         val container = containerCoords ?: return null
         val dragPos = dragPositionInContainer ?: return null
-        // Converter a posição relativa do container de volta para Root para bater com os Bounds capturados
+
+        // Converte a posição local do drag para a coordenada global (Root)
+        // para comparar com os bounds capturados via onGloballyPositioned
         val rootPos = container.localToRoot(dragPos)
 
         if (unassignedBounds?.contains(rootPos) == true) return DropTarget.Unassigned
         if (newGroupBounds?.contains(rootPos) == true) return DropTarget.NewGroup
+
         groupBounds.forEach { (id, rect) ->
-            if (rect.contains(rootPos)) return DropTarget.ExistingGroup(id.toInt())
+            if (rect.contains(rootPos)) return DropTarget.ExistingGroup(id)
         }
         return null
     }
@@ -761,33 +765,31 @@ private fun ManualGroupEditorView(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onGloballyPositioned { containerCoords = it }) {
+            .onGloballyPositioned { containerCoords = it }
+    ) {
         Row(modifier = Modifier.fillMaxSize()) {
             // COLUNA: NÃO ALOCADOS
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .onGloballyPositioned { unassignedBounds = it.boundsInRoot() }) {
+                    .onGloballyPositioned { unassignedBounds = it.boundsInRoot() }
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            ) {
                 Text(
                     "Não alocados",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(8.dp)
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(8.dp),
+                    fontWeight = FontWeight.Bold
                 )
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    unassignedStudents.sortedBy { it.displayName }.forEach { student ->
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(unassignedStudents, key = { it.studentId }) { student ->
                         DraggableStudentWrapper(
                             student = student,
-                            isDragging = draggedStudent?.student == student,
+                            isDragging = draggedStudent?.student?.studentId == student.studentId,
                             onStart = { localOffset, itemCoords ->
                                 draggedStudent = DraggedStudent(student, Location.Unassigned)
-                                dragPositionInContainer =
-                                    containerCoords?.localPositionOf(itemCoords, localOffset)
+                                dragPositionInContainer = containerCoords?.localPositionOf(itemCoords, localOffset)
                             },
                             onMove = { delta ->
                                 dragPositionInContainer = dragPositionInContainer?.plus(delta)
@@ -795,11 +797,7 @@ private fun ManualGroupEditorView(
                             onEnd = {
                                 val target = detectDropTarget()
                                 if (target != null && draggedStudent != null) {
-                                    onMoveStudent(
-                                        draggedStudent!!.student,
-                                        draggedStudent!!.from,
-                                        target
-                                    )
+                                    onMoveStudent(draggedStudent!!.student, draggedStudent!!.from, target)
                                 }
                                 draggedStudent = null
                                 dragPositionInContainer = null
@@ -814,60 +812,62 @@ private fun ManualGroupEditorView(
                 modifier = Modifier
                     .weight(2f)
                     .fillMaxHeight()
+                    .padding(horizontal = 8.dp)
             ) {
+                // Área para criar novo grupo
                 OutlinedButton(
-                    onClick = {},
+                    onClick = { /* Apenas visual para drop */ },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp)
-                        .onGloballyPositioned { newGroupBounds = it.boundsInRoot() }
-                ) { Text("+ Arraste aqui para criar novo grupo") }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 8.dp)
+                        .onGloballyPositioned { newGroupBounds = it.boundsInRoot() },
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                 ) {
-                    groups.forEach { group ->
+                    Icon(Icons.Default.Check, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Novo Grupo")
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(groups, key = { it.id }) { group ->
                         Card(
                             modifier = Modifier
-                                .padding(4.dp)
                                 .fillMaxWidth()
-                                .onGloballyPositioned {
-                                    groupBounds[group.id.toLong()] = it.boundsInRoot()
-                                }) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(text = "Grupo ${group.id}", fontWeight = FontWeight.ExtraBold)
-                                Spacer(Modifier.height(8.dp))
-                                FlowRow(modifier = Modifier.fillMaxWidth(), maxItemsInEachRow = 3) {
-                                    group.students.sortedBy { it.displayName }.forEach { student ->
+                                .onGloballyPositioned { groupBounds[group.id] = it.boundsInRoot() },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Text(
+                                    text = "Grupo ${group.id}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.height(4.dp))
+
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    maxItemsInEachRow = 3
+                                ) {
+                                    group.students.forEach { student ->
                                         DraggableStudentWrapper(
                                             student = student,
-                                            isDragging = draggedStudent?.student == student,
+                                            isDragging = draggedStudent?.student?.studentId == student.studentId,
                                             onStart = { localOffset, itemCoords ->
-                                                draggedStudent = DraggedStudent(
-                                                    student,
-                                                    Location.Group(group.id)
-                                                )
-                                                dragPositionInContainer =
-                                                    containerCoords?.localPositionOf(
-                                                        itemCoords,
-                                                        localOffset
-                                                    )
+                                                draggedStudent = DraggedStudent(student, Location.Group(group.id))
+                                                dragPositionInContainer = containerCoords?.localPositionOf(itemCoords, localOffset)
                                             },
                                             onMove = { delta ->
-                                                dragPositionInContainer =
-                                                    dragPositionInContainer?.plus(delta)
+                                                dragPositionInContainer = dragPositionInContainer?.plus(delta)
                                             },
                                             onEnd = {
                                                 val target = detectDropTarget()
                                                 if (target != null && draggedStudent != null) {
-                                                    onMoveStudent(
-                                                        draggedStudent!!.student,
-                                                        draggedStudent!!.from,
-                                                        target
-                                                    )
+                                                    onMoveStudent(draggedStudent!!.student, draggedStudent!!.from, target)
                                                 }
                                                 draggedStudent = null
                                                 dragPositionInContainer = null
@@ -882,23 +882,24 @@ private fun ManualGroupEditorView(
             }
         }
 
-        // OVERLAY DO ITEM ARRASTADO (FANTASMA)
+        // OVERLAY DO ITEM ARRASTADO (GHOST)
         if (draggedStudent != null && dragPositionInContainer != null) {
             Box(
                 modifier = Modifier
                     .offset {
                         IntOffset(
-                            x = dragPositionInContainer!!.x.toInt() - 120,
-                            y = dragPositionInContainer!!.y.toInt() - 120
+                            x = (dragPositionInContainer!!.x - 120).toInt(), // Ajuste de centralização
+                            y = (dragPositionInContainer!!.y - 120).toInt()
                         )
                     }
                     .size(90.dp)
             ) {
                 Surface(
-                    tonalElevation = 16.dp,
-                    shadowElevation = 16.dp,
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                    tonalElevation = 8.dp,
+                    shadowElevation = 8.dp,
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                 ) {
                     StudentVisualContent(student = draggedStudent!!.student)
                 }
