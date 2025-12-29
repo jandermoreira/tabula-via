@@ -9,9 +9,9 @@ import kotlinx.serialization.Serializable
 data class SkillAssessment(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val studentId: Long,
-    val skillName: String, // Ou um skillId se você tiver uma tabela de Skills
+    val skillName: String,
     val level: SkillLevel,
     val source: AssessmentSource,
     val timestamp: Long = System.currentTimeMillis(),
-    val assessorId: Long? = null // Opcional: para saber qual colega avaliou
+    val assessorId: Long? = null
 )

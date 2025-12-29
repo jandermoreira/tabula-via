@@ -25,10 +25,8 @@ object SkillTrendCalculator {
             TrendCalculationMethod.SIMPLE_DIFFERENCE ->
                 calculateSimpleDifferenceTrend(assessments, historyCount)
 
-            TrendCalculationMethod.MOVING_AVERAGE -> {
-                Log.w(TAG, "Método MOVING_AVERAGE ainda não implementado.")
-                SkillTrend.STABLE
-            }
+            TrendCalculationMethod.MOVING_AVERAGE ->
+                calculateMovingAverageTrend(assessments, historyCount)
 
             TrendCalculationMethod.LINEAR_REGRESSION ->
                 calculateLinearRegressionTrend(assessments, historyCount)
@@ -51,13 +49,13 @@ object SkillTrendCalculator {
         )
 
         val assessmentsForTrend = assessments
-            .sortedBy { it.lastAssessedTimestamp }   // ⬅️ CORREÇÃO
+            .sortedBy { it.lastAssessedTimestamp }
             .takeLast(historyCount)
 
         val dataPoints = assessmentsForTrend
             .mapIndexedNotNull { index, status ->
                 levelToScore(status.currentLevel)?.let { score ->
-                    Pair(index.toDouble(), score)     // x cresce com o tempo
+                    Pair(index.toDouble(), score)
                 }
             }
 
@@ -122,6 +120,33 @@ object SkillTrendCalculator {
         return when {
             newestScore > oldestScore -> SkillTrend.IMPROVING
             newestScore < oldestScore -> SkillTrend.DECLINING
+            else -> SkillTrend.STABLE
+        }
+    }
+
+    private fun calculateMovingAverageTrend(
+        assessments: List<SkillStatus>,
+        historyCount: Int
+    ): SkillTrend {
+        val assessmentsForTrend = assessments
+            .sortedBy { it.lastAssessedTimestamp }
+            .takeLast(historyCount)
+
+        if (assessmentsForTrend.size < 2) return SkillTrend.STABLE
+
+        // Split the window in two parts to compare
+        val mid = assessmentsForTrend.size / 2
+        val firstHalf = assessmentsForTrend.subList(0, mid)
+        val secondHalf = assessmentsForTrend.subList(mid, assessmentsForTrend.size)
+
+        val avgOld = firstHalf.mapNotNull { levelToScore(it.currentLevel) }.average()
+        val avgNew = secondHalf.mapNotNull { levelToScore(it.currentLevel) }.average()
+
+        Log.d(TAG, "Moving Average: Old=$avgOld, New=$avgNew")
+
+        return when {
+            avgNew > avgOld + SLOPE_THRESHOLD -> SkillTrend.IMPROVING
+            avgNew < avgOld - SLOPE_THRESHOLD -> SkillTrend.DECLINING
             else -> SkillTrend.STABLE
         }
     }
