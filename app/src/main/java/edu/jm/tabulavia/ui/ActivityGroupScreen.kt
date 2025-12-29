@@ -355,7 +355,7 @@ private fun ManualGroupEditorView(
                         .fillMaxWidth()
                         .padding(8.dp)
                         .onGloballyPositioned { newGroupBounds = it.boundsInRoot() }
-                ) { Text("+ Arraste aqui para novo grupo") }
+                ) { Text("+ Novo grupo") }
 
                 Column(
                     modifier = Modifier
@@ -372,11 +372,7 @@ private fun ManualGroupEditorView(
                                     groupBounds[group.id.toLong()] = it.boundsInRoot()
                                 }) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = "${group.students.size} componentes",
-                                    fontWeight = FontWeight.Light,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                                Text(text = "Grupo ${group.id}", fontWeight = FontWeight.ExtraBold)
                                 Spacer(Modifier.height(8.dp))
                                 FlowRow(modifier = Modifier.fillMaxWidth(), maxItemsInEachRow = 3) {
                                     group.students.sortedBy { it.displayName }.forEach { student ->
