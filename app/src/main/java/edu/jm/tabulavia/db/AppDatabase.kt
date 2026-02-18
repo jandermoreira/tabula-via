@@ -32,7 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun skillDao(): SkillDao
     abstract fun groupMemberDao(): GroupMemberDao
     abstract fun courseSkillDao(): CourseSkillDao
-    abstract fun skillAssessmentDao(): SkillAssessmentDao // Adicionado o novo DAO
+    abstract fun skillAssessmentDao(): SkillAssessmentDao
     abstract fun activityHighlightedSkillDao(): edu.jm.tabulavia.dao.ActivityHighlightedSkillDao
 }
 
