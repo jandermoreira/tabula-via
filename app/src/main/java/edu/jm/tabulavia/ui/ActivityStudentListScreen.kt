@@ -21,7 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.viewmodel.CourseViewModel
-import androidx.compose.ui.platform.LocalContext // Necessário para obter o contexto
+import androidx.compose.ui.platform.LocalContext
 import edu.jm.tabulavia.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -38,14 +38,10 @@ fun ActivityStudentListScreen(
         viewModel.loadActivityDetails(activityId)
     }
 
-    // Pré-calcula o mapa de ícones para otimizar a rolagem
-    val context = LocalContext.current
-    val studentIconMap = remember(students, context) {
-        students.associate { student ->
-            val iconIndex = (student.studentId.mod(80L) + 1).toInt()
-            val iconName = "student_${iconIndex}"
-            val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
-            student.studentId to (drawableResId.takeIf { it != 0 } ?: R.drawable.student_0) // Fallback icon
+    // Use the EmojiMapper to get the emoji for each student
+    val studentEmojiMap = remember(students) {
+        students.associate {
+            it.studentId to EmojiMapper.mapStudentIdToEmoji(it.studentId)
         }
     }
 
@@ -64,12 +60,12 @@ fun ActivityStudentListScreen(
                 )
             )
         }
-    ) { paddingValues ->
+    ) {
         if (students.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
+                    .padding(it),
                 contentAlignment = Alignment.Center
             ) {
                 Text("Nenhum aluno encontrado.")
@@ -77,17 +73,17 @@ fun ActivityStudentListScreen(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 120.dp),
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
+                modifier = Modifier.fillMaxSize().padding(it),
                 contentPadding = PaddingValues(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(students, key = { it.studentId }) { student ->
-                    // Busca o drawableResId pré-calculado do mapa
-                    val studentDrawableResId = studentIconMap[student.studentId] ?: R.drawable.student_0 // Fallback
+                items(students, key = { it.studentId }) {
+                    // Pass the emoji from the map to StudentItem
+                    val studentEmoji = studentEmojiMap[it.studentId] ?: "❓" // Fallback emoji
                     StudentItem(
-                        student = student,
-                        drawableResId = studentDrawableResId // Passa o ID do drawable pré-calculado
+                        student = it,
+                        emoji = studentEmoji // Pass the emoji instead of drawableResId
                     )
                 }
             }
