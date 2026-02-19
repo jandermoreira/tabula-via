@@ -19,7 +19,7 @@ import edu.jm.tabulavia.model.*
         SkillAssessment::class,
         ActivityHighlightedSkill::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

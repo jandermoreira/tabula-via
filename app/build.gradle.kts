@@ -1,10 +1,18 @@
+import org.gradle.kotlin.dsl.support.kotlinCompilerOptions
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
     id("com.google.gms.google-services")
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
-    id("com.google.devtools.ksp")
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+    }
 }
 
 android {
@@ -30,16 +38,16 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
+
     buildFeatures {
         compose = true
     }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
@@ -76,7 +84,6 @@ dependencies {
     implementation(libs.androidx.credentials.lib)
     implementation(libs.androidx.credentials.playservicesauth)
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
-    // Old Play Services Auth - can be removed if not used elsewhere
     implementation(libs.play.services.auth)
 
     implementation(platform(libs.firebase.bom))
