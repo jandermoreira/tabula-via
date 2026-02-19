@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.R
@@ -23,13 +24,14 @@ import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import androidx.compose.ui.platform.LocalContext // Necessário para obter o contexto
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import edu.jm.tabulavia.ui.EmojiMapper.mapStudentIdToEmoji
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun StudentListScreen(
-    viewModel: CourseViewModel,
-    onNavigateBack: () -> Unit
+    viewModel: CourseViewModel, onNavigateBack: () -> Unit
 ) {
     var showAddStudentDialog by remember { mutableStateOf(false) }
     var showEditStudentDialog by remember { mutableStateOf(false) }
@@ -41,39 +43,33 @@ fun StudentListScreen(
     val selectedStudent by viewModel.selectedStudentDetails.collectAsState()
     val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    val titleText = selectedCourse?.let {
-                        "${it.className} ${it.academicYear}/${it.period} - Alunos"
-                    } ?: ""
-                    Text(titleText)
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Voltar"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                )
+    Scaffold(topBar = {
+        TopAppBar(
+            title = {
+                val titleText = selectedCourse?.let {
+                    "${it.className} ${it.academicYear}/${it.period} - Alunos"
+                } ?: ""
+                Text(titleText)
+            }, navigationIcon = {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Voltar"
+                    )
+                }
+            }, colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                titleContentColor = MaterialTheme.colorScheme.primary,
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddStudentDialog = true }) {
-                // Ícone de adicionar pode ser mantido ou alterado se necessário
-                Icon(
-                    painter = painterResource(id = R.drawable.student_0),
-                    contentDescription = "Adicionar Aluno"
-                )
-            }
+        )
+    }, floatingActionButton = {
+        FloatingActionButton(onClick = { showAddStudentDialog = true }) {
+            Icon(
+                painter = painterResource(id = R.drawable.student_0),
+                contentDescription = "Adicionar Aluno"
+            )
         }
-    ) { paddingValues ->
+    }) { paddingValues ->
         StudentsGrid(
             students = students,
             todaysAttendance = todaysAttendance,
@@ -85,22 +81,17 @@ fun StudentListScreen(
             onStudentLongClick = { student ->
                 viewModel.selectStudentForEditing(student)
                 showEditStudentDialog = true
-            }
-        )
+            })
     }
 
     if (showAddStudentDialog) {
         AddStudentDialog(
-            viewModel = viewModel,
-            onDismiss = { showAddStudentDialog = false }
-        )
+            viewModel = viewModel, onDismiss = { showAddStudentDialog = false })
     }
 
     if (showEditStudentDialog) {
         EditStudentDialog(
-            viewModel = viewModel,
-            onDismiss = { showEditStudentDialog = false }
-        )
+            viewModel = viewModel, onDismiss = { showEditStudentDialog = false })
     }
 
     if (showStudentDetailsDialog) {
@@ -112,8 +103,7 @@ fun StudentListScreen(
                 onDismiss = {
                     viewModel.clearStudentDetails()
                     showStudentDetailsDialog = false
-                }
-            )
+                })
         }
     }
 }
@@ -141,45 +131,17 @@ fun StudentsGrid(
         ) {
             items(students, key = { it.studentId }) { student ->
                 val isAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
+                val emoji = mapStudentIdToEmoji(student.studentId)
 
                 StudentItem(
                     student = student,
+                    emoji = emoji,
                     isAbsent = isAbsent,
                     modifier = Modifier.combinedClickable(
                         onClick = { onStudentClick(student.studentId) },
-                        onLongClick = { onStudentLongClick(student) }
-                    )
-                )
+                        onLongClick = { onStudentLongClick(student) }))
             }
         }
     }
 }
 
-@Composable
-fun StudentItem(
-    student: Student,
-    isAbsent: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val studentEmoji = mapStudentIdToEmoji(student.studentId)
-
-    Box(
-        modifier = modifier
-            .padding(8.dp)
-            .fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = studentEmoji,
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(student.name)
-            if (isAbsent) {
-                Text("Ausente", color = MaterialTheme.colorScheme.error)
-            }
-        }
-    }
-}

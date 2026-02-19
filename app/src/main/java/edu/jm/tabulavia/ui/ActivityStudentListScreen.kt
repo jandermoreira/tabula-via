@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -19,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import androidx.compose.ui.platform.LocalContext
@@ -73,17 +75,25 @@ fun ActivityStudentListScreen(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 120.dp),
-                modifier = Modifier.fillMaxSize().padding(it),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(it),
                 contentPadding = PaddingValues(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(students, key = { it.studentId }) {
-                    // Pass the emoji from the map to StudentItem
-                    val studentEmoji = studentEmojiMap[it.studentId] ?: "❓" // Fallback emoji
+                items(students, key = { it.studentId }) { student ->
+                    val studentEmoji = studentEmojiMap[student.studentId] ?: "❓"
+                    val isStudentAbsent = true
+
                     StudentItem(
-                        student = it,
-                        emoji = studentEmoji // Pass the emoji instead of drawableResId
+                        student = student,
+                        emoji = studentEmoji,
+                        isAbsent = isStudentAbsent,
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .fillMaxWidth()
+                            .alpha(if (isStudentAbsent) 0.5f else 1f)
                     )
                 }
             }

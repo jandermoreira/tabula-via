@@ -222,7 +222,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val courseSkills = courseSkillDao.getSkillsForCourse(classId)
             _courseSkills.value = courseSkills
 
-            calculateStudentSkillStatus(studentId) // Chamar a função de cálculo de status
+            calculateStudentSkillStatus(studentId)
 
             val totalClasses = _selectedCourse.value?.numberOfClasses ?: 0
             if (totalClasses > 0) {

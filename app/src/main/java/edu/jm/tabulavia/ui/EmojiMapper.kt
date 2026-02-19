@@ -1,5 +1,7 @@
 package edu.jm.tabulavia.ui
 
+import androidx.compose.ui.graphics.Color
+
 object EmojiMapper {
 
     private val animalEmojis = listOf(
@@ -24,22 +26,22 @@ object EmojiMapper {
         "🐆",
         "🐴",
         "🐎",
-        "🦄",
+//        "🦄",
         "🦓",
         "🦌",
         "🦬",
-        "🐮",
+//        "🐮",
         "🐂",
         "🐃",
         "🐄",
-        "🐷",
-        "🐖",
+//        "🐷",
+//        "🐖",
         "🐗",
-        "🐽",
+//       "🐽",
         "🐏",
         "🐑",
         "🐐",
-        "🐪",
+//       "🐪",
         "🐫",
         "🦙",
         "🦒",
@@ -49,7 +51,7 @@ object EmojiMapper {
         "🦛",
         "🐭",
         "🐁",
-        "🐀",
+//       "🐀",
         "🐹",
         "🐰",
         "🐇",
@@ -61,18 +63,18 @@ object EmojiMapper {
         "🐻‍❄️",
         "🐨",
         "🐼",
-        "🦥",
+//       "🦥",
         "🦦",
-        "🦨",
+//       "🦨",
         "🦘",
         "🦡",
-        "🐾",
+//       "🐾",
         "🦃",
-        "🐔",
+//       "🐔",
         "🐓",
-        "🐣",
-        "🐤",
-        "🐥",
+//       "🐣",
+//       "🐤",
+//       "🐥",
         "🐦",
         "🐧",
         "🕊️",
@@ -82,9 +84,9 @@ object EmojiMapper {
         "🦉",
         "🦤",
         "🦩",
-        "🦚",
+//       "🦚",
         "🦜",
-        "🐸",
+//       "🐸",
         "🐊",
         "🐢",
         "🦎",
@@ -93,7 +95,7 @@ object EmojiMapper {
         "🐉",
         "🦕",
         "🦖",
-        "🐳",
+//       "🐳",
         "🐋",
         "🐬",
         "🦭",
@@ -102,27 +104,39 @@ object EmojiMapper {
         "🐡",
         "🦈",
         "🐙",
-        "🐚",
-        "🐌",
+//       "🐚",
+//       "🐌",
         "🦋",
-        "🐛",
+//       "🐛",
         "🐜",
         "🐝",
-        "🪲",
+//       "🪲",
         "🐞",
         "🦗",
-        "🪳",
+//       "🪳",
         "🕷️",
-        "🕸️",
-        "🦂",
-        "🦟",
-        "🪰",
-        "🪱",
-        "🦠"
+//       "🕸️",
+//       "🦂",
+//       "🦟",
+//       "🪰",
+//       "🪱",
+//       "🦠"
     )
 
     fun mapStudentIdToEmoji(studentId: Long): String {
         val index = (studentId.mod(animalEmojis.size.toLong())).toInt()
         return animalEmojis[index]
+    }
+
+    /**
+     * Generate a deterministic color from a Long ID using HSV.
+     * This ensures the same ID always gets the same color, and the colors are visually pleasant (pastel).
+     */
+    fun generateColorFromId(id: Long): Color {
+        val hue = (id * 137 % 360).toFloat()
+        val saturation = 0.5f
+        val value = 0.9f
+
+        return Color.hsv(hue, saturation, value)
     }
 }
