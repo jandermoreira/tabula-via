@@ -23,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.viewmodel.CourseViewModel
-import androidx.compose.ui.platform.LocalContext
-import edu.jm.tabulavia.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -43,7 +41,7 @@ fun ActivityStudentListScreen(
     // Use the EmojiMapper to get the emoji for each student
     val studentEmojiMap = remember(students) {
         students.associate {
-            it.studentId to EmojiMapper.mapStudentIdToEmoji(it.studentId)
+            it.studentId to StudentEmojiColorHelper.mapStudentIdToEmoji(it.studentId)
         }
     }
 

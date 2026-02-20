@@ -257,9 +257,9 @@ class MainActivity : ComponentActivity() {
                                 activityId = activityId,
                                 viewModel = courseViewModel,
                                 onNavigateBack = { navController.popBackStack() },
-                                onGroupClicked = { groupNumber ->
-                                    navController.navigate("groupDetails/$activityId/$groupNumber")
-                                }
+//                                onGroupClicked = { groupNumber ->
+//                                    navController.navigate("groupDetails/$activityId/$groupNumber")
+//                                }
                             )
                         }
                     }

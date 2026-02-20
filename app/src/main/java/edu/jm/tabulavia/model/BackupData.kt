@@ -12,5 +12,6 @@ data class BackupData(
     val groupMembers: List<GroupMember> = emptyList(),
     val skillAssessments: List<SkillAssessment> = emptyList(),
     val courseSkills: List<CourseSkill> = emptyList(),
-    val activityHighlightedSkills: List<ActivityHighlightedSkill> = emptyList()
+    val activityHighlightedSkills: List<ActivityHighlightedSkill> = emptyList(),
+    val studentSkills: List<StudentSkill> = emptyList()
 )

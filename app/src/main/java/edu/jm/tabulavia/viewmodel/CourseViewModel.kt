@@ -32,6 +32,7 @@ import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.grouping.Location
 import edu.jm.tabulavia.model.grouping.DropTarget
+import kotlinx.serialization.Serializable
 
 class CourseViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -40,10 +41,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val studentDao = db.studentDao()
     private val attendanceDao = db.attendanceDao()
     private val activityDao = db.activityDao()
-    private val skillDao = db.skillDao() // This DAO might become obsolete or need refactoring
+    private val skillDao = db.skillDao()
     private val groupMemberDao = db.groupMemberDao()
     private val courseSkillDao = db.courseSkillDao()
-    private val skillAssessmentDao = db.skillAssessmentDao() // New DAO
+    private val skillAssessmentDao = db.skillAssessmentDao()
     private val activityHighlightedSkillDao = db.activityHighlightedSkillDao()
 
     private val storage = Firebase.storage
@@ -100,7 +101,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _selectedGroupDetails = MutableStateFlow<List<Student>>(emptyList())
     val selectedGroupDetails: StateFlow<List<Student>> = _selectedGroupDetails.asStateFlow()
 
-    // --- NOVO: StateFlow para os status de habilidades calculados ---
     private val _studentSkillStatuses = MutableStateFlow<List<SkillStatus>>(emptyList())
     val studentSkillStatuses: StateFlow<List<SkillStatus>> = _studentSkillStatuses.asStateFlow()
 
@@ -142,7 +142,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             _activities.value = activityDao.getActivitiesForClass(classId)
             _courseSkills.value = courseSkillDao.getSkillsForCourse(classId)
 
-            // Load today\'s attendance
             loadTodaysAttendance(allSessions)
         }
     }
@@ -667,9 +666,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 attendanceRecords = attendanceDao.getAllRecords(),
                 activities = activityDao.getAllActivities(),
                 groupMembers = groupMemberDao.getAllGroupMembers(),
-                skillAssessments = skillAssessmentDao.getAllAssessments().first(), // Corrigido
+                skillAssessments = skillAssessmentDao.getAllAssessments().first(),
                 courseSkills = courseSkillDao.getAllCourseSkills(),
-                activityHighlightedSkills = activityHighlightedSkillDao.getAll()
+                activityHighlightedSkills = activityHighlightedSkillDao.getAll(),
+                studentSkills = skillDao.getAllSkills() // Added this line
             )
             val jsonString = Json.encodeToString(BackupData.serializer(), backupData)
 
@@ -706,8 +706,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 groupMemberDao.insertAll(backupData.groupMembers)
                 skillAssessmentDao.insertAll(backupData.skillAssessments)
                 courseSkillDao.insertCourseSkills(backupData.courseSkills)
-
                 activityHighlightedSkillDao.insertAll(backupData.activityHighlightedSkills)
+                skillDao.insertOrUpdateSkills(backupData.studentSkills) // Adicionado: restauração de StudentSkill
             }
 
             loadAllCourses()
@@ -940,4 +940,3 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 }
-

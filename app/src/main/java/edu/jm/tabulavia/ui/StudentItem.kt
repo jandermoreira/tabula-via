@@ -15,13 +15,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.jm.tabulavia.model.Student
-import edu.jm.tabulavia.ui.EmojiMapper
-import edu.jm.tabulavia.ui.EmojiMapper.generateColorFromId
+import edu.jm.tabulavia.ui.StudentEmojiColorHelper.generateColorFromId
 
 /**
  * Common component to display a student with their emoji and name.
@@ -35,7 +35,10 @@ fun StudentItem(
     isAbsent: Boolean = false
 ) {
     val backgroundColor = remember(student.studentId) {
-        generateColorFromId(student.studentId)
+        if (isAbsent)
+            Color.Gray
+        else
+            generateColorFromId(student.studentId)
     }
 
     Column(
