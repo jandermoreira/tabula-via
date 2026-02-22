@@ -1,3 +1,9 @@
+/**
+ * Attendance management screen for tracking student presence.
+ * This version integrates with the StudentEmojiColorHelper and applies 
+ * the organic blob visual style for student avatars.
+ */
+
 package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.layout.*
@@ -9,15 +15,11 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import edu.jm.tabulavia.R
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
@@ -25,6 +27,11 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
+/**
+ * Main screen for recording student attendance sessions.
+ * * @param viewModel The state holder for course and session data.
+ * @param onNavigateBack Callback to return to the previous screen.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttendanceScreen(
@@ -36,11 +43,12 @@ fun AttendanceScreen(
     val editingSession = viewModel.editingSession
 
     var attendanceMap by remember { mutableStateOf<Map<Long, AttendanceStatus>>(emptyMap()) }
-
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+
     val timeOptions = (0..23).toList()
 
+    // Sync local state with ViewModel data
     LaunchedEffect(students, editingSession) {
         if (students.isNotEmpty()) {
             attendanceMap = if (editingSession != null) {
@@ -71,6 +79,7 @@ fun AttendanceScreen(
         }
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues)) {
+            // Date and Time selection header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -105,6 +114,7 @@ fun AttendanceScreen(
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
+            // Scrollable list of students with attendance toggles
             if (attendanceMap.isEmpty() && students.isNotEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -112,7 +122,7 @@ fun AttendanceScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(students, key = { it.studentId }) { student ->
@@ -129,6 +139,7 @@ fun AttendanceScreen(
         }
     }
 
+    // Date selection dialog logic
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = calendar.timeInMillis)
         DatePickerDialog(
@@ -144,8 +155,7 @@ fun AttendanceScreen(
                         )
                     }
                     showDatePicker = false
-                })
-                {
+                }) {
                     Text("OK")
                 }
             },
@@ -160,46 +170,65 @@ fun AttendanceScreen(
     }
 }
 
+/**
+ * Extension to format Calendar for Brazil-standard date display.
+ */
 fun Calendar.toFormattedDateString(): String {
     val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     return format.format(this.time)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * List item representing a student and their attendance selector.
+ * Uses the organic blob style for the avatar.
+ * * @param student The student model.
+ * @param status Current selected attendance status.
+ * @param onStatusChange Callback for updating the status.
+ */
 @Composable
-fun AttendanceItem(student: Student, status: AttendanceStatus, onStatusChange: (AttendanceStatus) -> Unit) {
-    val context = LocalContext.current
-    val iconIndex = (student.studentId.mod(80L) + 1).toInt()
-    val iconName = "student_${iconIndex}"
-    val drawableResId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+fun AttendanceItem(
+    student: Student,
+    status: AttendanceStatus,
+    onStatusChange: (AttendanceStatus) -> Unit
+) {
+    val isAbsent = status == AttendanceStatus.ABSENT
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    // Resolve deterministic emoji and color
+    val studentEmoji = remember(student.studentId) {
+        StudentEmojiColorHelper.mapStudentIdToEmoji(student.studentId)
+    }
+    val backgroundColor = remember(student.studentId, isAbsent) {
+        if (isAbsent) androidx.compose.ui.graphics.Color.Gray
+        else StudentEmojiColorHelper.generateColorFromId(student.studentId)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (isAbsent) 0.6f else 1f)
+    ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (drawableResId != 0) {
-                Icon(
-                    painter = painterResource(id = drawableResId),
-                    contentDescription = "Ícone do Aluno ${iconIndex}",
-                    modifier = Modifier.size(32.dp), // Ícone um pouco menor
-                    tint = Color.Unspecified
-                )
-            } else {
-                Icon(
-                    painter = painterResource(id = R.drawable.student_0),
-                    contentDescription = "Ícone do Aluno Padrão",
-                    modifier = Modifier.size(32.dp),
-                    tint = Color.Unspecified
-                )
-            }
+            // Visual avatar using shared Blob logic
+            EmojiWithBlob(
+                emoji = studentEmoji,
+                backgroundColor = backgroundColor,
+                modifier = Modifier.size(56.dp) // Smaller footprint for list rows
+            )
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Text(text = student.displayName, modifier = Modifier.weight(1f))
+            Text(
+                text = student.displayName,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            // Presence/Absence toggle row
             SingleChoiceSegmentedButtonRow {
                 SegmentedButton(
                     selected = status == AttendanceStatus.PRESENT,
