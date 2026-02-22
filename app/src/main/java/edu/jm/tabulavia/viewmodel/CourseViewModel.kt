@@ -322,10 +322,30 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         _loadedActivityId.value = null
 
         viewModelScope.launch {
-            _selectedActivity.value = courseRepository.getActivityById(activityId)
-            loadPersistedGroups(activityId)
+            val activity = courseRepository.getActivityById(activityId)
+            _selectedActivity.value = activity
+            if (activity != null) {
+                loadPersistedGroups(activityId, activity.classId)
+            } else {
+                _generatedGroups.value = emptyList()
+            }
             _loadedActivityId.value = activityId
             _groupsLoaded.value = true
+        }
+    }
+
+    private suspend fun loadPersistedGroups(activityId: Long, classId: Long) {
+        val groupMembers = courseRepository.getGroupMembers(activityId)
+        if (groupMembers.isNotEmpty()) {
+            val students = studentRepository.getStudentsForClass(classId)
+            val studentMap = students.associateBy { it.studentId }
+            val groups = groupMembers.groupBy { it.groupNumber }
+                .toSortedMap()
+                .values
+                .map { members -> members.mapNotNull { studentMap[it.studentId] } }
+            _generatedGroups.value = groups
+        } else {
+            _generatedGroups.value = emptyList()
         }
     }
 
@@ -337,22 +357,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         isManualMode = false
         manualGroups.clear()
         unassignedStudents.clear()
-    }
-
-    private suspend fun loadPersistedGroups(activityId: Long) {
-        val groupMembers = courseRepository.getGroupMembers(activityId)
-        if (groupMembers.isNotEmpty()) {
-            val students = studentRepository.getStudentsForClass(_selectedCourse.value?.classId ?: 0)
-            val studentMap = students.associateBy { it.studentId }
-            val groups = groupMembers.groupBy { it.groupNumber }
-                .mapValues { (_, members) ->
-                    members.mapNotNull { studentMap[it.studentId] }
-                }
-                .values.toList()
-            _generatedGroups.value = groups
-        } else {
-            _generatedGroups.value = emptyList()
-        }
     }
 
     fun addActivity(onActivityAdded: () -> Unit) {
