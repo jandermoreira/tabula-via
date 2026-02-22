@@ -61,7 +61,7 @@ fun StudentItem(
     student: Student,
     emoji: String,
     modifier: Modifier = Modifier,
-    isAbsent: Boolean = false
+    isAbsent: Boolean
 ) {
     // Determine visual state and color based on presence
     val backgroundColor = remember(student.studentId, isAbsent) {

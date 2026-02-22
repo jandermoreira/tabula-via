@@ -17,8 +17,10 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -56,6 +58,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 //import androidx.wear.compose.foundation.weight
 import edu.jm.tabulavia.db.DatabaseProvider
 import edu.jm.tabulavia.model.AssessmentSource
+import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.grouping.DropTarget
@@ -97,7 +100,8 @@ fun ActivityGroupScreen(
 
     var uiState by remember(activityId) { mutableStateOf(GroupUiState.LOADING) }
 
-    // Load activity details when the ID changes
+    val groupsListState = rememberLazyListState()
+
     LaunchedEffect(activityId) {
         viewModel.clearActivityState()
         viewModel.loadActivityDetails(activityId)
@@ -109,6 +113,12 @@ fun ActivityGroupScreen(
         if (groupsLoaded && loadedActivityId == activityId) {
             uiState = if (groups.isEmpty()) GroupUiState.NO_GROUPS else GroupUiState.SHOW_GROUPS
             viewModel.groupingCriterion = if (groups.isEmpty()) "Aleatório" else "Manual"
+        }
+    }
+
+    LaunchedEffect(groups.size) {
+        if (groups.isNotEmpty()) {
+            groupsListState.animateScrollToItem(index = groups.size - 1)
         }
     }
 
@@ -172,6 +182,8 @@ fun ActivityGroupScreen(
                 GroupUiState.SHOW_GROUPS -> {
                     GroupsExpandedView(
                         groups = groups,
+                        lazyListState = groupsListState,
+                        viewModel = viewModel,
                         onStudentClick = { student ->
                             selectedStudentForSkillAssignment = student
                             viewModel.loadStudentDetails(student.studentId)
@@ -216,10 +228,15 @@ fun ActivityGroupScreen(
 @Composable
 private fun GroupsExpandedView(
     groups: List<List<Student>>,
+    lazyListState: LazyListState,
     onStudentClick: (Student) -> Unit,
-    onGroupActionClick: (List<Student>) -> Unit
+    onGroupActionClick: (List<Student>) -> Unit,
+    viewModel: CourseViewModel
 ) {
+    val todaysAttendance by viewModel.todaysAttendance.collectAsState()
+
     LazyColumn(
+        state = lazyListState,
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
@@ -259,13 +276,16 @@ private fun GroupsExpandedView(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         groupStudents.sortedBy { it.displayName }.forEach { student ->
+                            val isStudentAbsent =
+                                todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
                             StudentItem(
                                 student = student,
                                 emoji = mapStudentIdToEmoji(student.studentId),
-//                                circleSize = 56.dp,
+                                isAbsent = isStudentAbsent,
                                 modifier = Modifier
                                     .width(90.dp)
                                     .clickable { onStudentClick(student) }
+//                                    .alpha(if (isStudentAbsent) 0.5f else 1f)
                             )
                         }
                     }
@@ -371,7 +391,8 @@ private fun ManualGroupEditorView(
                                     }
                                     draggedStudent = null
                                     dragPositionInContainer = null
-                                }
+                                },
+                                viewModel = viewModel
                             )
                         }
                     }
@@ -396,7 +417,7 @@ private fun ManualGroupEditorView(
                     // Group drop target area (Dashed Box) - Now inside a Row
                     Box(
                         modifier = Modifier
-                            .weight(1f) // Takes available space to the left of the menu
+                            .weight(1f)
                             .height(90.dp)
                             .onGloballyPositioned { newGroupBounds = it.boundsInRoot() }
                             .background(
@@ -437,8 +458,10 @@ private fun ManualGroupEditorView(
                     }
                 }
 
-                // List of existing groups remains below
+                val manualGroupsListState = rememberLazyListState()
+
                 LazyColumn(
+                    state = manualGroupsListState,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
@@ -486,12 +509,18 @@ private fun ManualGroupEditorView(
                                                 }
                                                 draggedStudent = null
                                                 dragPositionInContainer = null
-                                            }
+                                            },
+                                            viewModel = viewModel
                                         )
                                     }
                                 }
                             }
                         }
+                    }
+                }
+                LaunchedEffect(groups.size) {
+                    if (groups.isNotEmpty()) {
+                        manualGroupsListState.animateScrollToItem(index = groups.size - 1)
                     }
                 }
             }
@@ -517,10 +546,13 @@ private fun ManualGroupEditorView(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                 ) {
+                    val isStudentAbsent =
+                        viewModel.todaysAttendance.collectAsState().value[draggedStudent!!.student.studentId] == AttendanceStatus.ABSENT
                     StudentItem(
                         student = draggedStudent!!.student,
                         emoji = mapStudentIdToEmoji(draggedStudent!!.student.studentId),
-//                        circleSize = 48.dp
+                        isAbsent = isStudentAbsent,
+//                        modifier = Modifier.alpha(if (isStudentAbsent) 0.5f else 1f)
                     )
                 }
             }
@@ -537,9 +569,14 @@ private fun DraggableStudentWrapper(
     isDragging: Boolean,
     onStart: (Offset, LayoutCoordinates) -> Unit,
     onMove: (Offset) -> Unit,
-    onEnd: () -> Unit
+    onEnd: () -> Unit,
+    viewModel: CourseViewModel
 ) {
     var itemCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+    val todaysAttendance by viewModel.todaysAttendance.collectAsState()
+    val isStudentAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
+
     Box(
         modifier = Modifier
             .padding(4.dp)
@@ -558,7 +595,8 @@ private fun DraggableStudentWrapper(
         StudentItem(
             student = student,
             emoji = mapStudentIdToEmoji(student.studentId),
-//            circleSize = 48.dp
+            isAbsent = isStudentAbsent,
+//            modifier = Modifier.alpha(if (isStudentAbsent) 0.5f else 1f)
         )
     }
 }
