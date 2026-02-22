@@ -57,12 +57,12 @@ fun ActivityListScreen(
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val activities by viewModel.activities.collectAsState()
     var showAddActivityDialog by remember { mutableStateOf(false) }
-    var showSkillLogDialog by remember { mutableStateOf(false) } // Novo estado para o log de habilidades
-    var showBatchSkillEntryDialog by remember { mutableStateOf(false) } // NOVO: Estado para o diálogo de entrada em lote
+    var showSkillLogDialog by remember { mutableStateOf(false) }
+    var showBatchSkillEntryDialog by remember { mutableStateOf(false) }
 
-    val skillAssessmentLog by viewModel.skillAssessmentLog.collectAsState() // Coleta o log do ViewModel
-    val studentsInClass by viewModel.studentsForClass.collectAsState() // Coleta a lista de alunos uma vez
-    val courseSkills by viewModel.courseSkills.collectAsState() // Pega as skills do curso
+    val skillAssessmentLog by viewModel.skillAssessmentLog.collectAsState()
+    val studentsInClass by viewModel.studentsForClass.collectAsState()
+    val courseSkills by viewModel.courseSkills.collectAsState()
 
     LaunchedEffect(showSkillLogDialog) {
         if (showSkillLogDialog) {

@@ -37,7 +37,16 @@ interface AttendanceDao {
     @Query("SELECT * FROM attendance_records")
     suspend fun getAllRecords(): List<AttendanceRecord>
 
-    // Nova função para contar ausências
     @Query("SELECT COUNT(*) FROM attendance_records WHERE studentId = :studentId AND status = :status")
-    suspend fun countStudentAbsences(studentId: Long, status: AttendanceStatus = AttendanceStatus.ABSENT): Int
+    suspend fun countStudentAbsences(
+        studentId: Long,
+        status: AttendanceStatus = AttendanceStatus.ABSENT
+    ): Int
+
+    /**
+     * Deletes all attendance records associated with a specific session.
+     * @param sessionId The identifier of the session whose records will be removed.
+     */
+    @Query("DELETE FROM attendance_records WHERE sessionId = :sessionId")
+    suspend fun deleteAttendanceRecordsForSession(sessionId: Long)
 }
