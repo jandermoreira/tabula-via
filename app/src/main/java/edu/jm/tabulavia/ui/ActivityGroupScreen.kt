@@ -12,7 +12,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,6 +52,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+//import androidx.wear.compose.foundation.weight
 import edu.jm.tabulavia.db.DatabaseProvider
 import edu.jm.tabulavia.model.AssessmentSource
 import edu.jm.tabulavia.model.SkillLevel
@@ -279,7 +283,9 @@ private fun GroupsExpandedView(
 private fun ManualGroupEditorView(
     groups: List<Group>,
     unassignedStudents: List<Student>,
-    onMoveStudent: (Student, Location, DropTarget) -> Unit
+    onMoveStudent: (Student, Location, DropTarget) -> Unit,
+    viewModel: CourseViewModel,
+    isLandscape: Boolean
 ) {
     var draggedStudent by remember { mutableStateOf<DraggedStudent?>(null) }
     var dragPositionInContainer by remember { mutableStateOf<Offset?>(null) }
@@ -307,6 +313,9 @@ private fun ManualGroupEditorView(
             if (rect.contains(rootPos)) return DropTarget.ExistingGroup(id)
         }
         return null
+    }
+    if (!isLandscape) {
+        CriterionSelector(viewModel = viewModel, isFullWidth = true)
     }
 
     Box(
@@ -376,40 +385,59 @@ private fun ManualGroupEditorView(
                     .fillMaxHeight()
                     .padding(horizontal = 8.dp)
             ) {
-                // New group drop target area (Dashed Box)
-                Box(
+                // Block: Toolbar Row (Drop Area + Criterion Menu)
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(90.dp)
-                        .padding(vertical = 8.dp)
-                        .onGloballyPositioned { newGroupBounds = it.boundsInRoot() }
-                        .background(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .drawBehind {
-                            drawRoundRect(
-                                // Use local variable instead of MaterialTheme
-                                color = if (draggedStudent != null) primaryColor else dashColorInactive,
-                                style = Stroke(
-                                    width = 2.dp.toPx(),
-                                    pathEffect = PathEffect.dashPathEffect(
-                                        floatArrayOf(10f, 10f),
-                                        0f
-                                    )
-                                ),
-                                cornerRadius = CornerRadius(12.dp.toPx())
-                            )
-                        },
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.GroupAdd, null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Arraste para novo grupo", style = MaterialTheme.typography.bodySmall)
+                    // Group drop target area (Dashed Box) - Now inside a Row
+                    Box(
+                        modifier = Modifier
+                            .weight(1f) // Takes available space to the left of the menu
+                            .height(90.dp)
+                            .onGloballyPositioned { newGroupBounds = it.boundsInRoot() }
+                            .background(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .drawBehind {
+                                drawRoundRect(
+                                    color = if (draggedStudent != null) primaryColor else dashColorInactive,
+                                    style = Stroke(
+                                        width = 2.dp.toPx(),
+                                        pathEffect = PathEffect.dashPathEffect(
+                                            floatArrayOf(10f, 10f),
+                                            0f
+                                        )
+                                    ),
+                                    cornerRadius = CornerRadius(12.dp.toPx())
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.GroupAdd,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Arraste para novo grupo",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+
+                    if (isLandscape) {
+                        CriterionSelector(viewModel = viewModel, isFullWidth = false)
                     }
                 }
 
+                // List of existing groups remains below
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 80.dp)
@@ -419,11 +447,13 @@ private fun ManualGroupEditorView(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .onGloballyPositioned { groupBounds[group.id] = it.boundsInRoot() },
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            )
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    "Grupo ${group.id}",
+                                    text = "Grupo ${group.id}",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -533,7 +563,12 @@ private fun DraggableStudentWrapper(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/**
+ * ConfigurationView
+ * Manages the grouping setup screen. In Landscape, it integrates the
+ * criterion selector into the manual editor tools to maximize vertical space.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConfigurationView(
     viewModel: CourseViewModel,
@@ -543,70 +578,96 @@ private fun ConfigurationView(
     val groupingCriteria = listOf("Aleatório", "Manual")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
 
-    // Identificação da orientação para ajuste de espaço
-    val config = LocalConfiguration.current
-    val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val currentConfig = LocalConfiguration.current
+    val isLandscape = currentConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    Column(modifier = Modifier.padding(16.dp)) {
-        // Título opcional ou reduzido em landscape
-        if (!isLandscape) {
-            Text("Configuração de Grupos", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(16.dp))
-        }
+    var menuExpanded by remember { mutableStateOf(false) }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-        ) {
-            // Em landscape, colocamos as opções lado a lado para ganhar altura
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                groupingCriteria.forEach { c ->
-                    Row(
-                        modifier = Modifier
-                            // Em landscape, cada opção ocupa metade da largura
-                            .then(if (isLandscape) Modifier.weight(1f) else Modifier.fillMaxWidth())
-                            .selectable(
-                                selected = viewModel.groupingCriterion == c,
-                                onClick = { viewModel.groupingCriterion = c }
-                            )
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = if (isLandscape) Arrangement.Center else Arrangement.Start
-                    ) {
-                        // Mantendo apenas o seu texto original, sem RadioButtons ou ícones
-                        Text(
-                            text = c,
-                            color = if (viewModel.groupingCriterion == c)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface,
-                            fontWeight = if (viewModel.groupingCriterion == c)
-                                FontWeight.Bold
-                            else
-                                FontWeight.Normal
-                        )
-                    }
-                }
+//    // Reusable dropdown component to avoid code duplication
+//    val criterionSelector = @Composable {
+//        ExposedDropdownMenuBox(
+//            expanded = menuExpanded,
+//            onExpandedChange = { menuExpanded = !menuExpanded },
+//            modifier = if (isLandscape) Modifier.width(200.dp) else Modifier.fillMaxWidth()
+//        ) {
+//            OutlinedTextField(
+//                value = viewModel.groupingCriterion,
+//                onValueChange = {},
+//                readOnly = true,
+//                label = { Text("Critério") },
+//                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpanded) },
+//                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+//                modifier = Modifier
+//                    .menuAnchor()
+//                    .fillMaxWidth()
+//            )
+//
+//            if (!isLandscape) {
+//                ExposedDropdownMenu(
+//                    expanded = menuExpanded,
+//                    onDismissRequest = { menuExpanded = false }
+//                ) {
+//                    CriterionMenuContent(
+//                        viewModel = viewModel,
+//                        criteria = groupingCriteria,
+//                        onItemSelected = { menuExpanded = false }
+//                    )
+//                }
+//            }
+//        }
+//    }
+
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .padding(if (isLandscape) 8.dp else 16.dp)
+            .fillMaxHeight()
+    ) {
+        if (viewModel.groupingCriterion == "Manual") {
+            // Block: Manual Mode
+            LaunchedEffect(Unit) {
+                viewModel.enterManualMode()
             }
-        }
 
-        Spacer(Modifier.height(if (isLandscape) 8.dp else 16.dp))
+            ManualGroupEditorView(
+                groups = viewModel.manualGroups,
+                unassignedStudents = viewModel.unassignedStudents,
+                onMoveStudent = { student, from, to ->
+                    viewModel.moveStudent(
+                        student,
+                        from,
+                        to
+                    )
+                },
+                isLandscape = isLandscape,
+                viewModel = viewModel
+            )
+        } else {
+            // Block: Random Mode Configuration
+//            Text(
+//                text = "Escolha o Critério",
+//                style = MaterialTheme.typography.labelLarge
+//            )
 
-        if (viewModel.groupingCriterion == "Aleatório") {
+            Spacer(Modifier.height(8.dp))
+            CriterionSelector(viewModel = viewModel, isFullWidth = true)
+            Spacer(Modifier.height(16.dp))
+
+            // Random grouping parameters
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                formationOptions.forEachIndexed { i, o ->
+                formationOptions.forEachIndexed { index, option ->
                     SegmentedButton(
-                        selected = viewModel.groupFormationType == o,
-                        onClick = { viewModel.groupFormationType = o },
+                        selected = viewModel.groupFormationType == option,
+                        onClick = { viewModel.groupFormationType = option },
                         shape = SegmentedButtonDefaults.itemShape(
-                            index = i, count = formationOptions.size
+                            index = index,
+                            count = formationOptions.size
                         ),
                         modifier = Modifier.weight(1f)
-                    ) { Text(o, textAlign = TextAlign.Center) }
+                    ) {
+                        Text(text = option, textAlign = TextAlign.Center)
+                    }
                 }
             }
 
@@ -614,36 +675,96 @@ private fun ConfigurationView(
 
             OutlinedTextField(
                 value = viewModel.groupFormationValue,
-                onValueChange = { viewModel.groupFormationValue = it.filter(Char::isDigit) },
+                onValueChange = { input ->
+                    viewModel.groupFormationValue = input.filter { it.isDigit() }
+                },
                 label = { Text(viewModel.groupFormationType) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(Modifier.height(if (isLandscape) 8.dp else 16.dp))
+            Spacer(Modifier.height(16.dp))
 
+            // Action buttons
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = onCancel,
                     modifier = Modifier.weight(1f)
-                ) { Text("Cancelar") }
-
+                ) {
+                    Text("Cancelar")
+                }
                 Button(
                     onClick = {
                         viewModel.createBalancedGroups()
                         onGroupsCreated()
                     },
                     modifier = Modifier.weight(1f)
-                ) { Text("Criar Grupos") }
+                ) {
+                    Text("Criar Grupos")
+                }
             }
-        } else {
-            LaunchedEffect(Unit) { viewModel.enterManualMode() }
-            ManualGroupEditorView(
-                groups = viewModel.manualGroups,
-                unassignedStudents = viewModel.unassignedStudents,
-                onMoveStudent = { s, from, to -> viewModel.moveStudent(s, from, to) }
-            )
+        }
+    }
+}
+
+///**
+// * CriterionMenuContent
+// * Renders the list of grouping criteria as menu items.
+// */
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//private fun CriterionMenuContent(
+//    viewModel: CourseViewModel,
+//    criteria: List<String>,
+//    onItemSelected: () -> Unit
+//) {
+//    criteria.forEach { criterion ->
+//        DropdownMenuItem(
+//            text = { Text(criterion) },
+//            onClick = {
+//                viewModel.groupingCriterion = criterion
+//                onItemSelected()
+//            },
+//            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+//        )
+//    }
+//}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CriterionSelector(
+    viewModel: CourseViewModel,
+    isFullWidth: Boolean
+) {
+    var expanded by remember { mutableStateOf(isFullWidth) }
+    val criteria = listOf("Aleatório", "Manual")
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = if (isFullWidth) Modifier.fillMaxWidth() else Modifier.width(200.dp)
+    ) {
+        OutlinedTextField(
+            value = viewModel.groupingCriterion,
+            onValueChange = {},
+            readOnly = true,
+            label = { if (isFullWidth) Text("Escolha o critério") else Text("Critério") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            criteria.forEach { criterion ->
+                DropdownMenuItem(
+                    text = { Text(criterion) },
+                    onClick = {
+                        viewModel.groupingCriterion = criterion
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }
