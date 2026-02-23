@@ -476,7 +476,7 @@ private fun ManualGroupEditorView(
             // ASSIGNED GROUPS COLUMN
             Column(
                 modifier = Modifier
-                    .weight(2f)
+                    .weight(if (isLandscape) 3f else 2f)
                     .fillMaxHeight()
                     .padding(horizontal = 8.dp)
             ) {
@@ -539,7 +539,7 @@ private fun ManualGroupEditorView(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
                 ) {
-                    itemsIndexed(items = groups, key = { _, group -> group.id }) { index, group ->
+                    itemsIndexed(items = groups, key = { _, group -> System.identityHashCode(group) }) { index, group ->
 
                         // Cleans up the bounding box entry when the group is removed from composition
                         DisposableEffect(group.id) {
