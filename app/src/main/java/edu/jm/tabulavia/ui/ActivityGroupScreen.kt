@@ -78,7 +78,6 @@ private data class DraggedStudent(
 )
 
 
-
 /**
  * Main screen for activity grouping.
  * Handles the high-level state of group generation and assessment dialogs.
@@ -135,7 +134,12 @@ fun ActivityGroupScreen(
                 },
                 actions = {
                     if (uiState == GroupUiState.SHOW_GROUPS) {
-                        IconButton(onClick = { uiState = GroupUiState.CONFIGURE }) {
+                        IconButton(
+                            onClick = {
+                                viewModel.enterManualMode(forceRefresh = true)
+                                uiState = GroupUiState.CONFIGURE
+                            }
+                        ) {
                             Icon(Icons.Default.Edit, null)
                         }
                     }
@@ -145,7 +149,69 @@ fun ActivityGroupScreen(
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 )
             )
-        }) { padding ->
+        },
+        floatingActionButton = {
+            val isConfiguring =
+                uiState == GroupUiState.CONFIGURE || uiState == GroupUiState.NO_GROUPS
+
+            if (isConfiguring) {
+                when (viewModel.groupingCriterion) {
+                    "Manual" -> {
+                        FloatingActionButton(
+                            onClick = {
+                                viewModel.exitManualMode()
+                                uiState = GroupUiState.SHOW_GROUPS
+                            },
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Finish"
+                            )
+                        }
+                    }
+
+                    "Aleatório" -> {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FloatingActionButton(
+                                onClick = {
+                                    if (uiState == GroupUiState.CONFIGURE) {
+                                        uiState = GroupUiState.SHOW_GROUPS
+                                    }
+                                },
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cancel"
+                                )
+                            }
+
+                            FloatingActionButton(
+                                onClick = {
+                                    viewModel.createBalancedGroups()
+                                    viewModel.enterManualMode(forceRefresh = true)
+                                    uiState = GroupUiState.SHOW_GROUPS
+                                },
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Create"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ) { padding ->
 
         if (loadedActivityId != activityId) {
             Box(
@@ -471,21 +537,30 @@ private fun ManualGroupEditorView(
                 LazyColumn(
                     state = manualGroupsListState,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp),
-                    userScrollEnabled = draggedStudent == null
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
                 ) {
-                    items(groups, key = { it.id }) { group ->
+                    itemsIndexed(items = groups, key = { _, group -> group.id }) { index, group ->
+
+                        // Cleans up the bounding box entry when the group is removed from composition
+                        DisposableEffect(group.id) {
+                            onDispose {
+                                groupBounds.remove(group.id)
+                            }
+                        }
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .onGloballyPositioned { groupBounds[group.id] = it.boundsInRoot() },
+                                .onGloballyPositioned { coordinates ->
+                                    groupBounds[group.id] = coordinates.boundsInRoot()
+                                },
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                             )
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = "Grupo ${group.id}",
+                                    text = "Grupo ${index + 1}",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -527,6 +602,7 @@ private fun ManualGroupEditorView(
                         }
                     }
                 }
+
                 var previousGroupsSize by remember { mutableIntStateOf(groups.size) }
                 LaunchedEffect(groups.size) {
                     if (groups.size > previousGroupsSize) {
@@ -570,7 +646,6 @@ private fun ManualGroupEditorView(
         }
     }
 }
-
 
 
 /**
@@ -693,27 +768,6 @@ private fun ConfigurationView(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-
-            Spacer(Modifier.height(16.dp))
-
-            // Action buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Cancelar")
-                }
-                Button(
-                    onClick = {
-                        viewModel.createBalancedGroups()
-                        onGroupsCreated()
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Criar Grupos")
-                }
-            }
         }
     }
 }

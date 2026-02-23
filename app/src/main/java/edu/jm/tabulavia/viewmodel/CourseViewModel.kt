@@ -675,29 +675,37 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     private var nextManualGroupId = 1
 
-    fun enterManualMode() {
-        if (isManualMode) return
+    /**
+     * Synchronizes the manual editor state with the currently generated groups.
+     * @param forceRefresh If true, resets the manual state even if already in manual mode.
+     */
+    fun enterManualMode(forceRefresh: Boolean = false) {
+        if (isManualMode && !forceRefresh) return
 
         manualGroups.clear()
         unassignedStudents.clear()
 
         val allStudents = _studentsForClass.value
-        val existingGroups = _generatedGroups.value
+        val currentGroups = _generatedGroups.value
         val assignedStudentIds = mutableSetOf<Long>()
 
-        existingGroups.forEachIndexed { index, groupStudents ->
+        // Populate manual groups from the current generated state
+        currentGroups.forEachIndexed { index, groupStudents ->
             if (groupStudents.isNotEmpty()) {
-                manualGroups += Group(
-                    id = index + 1,
-                    students = groupStudents.toMutableStateList()
+                manualGroups.add(
+                    Group(
+                        id = index + 1,
+                        students = groupStudents.toMutableStateList()
+                    )
                 )
-                groupStudents.forEach { assignedStudentIds += it.studentId }
+                groupStudents.forEach { assignedStudentIds.add(it.studentId) }
             }
         }
 
+        // Add remaining students to the unassigned list
         allStudents
             .filterNot { it.studentId in assignedStudentIds }
-            .forEach { unassignedStudents += it }
+            .forEach { unassignedStudents.add(it) }
 
         isManualMode = true
     }
@@ -709,6 +717,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
 
+    /**
+     * Handles the logic of moving a student from a source location
+     * to a specific drop target, updating the unassigned pool and groups.
+     */
     fun moveStudent(
         student: Student,
         from: Location,
@@ -727,9 +739,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         when (to) {
             is DropTarget.ExistingGroup -> targetGroup!!.students.add(student)
             DropTarget.NewGroup -> manualGroups.add(
-                Group(id = -1, students = mutableStateListOf(student))
+                Group(id = generateManualGroupId(), students = mutableStateListOf(student))
             )
-
             DropTarget.Unassigned -> {}
         }
 
@@ -749,16 +760,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         unassignedStudents.sortBy { it.displayName.lowercase() }
         manualGroups.forEach { it.students.sortBy { s -> s.displayName.lowercase() } }
 
-        reindexGroupIds()
         commitManualGroups()
     }
 
-    private fun reindexGroupIds() {
-        val newGroups = manualGroups.mapIndexed { index, group ->
-            Group(id = index + 1, students = group.students)
-        }
-        manualGroups.clear()
-        manualGroups.addAll(newGroups)
+    /**
+     * Generates a unique, stable identifier for manual groups.
+     */
+    private fun generateManualGroupId(): Int {
+        return nextManualGroupId++
     }
 
     private fun commitManualGroups() {
