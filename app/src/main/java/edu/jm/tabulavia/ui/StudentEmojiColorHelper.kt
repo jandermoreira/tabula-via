@@ -154,6 +154,7 @@ object StudentEmojiColorHelper {
     fun mapStudentIdToEmoji(studentId: Long): String {
         val index = (studentId * 137 % animalEmojis.size.toLong()).toInt()
         return animalEmojis[index]
+//        return "\uD83D\uDC64"
     }
 
     /**
