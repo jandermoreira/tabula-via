@@ -27,7 +27,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
-import android.util.Log
 
 class CourseViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -420,7 +419,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
             val numGroups = if (groupFormationType == "Número de grupos") {
                 if (value > presentStudents.size) {
-                    _userMessage.value = "O número de grupos não pode ser maior que o de alunos presentes."
+                    _userMessage.value =
+                        "O número de grupos não pode ser maior que o de alunos presentes."
                     return@launch
                 }
                 value
@@ -537,9 +537,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             when (result) {
                 is SaveAttendanceResult.Success -> {
                     loadCourseDetails(classId)
-                    _userMessage.value = "Frequência de ${attendanceMap.size} alunos salva com sucesso."
+                    _userMessage.value =
+                        "Frequência de ${attendanceMap.size} alunos salva com sucesso."
                     onSaveComplete()
                 }
+
                 is SaveAttendanceResult.Error -> {
                     _userMessage.value = result.message
                 }
@@ -673,24 +675,20 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     private var nextManualGroupId = 1
 
-    private fun generateManualGroupId(): Int = nextManualGroupId++
-
     fun enterManualMode() {
         if (isManualMode) return
 
         manualGroups.clear()
         unassignedStudents.clear()
-        nextManualGroupId = 1
 
         val allStudents = _studentsForClass.value
         val existingGroups = _generatedGroups.value
+        val assignedStudentIds = mutableSetOf<Long>()
 
-        var assignedStudentIds = mutableSetOf<Long>()
-
-        existingGroups.forEach { groupStudents ->
+        existingGroups.forEachIndexed { index, groupStudents ->
             if (groupStudents.isNotEmpty()) {
                 manualGroups += Group(
-                    id = generateManualGroupId(),
+                    id = index + 1,
                     students = groupStudents.toMutableStateList()
                 )
                 groupStudents.forEach { assignedStudentIds += it.studentId }
@@ -710,51 +708,57 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         unassignedStudents.clear()
     }
 
+
     fun moveStudent(
         student: Student,
         from: Location,
         to: DropTarget
     ) {
+        if (from is Location.Group && to is DropTarget.ExistingGroup && from.groupId == to.groupId) {
+            return
+        }
+
+        val targetGroup = if (to is DropTarget.ExistingGroup) {
+            manualGroups.firstOrNull { it.id == to.groupId }
+        } else null
+
+        if (to is DropTarget.ExistingGroup && targetGroup == null) return
+
+        when (to) {
+            is DropTarget.ExistingGroup -> targetGroup!!.students.add(student)
+            DropTarget.NewGroup -> manualGroups.add(
+                Group(id = -1, students = mutableStateListOf(student))
+            )
+
+            DropTarget.Unassigned -> {}
+        }
+
         when (from) {
-            Location.Unassigned -> {
-                unassignedStudents.remove(student)
-            }
+            Location.Unassigned -> unassignedStudents.remove(student)
             is Location.Group -> {
-                val group = manualGroups.firstOrNull { it.id == from.groupId }
-                group?.students?.remove(student)
-                if (group != null && group.students.isEmpty()) {
-                    manualGroups.remove(group)
+                val sourceGroup = manualGroups.firstOrNull { it.id == from.groupId }
+                sourceGroup?.students?.remove(student)
+                if (sourceGroup != null && sourceGroup.students.isEmpty()) {
+                    manualGroups.remove(sourceGroup)
                 }
             }
         }
 
-        when (to) {
-            DropTarget.Unassigned -> {
-                unassignedStudents.add(student)
-            }
-            DropTarget.NewGroup -> {
-                manualGroups.add(
-                    Group(
-                        id = generateManualGroupId(),
-                        students = mutableStateListOf(student)
-                    )
-                )
-            }
-            is DropTarget.ExistingGroup -> {
-                manualGroups
-                    .firstOrNull { it.id == to.groupId }
-                    ?.students
-                    ?.add(student)
-            }
-        }
+        if (to is DropTarget.Unassigned) unassignedStudents.add(student)
 
-        // Sort lists for consistent display
         unassignedStudents.sortBy { it.displayName.lowercase() }
-        manualGroups.forEach { group ->
-            group.students.sortBy { it.displayName.lowercase() }
-        }
+        manualGroups.forEach { it.students.sortBy { s -> s.displayName.lowercase() } }
 
+        reindexGroupIds()
         commitManualGroups()
+    }
+
+    private fun reindexGroupIds() {
+        val newGroups = manualGroups.mapIndexed { index, group ->
+            Group(id = index + 1, students = group.students)
+        }
+        manualGroups.clear()
+        manualGroups.addAll(newGroups)
     }
 
     private fun commitManualGroups() {

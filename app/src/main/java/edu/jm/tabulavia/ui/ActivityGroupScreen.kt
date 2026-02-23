@@ -77,6 +77,8 @@ private data class DraggedStudent(
     val student: Student, val from: Location
 )
 
+
+
 /**
  * Main screen for activity grouping.
  * Handles the high-level state of group generation and assessment dialogs.
@@ -329,8 +331,14 @@ private fun ManualGroupEditorView(
         if (unassignedBounds?.contains(rootPos) == true) return DropTarget.Unassigned
         if (newGroupBounds?.contains(rootPos) == true) return DropTarget.NewGroup
 
-        groupBounds.forEach { (id, rect) ->
-            if (rect.contains(rootPos)) return DropTarget.ExistingGroup(id)
+        groupBounds.forEach { (groupId, rect) ->
+            if (rect.contains(rootPos)) {
+                if (groups.any { it.id == groupId }) {
+                    return DropTarget.ExistingGroup(groupId)
+                } else {
+                    return null
+                }
+            }
         }
         return null
     }
@@ -463,7 +471,8 @@ private fun ManualGroupEditorView(
                 LazyColumn(
                     state = manualGroupsListState,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp)
+                    contentPadding = PaddingValues(bottom = 80.dp),
+                    userScrollEnabled = draggedStudent == null
                 ) {
                     items(groups, key = { it.id }) { group ->
                         Card(
@@ -518,10 +527,12 @@ private fun ManualGroupEditorView(
                         }
                     }
                 }
+                var previousGroupsSize by remember { mutableIntStateOf(groups.size) }
                 LaunchedEffect(groups.size) {
-                    if (groups.isNotEmpty()) {
+                    if (groups.size > previousGroupsSize) {
                         manualGroupsListState.animateScrollToItem(index = groups.size - 1)
                     }
+                    previousGroupsSize = groups.size
                 }
             }
         }
@@ -559,6 +570,8 @@ private fun ManualGroupEditorView(
         }
     }
 }
+
+
 
 /**
  * Wrapper component to handle drag gestures for a single student.
@@ -621,40 +634,6 @@ private fun ConfigurationView(
 
     var menuExpanded by remember { mutableStateOf(false) }
 
-//    // Reusable dropdown component to avoid code duplication
-//    val criterionSelector = @Composable {
-//        ExposedDropdownMenuBox(
-//            expanded = menuExpanded,
-//            onExpandedChange = { menuExpanded = !menuExpanded },
-//            modifier = if (isLandscape) Modifier.width(200.dp) else Modifier.fillMaxWidth()
-//        ) {
-//            OutlinedTextField(
-//                value = viewModel.groupingCriterion,
-//                onValueChange = {},
-//                readOnly = true,
-//                label = { Text("Critério") },
-//                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpanded) },
-//                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-//                modifier = Modifier
-//                    .menuAnchor()
-//                    .fillMaxWidth()
-//            )
-//
-//            if (!isLandscape) {
-//                ExposedDropdownMenu(
-//                    expanded = menuExpanded,
-//                    onDismissRequest = { menuExpanded = false }
-//                ) {
-//                    CriterionMenuContent(
-//                        viewModel = viewModel,
-//                        criteria = groupingCriteria,
-//                        onItemSelected = { menuExpanded = false }
-//                    )
-//                }
-//            }
-//        }
-//    }
-
     val scrollState = rememberScrollState()
 
     Column(
@@ -682,13 +661,6 @@ private fun ConfigurationView(
                 viewModel = viewModel
             )
         } else {
-            // Block: Random Mode Configuration
-//            Text(
-//                text = "Escolha o Critério",
-//                style = MaterialTheme.typography.labelLarge
-//            )
-
-            Spacer(Modifier.height(8.dp))
             CriterionSelector(viewModel = viewModel, isFullWidth = true)
             Spacer(Modifier.height(16.dp))
 
@@ -746,28 +718,6 @@ private fun ConfigurationView(
     }
 }
 
-///**
-// * CriterionMenuContent
-// * Renders the list of grouping criteria as menu items.
-// */
-//@OptIn(ExperimentalMaterial3Api::class)
-//@Composable
-//private fun CriterionMenuContent(
-//    viewModel: CourseViewModel,
-//    criteria: List<String>,
-//    onItemSelected: () -> Unit
-//) {
-//    criteria.forEach { criterion ->
-//        DropdownMenuItem(
-//            text = { Text(criterion) },
-//            onClick = {
-//                viewModel.groupingCriterion = criterion
-//                onItemSelected()
-//            },
-//            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-//        )
-//    }
-//}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -775,7 +725,7 @@ private fun CriterionSelector(
     viewModel: CourseViewModel,
     isFullWidth: Boolean
 ) {
-    var expanded by remember { mutableStateOf(isFullWidth) }
+    var expanded by remember { mutableStateOf(false) }
     val criteria = listOf("Aleatório", "Manual")
 
     ExposedDropdownMenuBox(
