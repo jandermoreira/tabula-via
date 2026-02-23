@@ -422,11 +422,11 @@ private fun ManualGroupEditorView(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Group drop target area (Dashed Box) - Now inside a Row
+                    // Group drop target area (Dashed Box)
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(90.dp)
+                            .height(if (isLandscape) 60.dp else 80.dp)
                             .onGloballyPositioned { newGroupBounds = it.boundsInRoot() }
                             .background(
                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
