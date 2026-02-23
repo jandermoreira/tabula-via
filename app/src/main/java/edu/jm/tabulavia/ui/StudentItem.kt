@@ -67,6 +67,7 @@ fun StudentItem(
     val backgroundColor = remember(student.studentId, isAbsent) {
         if (isAbsent) Color.Gray else generateColorFromId(student.studentId)
     }
+    val emojiColor = if (isAbsent) Color.Gray else MaterialTheme.colorScheme.onSurface
 
     Column(
         modifier = modifier.alpha(if (isAbsent) 0.5f else 1f),
@@ -75,6 +76,7 @@ fun StudentItem(
         // Visual representation component
         EmojiWithBlob(
             emoji = emoji,
+            color = emojiColor,
             backgroundColor = backgroundColor
         )
 
@@ -101,6 +103,7 @@ fun StudentItem(
 @Composable
 fun EmojiWithBlob(
     emoji: String,
+    color: Color,
     backgroundColor: Color,
     modifier: Modifier = Modifier
 ) {
@@ -126,6 +129,7 @@ fun EmojiWithBlob(
                 fontSize = 44.sp,
                 platformStyle = PlatformTextStyle(includeFontPadding = false)
             ),
+            color = color,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .wrapContentSize(unbounded = true)
