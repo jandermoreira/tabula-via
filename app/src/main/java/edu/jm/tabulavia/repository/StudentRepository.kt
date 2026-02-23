@@ -102,14 +102,21 @@ class StudentRepository(private val studentDao: StudentDao) {
             val parts = line.trim().split(Regex("\\s+"), 2)
             if (parts.size == 2) {
                 val number = parts[0]
-                val name = parts[1]
-                if (number.isNotBlank() && name.isNotBlank()) {
+                val fullName = parts[1]
+                if (number.isNotBlank() && fullName.isNotBlank()) {
                     if (existingNumbers.contains(number)) {
-                        ignoredStudents.add(name)
+                        ignoredStudents.add(fullName)
                     } else {
+                        val nameParts = fullName.trim().split(Regex("\\s+"))
+                        val formattedDisplayName = if (nameParts.size > 1) {
+                            "${nameParts.first()} ${nameParts.last()}"
+                        } else {
+                            fullName
+                        }
+
                         val newStudent = Student(
-                            name = name,
-                            displayName = name,
+                            name = fullName,
+                            displayName = formattedDisplayName,
                             studentNumber = number,
                             classId = classId
                         )
