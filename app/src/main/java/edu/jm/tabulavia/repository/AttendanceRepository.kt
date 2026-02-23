@@ -21,6 +21,10 @@ sealed class SaveAttendanceResult {
     data class Error(val message: String) : SaveAttendanceResult()
 }
 
+/**
+ * Repository class for handling data operations related to attendance.
+ * @param attendanceDao The Data Access Object for attendance records and sessions.
+ */
 class AttendanceRepository(private val attendanceDao: AttendanceDao) {
 
     /**
@@ -70,8 +74,7 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
 
     /**
      * Saves attendance data for a course session.
-     * If editingSession is provided, the existing session is reused and its previous records are replaced.
-     * Otherwise a new session is inserted.
+     * Inserts a new session or updates an existing one based on the editingSession parameter.
      *
      * @param classId The course identifier.
      * @param timestamp The timestamp of the session.
@@ -86,18 +89,23 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
         editingSession: ClassSession? = null
     ): SaveAttendanceResult = withContext(Dispatchers.IO) {
         try {
-            // Reuse session ID if editing, otherwise insert a new session
-            val sessionId = editingSession?.sessionId
-                ?: attendanceDao.insertClassSession(
+            // Determine session ID and update or insert session
+            val sessionId = if (editingSession != null) {
+                val updatedSession = editingSession.copy(timestamp = timestamp)
+                attendanceDao.insertClassSession(updatedSession)
+                updatedSession.sessionId
+            } else {
+                attendanceDao.insertClassSession(
                     ClassSession(classId = classId, timestamp = timestamp)
                 )
+            }
 
-            // Remove previous records when editing an existing session
+            // Clean up previous records for an existing session
             if (editingSession != null) {
                 attendanceDao.deleteAttendanceRecordsForSession(sessionId)
             }
 
-            // Create attendance records from the map
+            // Map statuses to attendance records
             val records = attendanceMap.map { (studentId, status) ->
                 AttendanceRecord(
                     sessionId = sessionId,
@@ -106,7 +114,7 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
                 )
             }
 
-            // Insert all updated records
+            // Persist new records
             attendanceDao.insertAttendanceRecords(records)
             SaveAttendanceResult.Success(sessionId)
         } catch (e: Exception) {
@@ -150,7 +158,6 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
 
     /**
      * Inserts multiple class sessions in bulk (used during restore).
-     * Delegates directly to the DAO's batch insert method.
      * @param sessions List of sessions to insert.
      */
     suspend fun insertAllSessions(sessions: List<ClassSession>) = withContext(Dispatchers.IO) {
@@ -159,7 +166,6 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
 
     /**
      * Inserts multiple attendance records in bulk (used during restore).
-     * Delegates directly to the DAO's batch insert method.
      * @param records List of records to insert.
      */
     suspend fun insertAllAttendanceRecords(records: List<AttendanceRecord>) =

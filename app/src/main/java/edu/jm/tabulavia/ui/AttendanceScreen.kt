@@ -1,9 +1,8 @@
 /**
  * Attendance management screen for tracking student presence.
- * This version integrates with the StudentEmojiColorHelper and applies 
+ * This version integrates with the StudentEmojiColorHelper and applies
  * the organic blob visual style for student avatars.
  */
-
 package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.layout.*
@@ -26,10 +25,12 @@ import edu.jm.tabulavia.viewmodel.CourseViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 /**
  * Main screen for recording student attendance sessions.
- * * @param viewModel The state holder for course and session data.
+ *
+ * @param viewModel The state holder for course and session data.
  * @param onNavigateBack Callback to return to the previous screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,7 +115,7 @@ fun AttendanceScreen(
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-            // Scrollable list of students with attendance toggles
+            // Scrollable list of students
             if (attendanceMap.isEmpty() && students.isNotEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -146,12 +147,16 @@ fun AttendanceScreen(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        val selectedCalendar = Calendar.getInstance().apply { timeInMillis = it }
+                    datePickerState.selectedDateMillis?.let { utcMillis ->
+                        // FIX: Use UTC TimeZone to extract exact Year, Month and Day
+                        // from the picker to avoid local timezone offset errors.
+                        val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                            timeInMillis = utcMillis
+                        }
                         viewModel.updateNewSessionDate(
-                            selectedCalendar.get(Calendar.YEAR),
-                            selectedCalendar.get(Calendar.MONTH),
-                            selectedCalendar.get(Calendar.DAY_OF_MONTH)
+                            utcCalendar.get(Calendar.YEAR),
+                            utcCalendar.get(Calendar.MONTH),
+                            utcCalendar.get(Calendar.DAY_OF_MONTH)
                         )
                     }
                     showDatePicker = false
@@ -171,7 +176,7 @@ fun AttendanceScreen(
 }
 
 /**
- * Extension to format Calendar for Brazil-standard date display.
+ * Extension to format Calendar for standard date display.
  */
 fun Calendar.toFormattedDateString(): String {
     val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -180,8 +185,8 @@ fun Calendar.toFormattedDateString(): String {
 
 /**
  * List item representing a student and their attendance selector.
- * Uses the organic blob style for the avatar.
- * * @param student The student model.
+ *
+ * @param student The student model.
  * @param status Current selected attendance status.
  * @param onStatusChange Callback for updating the status.
  */
@@ -193,7 +198,6 @@ fun AttendanceItem(
 ) {
     val isAbsent = status == AttendanceStatus.ABSENT
 
-    // Resolve deterministic emoji and color
     val studentEmoji = remember(student.studentId) {
         StudentEmojiColorHelper.mapStudentIdToEmoji(student.studentId)
     }
@@ -211,11 +215,10 @@ fun AttendanceItem(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Visual avatar using shared Blob logic
             EmojiWithBlob(
                 emoji = studentEmoji,
                 backgroundColor = backgroundColor,
-                modifier = Modifier.size(56.dp) // Smaller footprint for list rows
+                modifier = Modifier.size(56.dp)
             )
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -228,7 +231,6 @@ fun AttendanceItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Presence/Absence toggle row
             SingleChoiceSegmentedButtonRow {
                 SegmentedButton(
                     selected = status == AttendanceStatus.PRESENT,
