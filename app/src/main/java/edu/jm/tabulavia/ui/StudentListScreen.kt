@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -59,7 +61,7 @@ fun StudentListScreen(
     }, floatingActionButton = {
         FloatingActionButton(onClick = { showAddStudentDialog = true }) {
             Icon(
-                painter = painterResource(id = R.drawable.student_0),
+                imageVector = Icons.Default.PersonAdd,
                 contentDescription = "Adicionar Aluno"
             )
         }
@@ -119,7 +121,7 @@ fun StudentsGrid(
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 120.dp),
             modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(8.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
