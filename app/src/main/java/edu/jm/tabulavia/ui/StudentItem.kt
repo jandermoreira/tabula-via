@@ -103,8 +103,8 @@ fun StudentItem(
 @Composable
 fun EmojiWithBlob(
     emoji: String,
-    color: Color = MaterialTheme.colorScheme.onSurface,
     backgroundColor: Color,
+    color: Color = MaterialTheme.colorScheme.onSurface,
     modifier: Modifier = Modifier
 ) {
     Box(
