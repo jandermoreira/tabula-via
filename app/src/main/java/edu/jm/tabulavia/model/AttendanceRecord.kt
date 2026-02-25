@@ -19,8 +19,18 @@ import kotlin.math.min
     tableName = "attendance_records",
     primaryKeys = ["sessionId", "studentId"],
     foreignKeys = [
-        ForeignKey(entity = ClassSession::class, parentColumns = ["sessionId"], childColumns = ["sessionId"], onDelete = ForeignKey.CASCADE),
-        ForeignKey(entity = Student::class, parentColumns = ["studentId"], childColumns = ["studentId"], onDelete = ForeignKey.CASCADE)
+        ForeignKey(
+            entity = ClassSession::class,
+            parentColumns = ["sessionId"],
+            childColumns = ["sessionId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Student::class,
+            parentColumns = ["studentId"],
+            childColumns = ["studentId"],
+            onDelete = ForeignKey.CASCADE
+        )
     ],
     indices = [
         Index("sessionId"),
@@ -67,7 +77,8 @@ object SkillConsolidator {
         val adjustedPeerWeight = PEER_BASE_WEIGHT * reliabilityFactor
 
         // Renormalize all weights so their sum equals 1.0
-        val totalWeightRaw = OBSERVATION_BASE_WEIGHT + SELF_ASSESSMENT_BASE_WEIGHT + adjustedPeerWeight
+        val totalWeightRaw =
+            OBSERVATION_BASE_WEIGHT + SELF_ASSESSMENT_BASE_WEIGHT + adjustedPeerWeight
 
         val finalObservationWeight = OBSERVATION_BASE_WEIGHT / totalWeightRaw
         val finalSelfWeight = SELF_ASSESSMENT_BASE_WEIGHT / totalWeightRaw
