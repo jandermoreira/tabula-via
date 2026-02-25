@@ -9,6 +9,8 @@ package edu.jm.tabulavia.ui
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,6 +69,8 @@ import edu.jm.tabulavia.model.grouping.Location
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import edu.jm.tabulavia.ui.StudentEmojiColorHelper.mapStudentIdToEmoji
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private enum class GroupUiState {
@@ -85,9 +89,7 @@ private data class DraggedStudent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityGroupScreen(
-    activityId: Long,
-    viewModel: CourseViewModel,
-    onNavigateBack: () -> Unit
+    activityId: Long, viewModel: CourseViewModel, onNavigateBack: () -> Unit
 ) {
     val activity by viewModel.selectedActivity.collectAsState()
     val groups by viewModel.generatedGroups.collectAsState()
@@ -123,95 +125,84 @@ fun ActivityGroupScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(activity?.title ?: "Montar Grupos") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
-                    }
-                },
-                actions = {
-                    if (uiState == GroupUiState.SHOW_GROUPS) {
-                        IconButton(
-                            onClick = {
-                                viewModel.enterManualMode(forceRefresh = true)
-                                uiState = GroupUiState.CONFIGURE
-                            }
-                        ) {
-                            Icon(Icons.Default.Edit, null)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                )
-            )
-        },
-        floatingActionButton = {
-            val isConfiguring =
-                uiState == GroupUiState.CONFIGURE || uiState == GroupUiState.NO_GROUPS
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text(activity?.title ?: "Montar Grupos") }, navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+            }
+        }, actions = {
+            if (uiState == GroupUiState.SHOW_GROUPS) {
+                IconButton(
+                    onClick = {
+                        viewModel.enterManualMode(forceRefresh = true)
+                        uiState = GroupUiState.CONFIGURE
+                    }) {
+                    Icon(Icons.Default.Edit, null)
+                }
+            }
+        }, colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+        )
+        )
+    }, floatingActionButton = {
+        val isConfiguring = uiState == GroupUiState.CONFIGURE || uiState == GroupUiState.NO_GROUPS
 
-            if (isConfiguring) {
-                when (viewModel.groupingCriterion) {
-                    "Manual" -> {
+        if (isConfiguring) {
+            when (viewModel.groupingCriterion) {
+                "Manual" -> {
+                    FloatingActionButton(
+                        onClick = {
+                            viewModel.exitManualMode()
+                            uiState = GroupUiState.SHOW_GROUPS
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check, contentDescription = "Finish"
+                        )
+                    }
+                }
+
+                "Aleatório" -> {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         FloatingActionButton(
                             onClick = {
-                                viewModel.exitManualMode()
+                                if (uiState == GroupUiState.CONFIGURE) {
+                                    uiState = GroupUiState.SHOW_GROUPS
+                                }
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close, contentDescription = "Cancel"
+                            )
+                        }
+
+                        FloatingActionButton(
+                            onClick = {
+                                viewModel.createBalancedGroups()
+                                viewModel.enterManualMode(forceRefresh = true)
                                 uiState = GroupUiState.SHOW_GROUPS
                             },
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Finish"
+                                imageVector = Icons.Default.Check, contentDescription = "Create"
                             )
-                        }
-                    }
-
-                    "Aleatório" -> {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            FloatingActionButton(
-                                onClick = {
-                                    if (uiState == GroupUiState.CONFIGURE) {
-                                        uiState = GroupUiState.SHOW_GROUPS
-                                    }
-                                },
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Cancel"
-                                )
-                            }
-
-                            FloatingActionButton(
-                                onClick = {
-                                    viewModel.createBalancedGroups()
-                                    viewModel.enterManualMode(forceRefresh = true)
-                                    uiState = GroupUiState.SHOW_GROUPS
-                                },
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Create"
-                                )
-                            }
                         }
                     }
                 }
             }
         }
-    ) { padding ->
+    }) { padding ->
 
         if (loadedActivityId != activityId) {
             Box(
@@ -237,14 +228,9 @@ fun ActivityGroupScreen(
                 }
 
                 GroupUiState.NO_GROUPS, GroupUiState.CONFIGURE -> {
-                    ConfigurationView(
-                        viewModel = viewModel,
-                        onCancel = {
-                            if (uiState == GroupUiState.CONFIGURE) uiState =
-                                GroupUiState.SHOW_GROUPS
-                        },
-                        onGroupsCreated = { uiState = GroupUiState.SHOW_GROUPS }
-                    )
+                    ConfigurationView(viewModel = viewModel, onCancel = {
+                        if (uiState == GroupUiState.CONFIGURE) uiState = GroupUiState.SHOW_GROUPS
+                    }, onGroupsCreated = { uiState = GroupUiState.SHOW_GROUPS })
                 }
 
                 GroupUiState.SHOW_GROUPS -> {
@@ -260,8 +246,7 @@ fun ActivityGroupScreen(
                         onGroupActionClick = { groupStudents ->
                             selectedGroupForSkillAssignment = groupStudents
                             showAssignGroupSkillsDialog = true
-                        }
-                    )
+                        })
                 }
             }
         }
@@ -291,6 +276,12 @@ fun ActivityGroupScreen(
 /**
  * Displays groups in a vertical list.
  * Uses FlowRow to adapt member lists to tablet and landscape screens.
+ *
+ * @param groups The list of student groups to display.
+ * @param lazyListState The LazyListState for controlling the scroll state of the list.
+ * @param onStudentClick Callback when a student item is clicked.
+ * @param onGroupActionClick Callback when a group action icon is clicked.
+ * @param viewModel The CourseViewModel instance.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -365,6 +356,14 @@ private fun GroupsExpandedView(
 
 /**
  * Interactive drag-and-drop editor for manual group formation.
+ * Allows students to be moved between an unassigned pool and various groups.
+ * Features a fade-out animation for the dragged student ghost on drop.
+ *
+ * @param groups The current list of manual groups.
+ * @param unassignedStudents The list of students not currently in any group.
+ * @param onMoveStudent Callback to handle moving a student between locations.
+ * @param viewModel The CourseViewModel instance.
+ * @param isLandscape Boolean indicating if the device is in landscape orientation.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -383,12 +382,25 @@ private fun ManualGroupEditorView(
     var newGroupBounds by remember { mutableStateOf<Rect?>(null) }
     val groupBounds = remember { mutableStateMapOf<Int, Rect>() }
 
+    // State for the drag ghost alpha animation
+    val ghostTargetAlpha = remember { mutableFloatStateOf(0f) }
+    val animatedGhostAlpha by animateFloatAsState(
+        targetValue = ghostTargetAlpha.floatValue,
+        animationSpec = tween(durationMillis = 300),
+        label = "dragGhostAlphaAnimation"
+    )
+
+    val scope = rememberCoroutineScope()
+
     val primaryColor = MaterialTheme.colorScheme.primary
     val surfaceColor = MaterialTheme.colorScheme.surface
     val dropTargetBackground = primaryColor.copy(alpha = 0.05f)
     val dashColorInactive = Color.Gray.copy(alpha = 0.4f)
 
-    // Logic to determine where the dragged student is dropped
+    /**
+     * Detects the drop target based on the current drag position.
+     * @return The DropTarget if a valid target is found, otherwise null.
+     */
     fun detectDropTarget(): DropTarget? {
         val container = containerCoords ?: return null
         val dragPos = dragPositionInContainer ?: return null
@@ -423,8 +435,7 @@ private fun ManualGroupEditorView(
                     .weight(1f)
                     .fillMaxHeight()
                     .onGloballyPositioned { unassignedBounds = it.boundsInRoot() }
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            ) {
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
                 Text(
                     "Não alocados",
                     style = MaterialTheme.typography.labelLarge,
@@ -450,21 +461,34 @@ private fun ManualGroupEditorView(
                                     draggedStudent = DraggedStudent(student, Location.Unassigned)
                                     dragPositionInContainer =
                                         containerCoords?.localPositionOf(coords, offset)
+                                    ghostTargetAlpha.floatValue = 1f
                                 },
                                 onMove = { delta ->
                                     dragPositionInContainer = dragPositionInContainer?.plus(delta)
                                 },
                                 onEnd = {
                                     val target = detectDropTarget()
-                                    if (target != null && draggedStudent != null) {
+                                    val currentDraggedStudent =
+                                        draggedStudent // Capture for delayed clearing
+
+                                    if (target != null && currentDraggedStudent != null) {
                                         onMoveStudent(
-                                            draggedStudent!!.student,
-                                            draggedStudent!!.from,
+                                            currentDraggedStudent.student,
+                                            currentDraggedStudent.from,
                                             target
                                         )
                                     }
-                                    draggedStudent = null
-                                    dragPositionInContainer = null
+
+                                    ghostTargetAlpha.floatValue = 0f // Trigger fade out animation
+
+                                    // Clear dragged student state after animation completes
+                                    scope.launch {
+                                        delay(300) // Match animation duration
+                                        if (draggedStudent == currentDraggedStudent) { // Only clear if no new drag started
+                                            draggedStudent = null
+                                            dragPositionInContainer = null
+                                        }
+                                    }
                                 },
                                 viewModel = viewModel
                             )
@@ -502,16 +526,13 @@ private fun ManualGroupEditorView(
                                 drawRoundRect(
                                     color = if (draggedStudent != null) primaryColor else dashColorInactive,
                                     style = Stroke(
-                                        width = 2.dp.toPx(),
-                                        pathEffect = PathEffect.dashPathEffect(
-                                            floatArrayOf(10f, 10f),
-                                            0f
+                                        width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(
+                                            floatArrayOf(10f, 10f), 0f
                                         )
                                     ),
                                     cornerRadius = CornerRadius(12.dp.toPx())
                                 )
-                            },
-                        contentAlignment = Alignment.Center
+                            }, contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -541,8 +562,7 @@ private fun ManualGroupEditorView(
                 ) {
                     itemsIndexed(
                         items = groups.filter { it.students.isNotEmpty() },
-                        key = { _, group -> group.id }
-                    ) { index, group ->
+                        key = { _, group -> group.id }) { index, group ->
 
                         // Cleans up the bounding box entry when the group is removed from composition
                         DisposableEffect(group.id) {
@@ -556,8 +576,7 @@ private fun ManualGroupEditorView(
                                 .fillMaxWidth()
                                 .onGloballyPositioned { coordinates ->
                                     groupBounds[group.id] = coordinates.boundsInRoot()
-                                },
-                            colors = CardDefaults.cardColors(
+                                }, colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                             )
                         ) {
@@ -575,11 +594,11 @@ private fun ManualGroupEditorView(
                                             isDragging = draggedStudent?.student?.studentId == student.studentId,
                                             onStart = { offset, coords ->
                                                 draggedStudent = DraggedStudent(
-                                                    student,
-                                                    Location.Group(group.id)
+                                                    student, Location.Group(group.id)
                                                 )
                                                 dragPositionInContainer =
                                                     containerCoords?.localPositionOf(coords, offset)
+                                                ghostTargetAlpha.floatValue = 1f // Show ghost
                                             },
                                             onMove = { delta ->
                                                 dragPositionInContainer =
@@ -587,15 +606,26 @@ private fun ManualGroupEditorView(
                                             },
                                             onEnd = {
                                                 val target = detectDropTarget()
-                                                if (target != null && draggedStudent != null) {
+                                                val currentDraggedStudent = draggedStudent
+
+                                                if (target != null && currentDraggedStudent != null) {
                                                     onMoveStudent(
-                                                        draggedStudent!!.student,
-                                                        draggedStudent!!.from,
+                                                        currentDraggedStudent.student,
+                                                        currentDraggedStudent.from,
                                                         target
                                                     )
                                                 }
-                                                draggedStudent = null
-                                                dragPositionInContainer = null
+
+                                                ghostTargetAlpha.floatValue = 0f
+
+                                                // Clear dragged student state after animation completes
+                                                scope.launch {
+                                                    delay(300)
+                                                    if (draggedStudent == currentDraggedStudent) {
+                                                        draggedStudent = null
+                                                        dragPositionInContainer = null
+                                                    }
+                                                }
                                             },
                                             viewModel = viewModel
                                         )
@@ -616,18 +646,18 @@ private fun ManualGroupEditorView(
             }
         }
 
-        // FLOATING DRAG GHOST
+        // FLOATING DRAG GHOST: Renders the draggable student during a drag operation
         if (draggedStudent != null && dragPositionInContainer != null) {
             val currentPos = dragPositionInContainer!!
-            Box(
-                modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            currentPos.x.toInt() - 40.dp.toPx().toInt(),
-                            currentPos.y.toInt() - 40.dp.toPx().toInt()
-                        )
-                    }
-                    .size(80.dp)
+            Box(modifier = Modifier
+                .offset {
+                    IntOffset(
+                        currentPos.x.toInt() - 40.dp.toPx().toInt(),
+                        currentPos.y.toInt() - 40.dp.toPx().toInt()
+                    )
+                }
+                .size(80.dp)
+                .alpha(animatedGhostAlpha) // Apply the animated alpha for fade-out
             ) {
                 Surface(
                     shadowElevation = 8.dp,
@@ -653,6 +683,14 @@ private fun ManualGroupEditorView(
 
 /**
  * Wrapper component to handle drag gestures for a single student.
+ * It detects drag start, move, and end events, and provides callbacks.
+ *
+ * @param student The student object being dragged.
+ * @param isDragging True if this student is currently being dragged.
+ * @param onStart Callback triggered when a drag gesture starts. Provides initial offset and coordinates.
+ * @param onMove Callback triggered when the drag position changes. Provides the drag amount.
+ * @param onEnd Callback triggered when a drag gesture ends (either dropped or cancelled).
+ * @param viewModel The CourseViewModel instance.
  */
 @Composable
 private fun DraggableStudentWrapper(
@@ -668,21 +706,19 @@ private fun DraggableStudentWrapper(
     val todaysAttendance by viewModel.todaysAttendance.collectAsState()
     val isStudentAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
 
-    Box(
-        modifier = Modifier
-            .padding(4.dp)
-            .width(80.dp)
-            .onGloballyPositioned { itemCoords = it }
-            .alpha(if (isDragging) 0f else 1f)
-            .pointerInput(student) {
-                detectDragGestures(
-                    onDragStart = { offset -> itemCoords?.let { onStart(offset, it) } },
-                    onDrag = { change, dragAmount -> change.consume(); onMove(dragAmount) },
-                    onDragEnd = onEnd,
-                    onDragCancel = onEnd
-                )
-            }
-    ) {
+    Box(modifier = Modifier
+        .padding(4.dp)
+        .width(80.dp)
+        .onGloballyPositioned { itemCoords = it }
+        .alpha(if (isDragging) 0f else 1f)
+        .pointerInput(student) {
+            detectDragGestures(
+                onDragStart = { offset -> itemCoords?.let { onStart(offset, it) } },
+                onDrag = { change, dragAmount -> change.consume(); onMove(dragAmount) },
+                onDragEnd = onEnd,
+                onDragCancel = onEnd
+            )
+        }) {
         StudentItem(
             student = student,
             emoji = mapStudentIdToEmoji(student.studentId),
@@ -696,13 +732,15 @@ private fun DraggableStudentWrapper(
  * ConfigurationView
  * Manages the grouping setup screen. In Landscape, it integrates the
  * criterion selector into the manual editor tools to maximize vertical space.
+ *
+ * @param viewModel The CourseViewModel instance.
+ * @param onCancel Callback for when the configuration is cancelled.
+ * @param onGroupsCreated Callback for when groups have been successfully created.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConfigurationView(
-    viewModel: CourseViewModel,
-    onCancel: () -> Unit,
-    onGroupsCreated: () -> Unit
+    viewModel: CourseViewModel, onCancel: () -> Unit, onGroupsCreated: () -> Unit
 ) {
     val groupingCriteria = listOf("Aleatório", "Manual")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
@@ -730,9 +768,7 @@ private fun ConfigurationView(
                 unassignedStudents = viewModel.unassignedStudents,
                 onMoveStudent = { student, from, to ->
                     viewModel.moveStudent(
-                        student,
-                        from,
-                        to
+                        student, from, to
                     )
                 },
                 isLandscape = isLandscape,
@@ -749,8 +785,7 @@ private fun ConfigurationView(
                         selected = viewModel.groupFormationType == option,
                         onClick = { viewModel.groupFormationType = option },
                         shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = formationOptions.size
+                            index = index, count = formationOptions.size
                         ),
                         modifier = Modifier.weight(1f)
                     ) {
@@ -779,8 +814,7 @@ private fun ConfigurationView(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CriterionSelector(
-    viewModel: CourseViewModel,
-    isFullWidth: Boolean
+    viewModel: CourseViewModel, isFullWidth: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
     val criteria = listOf("Aleatório", "Manual")
@@ -802,13 +836,10 @@ private fun CriterionSelector(
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             criteria.forEach { criterion ->
-                DropdownMenuItem(
-                    text = { Text(criterion) },
-                    onClick = {
-                        viewModel.groupingCriterion = criterion
-                        expanded = false
-                    }
-                )
+                DropdownMenuItem(text = { Text(criterion) }, onClick = {
+                    viewModel.groupingCriterion = criterion
+                    expanded = false
+                })
             }
         }
     }
@@ -816,14 +847,16 @@ private fun CriterionSelector(
 
 /**
  * Dialog to apply skill assessments to multiple students at once.
+ *
+ * @param students The list of students in the group to assess.
+ * @param viewModel The CourseViewModel instance.
+ * @param activityId The ID of the current activity.
+ * @param onDismiss Callback to dismiss the dialog.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AssignGroupSkillsForAllDialog(
-    students: List<Student>,
-    viewModel: CourseViewModel,
-    activityId: Long?,
-    onDismiss: () -> Unit
+    students: List<Student>, viewModel: CourseViewModel, activityId: Long?, onDismiss: () -> Unit
 ) {
     val courseSkills by viewModel.courseSkills.collectAsState()
     val context = LocalContext.current
@@ -841,61 +874,56 @@ private fun AssignGroupSkillsForAllDialog(
         mutableStateOf(courseSkills.associate { it.skillName to SkillLevel.NOT_APPLICABLE })
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Habilidades para o Grupo") },
-        text = {
-            Column {
-                Text(
-                    "Aplicar a todos os ${students.size} alunos:",
-                    style = MaterialTheme.typography.labelSmall
-                )
-                Spacer(Modifier.height(8.dp))
-                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                    items(courseSkills.sortedBy { it.skillName }) { skill ->
-                        SkillAssignmentRow(
-                            skillName = skill.skillName,
-                            currentLevel = skillLevels[skill.skillName]
-                                ?: SkillLevel.NOT_APPLICABLE,
-                            onLevelSelected = { new ->
-                                skillLevels = skillLevels + (skill.skillName to new)
-                            },
-                            isHighlighted = highlightedSkillNames.contains(skill.skillName)
-                        )
-                    }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Habilidades para o Grupo") }, text = {
+        Column {
+            Text(
+                "Aplicar a todos os ${students.size} alunos:",
+                style = MaterialTheme.typography.labelSmall
+            )
+            Spacer(Modifier.height(8.dp))
+            LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                items(courseSkills.sortedBy { it.skillName }) { skill ->
+                    SkillAssignmentRow(
+                        skillName = skill.skillName,
+                        currentLevel = skillLevels[skill.skillName] ?: SkillLevel.NOT_APPLICABLE,
+                        onLevelSelected = { new ->
+                            skillLevels = skillLevels + (skill.skillName to new)
+                        },
+                        isHighlighted = highlightedSkillNames.contains(skill.skillName)
+                    )
                 }
             }
-        },
-        confirmButton = {
-            Button(onClick = {
-                val assessments = skillLevels.filter { it.value != SkillLevel.NOT_APPLICABLE }
-                students.forEach { student ->
-                    assessments.forEach { (skillName, level) ->
-                        viewModel.addSkillAssessment(
-                            student.studentId,
-                            skillName,
-                            level,
-                            AssessmentSource.PROFESSOR_OBSERVATION
-                        )
-                    }
+        }
+    }, confirmButton = {
+        Button(onClick = {
+            val assessments = skillLevels.filter { it.value != SkillLevel.NOT_APPLICABLE }
+            students.forEach { student ->
+                assessments.forEach { (skillName, level) ->
+                    viewModel.addSkillAssessment(
+                        student.studentId,
+                        skillName,
+                        level,
+                        AssessmentSource.PROFESSOR_OBSERVATION
+                    )
                 }
-                onDismiss()
-            }) { Text("Salvar Grupo") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
-    )
+            }
+            onDismiss()
+        }) { Text("Salvar Grupo") }
+    }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } })
 }
 
 /**
  * Dialog to assess skills for a specific student within the grouping screen.
+ *
+ * @param student The student for whom skills are being assigned.
+ * @param viewModel The CourseViewModel instance.
+ * @param activityId The ID of the current activity.
+ * @param onDismiss Callback to dismiss the dialog.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AssignGroupSkillsDialog(
-    student: Student,
-    viewModel: CourseViewModel,
-    activityId: Long?,
-    onDismiss: () -> Unit
+    student: Student, viewModel: CourseViewModel, activityId: Long?, onDismiss: () -> Unit
 ) {
     val courseSkills by viewModel.courseSkills.collectAsState()
     val context = LocalContext.current
@@ -947,12 +975,16 @@ private fun AssignGroupSkillsDialog(
                 onDismiss()
             }) { Text("Salvar") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
-    )
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } })
 }
 
 /**
  * A row component for a single skill assessment, displaying options (Low, Medium, High).
+ *
+ * @param skillName The name of the skill.
+ * @param currentLevel The currently selected skill level.
+ * @param onLevelSelected Callback when a new skill level is selected.
+ * @param isHighlighted True if the skill is highlighted for the current activity.
  */
 @Composable
 private fun SkillAssignmentRow(
@@ -984,26 +1016,30 @@ private fun SkillAssignmentRow(
             Text(skillName, style = MaterialTheme.typography.bodyMedium)
         }
 
-        @OptIn(ExperimentalMaterial3Api::class)
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        @OptIn(ExperimentalMaterial3Api::class) CompositionLocalProvider(
+            LocalMinimumInteractiveComponentSize provides 0.dp
+        ) {
             Row {
                 IconButton(
                     onClick = { onLevelSelected(SkillLevel.NOT_APPLICABLE) },
                     modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
-                        Icons.Default.Clear, null, modifier = Modifier.size(16.dp),
+                        Icons.Default.Clear,
+                        null,
+                        modifier = Modifier.size(16.dp),
                         tint = if (currentLevel == SkillLevel.NOT_APPLICABLE) MaterialTheme.colorScheme.primary else Color.Gray.copy(
                             alpha = 0.5f
                         )
                     )
                 }
                 IconButton(
-                    onClick = { onLevelSelected(SkillLevel.LOW) },
-                    modifier = Modifier.size(28.dp)
+                    onClick = { onLevelSelected(SkillLevel.LOW) }, modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
-                        Icons.Default.ThumbDown, null, modifier = Modifier.size(16.dp),
+                        Icons.Default.ThumbDown,
+                        null,
+                        modifier = Modifier.size(16.dp),
                         tint = if (currentLevel == SkillLevel.LOW) MaterialTheme.colorScheme.error else Color.Gray.copy(
                             alpha = 0.5f
                         )
@@ -1014,18 +1050,21 @@ private fun SkillAssignmentRow(
                     modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
-                        Icons.Default.Circle, null, modifier = Modifier.size(16.dp),
+                        Icons.Default.Circle,
+                        null,
+                        modifier = Modifier.size(16.dp),
                         tint = if (currentLevel == SkillLevel.MEDIUM) Color(0xFFFFA500) else Color.Gray.copy(
                             alpha = 0.5f
                         )
                     )
                 }
                 IconButton(
-                    onClick = { onLevelSelected(SkillLevel.HIGH) },
-                    modifier = Modifier.size(28.dp)
+                    onClick = { onLevelSelected(SkillLevel.HIGH) }, modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
-                        Icons.Default.ThumbUp, null, modifier = Modifier.size(16.dp),
+                        Icons.Default.ThumbUp,
+                        null,
+                        modifier = Modifier.size(16.dp),
                         tint = if (currentLevel == SkillLevel.HIGH) Color(0xFF008000) else Color.Gray.copy(
                             alpha = 0.5f
                         )
