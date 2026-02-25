@@ -1,3 +1,7 @@
+/**
+ * Data model for student attendance records and logic for skill score consolidation.
+ */
+
 package edu.jm.tabulavia.model
 
 import androidx.room.Entity
@@ -6,7 +10,11 @@ import androidx.room.Index
 import kotlinx.serialization.Serializable
 import kotlin.math.min
 
-@Serializable // Anotação para serialização
+/**
+ * Represents the attendance status of a student in a specific class session.
+ * Linked to ClassSession and Student entities via foreign keys.
+ */
+@Serializable
 @Entity(
     tableName = "attendance_records",
     primaryKeys = ["sessionId", "studentId"],
@@ -15,7 +23,7 @@ import kotlin.math.min
         ForeignKey(entity = Student::class, parentColumns = ["studentId"], childColumns = ["studentId"], onDelete = ForeignKey.CASCADE)
     ],
     indices = [
-        Index("sessionId"), 
+        Index("sessionId"),
         Index("studentId")
     ]
 )
@@ -25,50 +33,55 @@ data class AttendanceRecord(
     val status: AttendanceStatus
 )
 
+/**
+ * Utility object for calculating final skill scores by merging different assessment sources.
+ */
 object SkillConsolidator {
 
-    // Base weights from documentation (Item 8)
     private const val OBSERVATION_BASE_WEIGHT = 0.50
     private const val SELF_ASSESSMENT_BASE_WEIGHT = 0.25
     private const val PEER_BASE_WEIGHT = 0.25
 
     /**
-     * Consolidates different assessment sources into a single value.
-     * Applies reliability adjustment (f(n)) based on peer evaluation volume.
+     * Merges observation, self-assessment, and peer scores into a single consolidated value.
+     * Adjusts the peer weight based on the number of evaluations received.
      */
     fun consolidate(
         observationScore: Double,
         selfAssessmentScore: Double,
         peerScores: List<Double>,
-        targetPeerCount: Int = 5 // N parameter from documentation
+        targetPeerCount: Int = 5
     ): Double {
 
         val peerCount = peerScores.size
 
-        // 1. Peer Consolidation (Item 7)
+        // Determine the representative peer score based on sample size
         val peerConsolidatedScore = when {
             peerCount == 0 -> 0.0
             peerCount <= 3 -> calculateMedian(peerScores)
-            else -> peerScores.average() // Mean for n >= 5 (and n=4 as policy)
+            else -> peerScores.average()
         }
 
-        // 2. Weight Adjustment by peer volume (Item 9: f(n) = min(1, n/N))
+        // Apply reliability factor f(n) = min(1, n/N) to the peer weight
         val reliabilityFactor = min(1.0, peerCount.toDouble() / targetPeerCount)
         val adjustedPeerWeight = PEER_BASE_WEIGHT * reliabilityFactor
 
-        // 3. Renormalization (Item 9: weights must sum to 1.0)
+        // Renormalize all weights so their sum equals 1.0
         val totalWeightRaw = OBSERVATION_BASE_WEIGHT + SELF_ASSESSMENT_BASE_WEIGHT + adjustedPeerWeight
 
         val finalObservationWeight = OBSERVATION_BASE_WEIGHT / totalWeightRaw
         val finalSelfWeight = SELF_ASSESSMENT_BASE_WEIGHT / totalWeightRaw
         val finalPeerWeight = adjustedPeerWeight / totalWeightRaw
 
-        // 4. Final Calculation (Item 10)
+        // Calculate final weighted average
         return (observationScore * finalObservationWeight) +
                 (selfAssessmentScore * finalSelfWeight) +
                 (peerConsolidatedScore * finalPeerWeight)
     }
 
+    /**
+     * Calculates the median value of a list of doubles.
+     */
     private fun calculateMedian(list: List<Double>): Double {
         if (list.isEmpty()) return 0.0
         val sorted = list.sorted()
