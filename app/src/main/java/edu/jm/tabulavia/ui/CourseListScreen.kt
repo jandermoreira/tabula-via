@@ -1,20 +1,24 @@
+/**
+ * CourseListScreen.kt
+ *
+ * Displays the list of courses grouped by academic year.
+ * Provides authentication actions and backup/restore operations
+ * through a dialog embedded in this screen.
+ */
+
 package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.School
@@ -26,25 +30,45 @@ import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Course
 import edu.jm.tabulavia.viewmodel.AuthViewModel
 import edu.jm.tabulavia.viewmodel.CourseViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
+        /**
+         * Displays the main course list screen.
+         *
+         * @param viewModel ViewModel responsible for course data and backup/restore operations.
+         * @param authViewModel ViewModel responsible for authentication state.
+         * @param onAddCourseClicked Callback triggered when add course is requested.
+         * @param onCourseClicked Callback triggered when a course is selected.
+         * @param onLoginClicked Callback triggered when login is requested.
+         * @param onLogoutClicked Callback triggered when logout is requested.
+         */
 fun CourseListScreen(
     viewModel: CourseViewModel,
     authViewModel: AuthViewModel,
     onAddCourseClicked: () -> Unit,
     onCourseClicked: (Course) -> Unit,
-    onBackupClicked: () -> Unit,
     onLoginClicked: () -> Unit,
     onLogoutClicked: () -> Unit
 ) {
-    val courses by viewModel.courses.collectAsState()
-    val groupedCourses = courses.groupBy { it.academicYear }.toSortedMap(compareByDescending { it })
+    val courseList by viewModel.courses.collectAsState()
+    val groupedCourses = courseList
+        .groupBy { it.academicYear }
+        .toSortedMap(compareByDescending { it })
 
     val snackbarHostState = remember { SnackbarHostState() }
     val userMessage by viewModel.userMessage.collectAsState()
-    val user by authViewModel.user.collectAsState()
+    val authenticatedUser by authViewModel.user.collectAsState()
 
+    var showBackupDialog by remember { mutableStateOf(false) }
+    var isBackupLoading by remember { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    /**
+     * Shows user messages in a snackbar.
+     */
     LaunchedEffect(userMessage) {
         userMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -58,19 +82,32 @@ fun CourseListScreen(
                 title = { Text("Tabula Via") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.primary
                 ),
                 actions = {
-                    if (user != null) {
-                        IconButton(onClick = onBackupClicked) {
-                            Icon(Icons.Default.Save, contentDescription = "Backup e Restauração")
+
+                    /**
+                     * Displays authentication and backup actions.
+                     */
+                    if (authenticatedUser != null) {
+                        IconButton(onClick = { showBackupDialog = true }) {
+                            Icon(
+                                Icons.Default.Save,
+                                contentDescription = "Cópia de segurança"
+                            )
                         }
                         IconButton(onClick = onLogoutClicked) {
-                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
+                            Icon(
+                                Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = "Sair"
+                            )
                         }
                     } else {
                         IconButton(onClick = onLoginClicked) {
-                            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = "Login")
+                            Icon(
+                                Icons.AutoMirrored.Filled.Login,
+                                contentDescription = "Entrar"
+                            )
                         }
                     }
                 }
@@ -78,17 +115,25 @@ fun CourseListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddCourseClicked) {
-                Icon(Icons.Default.GroupAdd, contentDescription = "Adicionar Turma")
+                Icon(
+                    Icons.Default.GroupAdd,
+                    contentDescription = "Adicionar turma"
+                )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
+
+        /**
+         * Displays the list of courses grouped by academic year.
+         */
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
             groupedCourses.forEach { (year, coursesInYear) ->
+
                 stickyHeader {
                     Text(
                         text = year,
@@ -102,16 +147,110 @@ fun CourseListScreen(
 
                 items(coursesInYear) { course ->
                     Column(modifier = Modifier.padding(horizontal = 8.dp)) {
-                        CourseItem(course, onClick = { onCourseClicked(course) })
+                        CourseItem(
+                            course = course,
+                            onClick = { onCourseClicked(course) }
+                        )
                     }
                 }
             }
         }
     }
+
+    /**
+     * Backup and restore dialog.
+     */
+    if (showBackupDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isBackupLoading) showBackupDialog = false
+            },
+            title = { Text("Cópia de segurança") },
+            text = {
+                if (isBackupLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+
+                        /**
+                         * Executes backup operation.
+                         */
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isBackupLoading = true
+                                    viewModel.backup()
+                                    isBackupLoading = false
+                                    showBackupDialog = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Filled.CloudUpload,
+                                contentDescription = "Fazer cópia de segurança"
+                            )
+                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("FAZER CÓPIA DE SEGURANÇA")
+                        }
+
+                        /**
+                         * Executes restore operation.
+                         */
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isBackupLoading = true
+                                    viewModel.restore()
+                                    isBackupLoading = false
+                                    showBackupDialog = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Filled.CloudDownload,
+                                contentDescription = "Restaurar cópia de segurança"
+                            )
+                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("RESTAURAR CÓPIA DE SEGURANÇA")
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(
+                    onClick = { showBackupDialog = false },
+                    enabled = !isBackupLoading
+                ) {
+                    Text("Fechar")
+                }
+            }
+        )
+    }
 }
 
+/**
+ * Displays a single course item inside a card.
+ *
+ * @param course The course to be displayed.
+ * @param onClick Callback triggered when the item is selected.
+ */
 @Composable
-fun CourseItem(course: Course, onClick: () -> Unit) {
+fun CourseItem(
+    course: Course,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -125,7 +264,7 @@ fun CourseItem(course: Course, onClick: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Default.School,
-                contentDescription = "Ícone de turma",
+                contentDescription = "Turma",
                 tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.width(16.dp))
