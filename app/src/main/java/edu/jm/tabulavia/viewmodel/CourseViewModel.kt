@@ -814,6 +814,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             .filterNot { it.studentId in assignedStudentIds }
             .forEach { unassignedStudents.add(it) }
 
+        nextManualGroupId = (manualGroups.maxOfOrNull { it.id } ?: 0) + 1
+
         isManualMode = true
     }
 
@@ -857,9 +859,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             is Location.Group -> {
                 val sourceGroup = manualGroups.firstOrNull { it.id == from.groupId }
                 sourceGroup?.students?.remove(student)
-                if (sourceGroup != null && sourceGroup.students.isEmpty()) {
-                    manualGroups.remove(sourceGroup)
-                }
             }
         }
 
@@ -868,6 +867,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         unassignedStudents.sortBy { it.displayName.lowercase() }
         manualGroups.forEach { it.students.sortBy { s -> s.displayName.lowercase() } }
 
+        manualGroups.removeAll { it.students.isEmpty() }
         commitManualGroups()
     }
 

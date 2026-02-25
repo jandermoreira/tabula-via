@@ -539,7 +539,10 @@ private fun ManualGroupEditorView(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
                 ) {
-                    itemsIndexed(items = groups, key = { _, group -> System.identityHashCode(group) }) { index, group ->
+                    itemsIndexed(
+                        items = groups.filter { it.students.isNotEmpty() },
+                        key = { _, group -> group.id }
+                    ) { index, group ->
 
                         // Cleans up the bounding box entry when the group is removed from composition
                         DisposableEffect(group.id) {
