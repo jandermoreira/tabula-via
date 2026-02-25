@@ -33,4 +33,14 @@ class AuthViewModel : ViewModel() {
     fun clearUser() {
         _user.value = null
     }
+    /**
+     * Signs out the currently authenticated user.
+     *
+     * Clears the Firebase authentication session and updates
+     * the exposed user state to null.
+     */
+    fun logout() {
+        auth.signOut()
+        _user.value = null
+    }
 }
