@@ -267,8 +267,23 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     // --- Skill Assessment Logic ---
     private val defaultSkills = listOf(
-        "Participação", "Comunicação", "Escuta", "Organização",
-        "Técnica", "Colaboração", "Reflexão"
+        "Pensamento Analítico",
+        "Capacidade de Abstração",
+        "Resolução de Problemas",
+        "Avaliação Crítica",
+        "Trabalho em Equipe",
+        "Comunicação",
+        "Autogestão"
+    )
+
+    private val defaultComputerScienceSkills = listOf(
+        "Rigor Analítico",
+        "Abstração e Modelagem",
+        "Projeto de Soluções",
+        "Validação e Depuração",
+        "Engenharia Colaborativa",
+        "Comunicação Técnica Estruturada",
+        "Autogestão e Evolução Profissional"
     )
 
     /**
@@ -728,7 +743,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 )
                 val courseId = courseRepository.insertCourse(newCourse)
 
-                val skills = defaultSkills.map { CourseSkill(courseId = courseId, skillName = it) }
+                val skills = defaultComputerScienceSkills.map { CourseSkill(courseId = courseId, skillName = it) }
                 skillRepository.insertCourseSkills(skills)
 
                 courseName = ""
@@ -851,6 +866,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             DropTarget.NewGroup -> manualGroups.add(
                 Group(id = generateManualGroupId(), students = mutableStateListOf(student))
             )
+
             DropTarget.Unassigned -> {}
         }
 
