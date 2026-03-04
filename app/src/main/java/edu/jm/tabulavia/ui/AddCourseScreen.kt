@@ -1,3 +1,8 @@
+/**
+ * UI components for course management in the Tabulavia application.
+ * This file contains the screen to add new academic courses.
+ */
+
 package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.layout.*
@@ -11,10 +16,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.viewmodel.CourseViewModel
+import java.time.Year
 
+/**
+ * Screen that provides a form to add a new course to the system.
+ * * @param viewModel The state holder for course data.
+ * @param onCourseAdded Callback executed after successful course creation.
+ * @param onNavigateBack Callback to return to the previous screen.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCourseScreen(viewModel: CourseViewModel, onCourseAdded: () -> Unit, onNavigateBack: () -> Unit) {
+    // Get the current year for the input label hint
+    val currentYear = Year.now().value
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -27,6 +42,7 @@ fun AddCourseScreen(viewModel: CourseViewModel, onCourseAdded: () -> Unit, onNav
             )
         }
     ) { paddingValues ->
+        // Main form layout
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -50,7 +66,7 @@ fun AddCourseScreen(viewModel: CourseViewModel, onCourseAdded: () -> Unit, onNav
                         viewModel.academicYear = it
                     }
                 },
-                label = { Text("Ano (ex: 2025)") },
+                label = { Text("Ano (ex: $currentYear)") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true
@@ -59,7 +75,7 @@ fun AddCourseScreen(viewModel: CourseViewModel, onCourseAdded: () -> Unit, onNav
             OutlinedTextField(
                 value = viewModel.period,
                 onValueChange = { viewModel.period = it },
-                label = { Text("Período/Semestre (ex: 1)") },
+                label = { Text("Período/Semestre (ex: 1, Verão...)") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -75,6 +91,7 @@ fun AddCourseScreen(viewModel: CourseViewModel, onCourseAdded: () -> Unit, onNav
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Action button to save the course
             Button(
                 onClick = { viewModel.addCourse(onCourseAdded) },
                 modifier = Modifier.fillMaxWidth()
