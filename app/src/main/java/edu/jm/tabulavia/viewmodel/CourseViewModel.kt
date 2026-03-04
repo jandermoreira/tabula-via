@@ -460,7 +460,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 skillRepository.updateActivityHighlightedSkills(activityId, highlightedSkills)
 
                 activityName = ""
-                activityType = "Individual"
+                activityType = "Grupo"
                 activityHighlightedSkills = emptySet()
 
                 loadActivitiesForClass(classId)
