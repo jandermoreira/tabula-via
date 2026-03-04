@@ -281,9 +281,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         "Abstração e Modelagem",
         "Projeto de Soluções",
         "Validação e Depuração",
-        "Engenharia Colaborativa",
-        "Comunicação Técnica Estruturada",
-        "Autogestão e Evolução Profissional"
+        "Colaboração",
+        "Comunicação Técnica",
+        "Autogestão e Evolução Pessoal"
     )
 
     /**
