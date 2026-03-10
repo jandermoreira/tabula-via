@@ -46,6 +46,7 @@ class CourseRepository(
      * Updates existing remote documents or creates a new one if firestoreId is missing.
      */
     suspend fun insertCourse(course: Course, uid: String): Long {
+
         // Save locally
         val localId = courseDao.insertCourse(course)
 
@@ -58,13 +59,18 @@ class CourseRepository(
         )
 
         if (course.firestoreId == null) {
-            // New Firestore document
             val docRef = userCoursesRef(uid).add(data).await()
-            val updatedCourse = course.copy(firestoreId = docRef.id)
-            courseDao.insertCourse(updatedCourse)
+            val updatedCourse = course.copy(
+                classId = localId,
+                firestoreId = docRef.id
+            )
+
+            courseDao.updateCourse(updatedCourse)
         } else {
-            // Update existing document
-            userCoursesRef(uid).document(course.firestoreId).set(data, SetOptions.merge()).await()
+            userCoursesRef(uid)
+                .document(course.firestoreId)
+                .set(data, SetOptions.merge())
+                .await()
         }
 
         return localId

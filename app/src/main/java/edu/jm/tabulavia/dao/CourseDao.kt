@@ -8,6 +8,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import edu.jm.tabulavia.model.Course
 
 @Dao
@@ -40,4 +41,11 @@ interface CourseDao {
      */
     @Query("SELECT * FROM classes WHERE classId = :classId")
     suspend fun getCourseById(classId: Long): Course?
+
+    /**
+     * Updates a specific course based on its unique identifier.
+     * Returns null if no course is found with the given ID.
+     */
+    @Update
+    suspend fun updateCourse(course: Course)
 }

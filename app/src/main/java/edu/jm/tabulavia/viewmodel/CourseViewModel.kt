@@ -741,7 +741,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
                 clearFirestoreDatabase()
 
-                db.clearAllTables()
+                withContext(Dispatchers.IO) {
+                    db.clearAllTables()
+                }
 
                 _courses.value = emptyList()
                 _selectedCourse.value = null
@@ -789,35 +791,57 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     // --- Course and Student Creation Logic ---
 
+    private var isAddingCourse = false
+
+    /**
+     * Inserts a new course and initializes it with default skills.
+     */
     /**
      * Inserts a new course and initializes it with default skills.
      */
     fun addCourse(onCourseAdded: () -> Unit) {
+
+        if (isAddingCourse) return
+
         if (courseName.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
+
             val uid = Firebase.auth.currentUser?.uid ?: return
+
+            isAddingCourse = true
+
             viewModelScope.launch {
-                val newCourse = Course(
-                    className = courseName,
-                    academicYear = academicYear,
-                    period = period,
-                    numberOfClasses = numberOfClasses
-                )
-                val courseId = courseRepository.insertCourse(newCourse, uid)
+                try {
 
-                val skills = defaultComputerScienceSkills.map {
-                    CourseSkill(
-                        courseId = courseId,
-                        skillName = it
+                    val newCourse = Course(
+                        className = courseName,
+                        academicYear = academicYear,
+                        period = period,
+                        numberOfClasses = numberOfClasses
                     )
-                }
-                skillRepository.insertCourseSkills(skills)
 
-                courseName = ""
-                academicYear = ""
-                period = ""
-                numberOfClasses = 0
-                loadAllCourses()
-                onCourseAdded()
+                    val courseId = courseRepository.insertCourse(newCourse, uid)
+
+                    val skills = defaultComputerScienceSkills.map {
+                        CourseSkill(
+                            courseId = courseId,
+                            skillName = it
+                        )
+                    }
+
+                    skillRepository.insertCourseSkills(skills)
+
+                    courseName = ""
+                    academicYear = ""
+                    period = ""
+                    numberOfClasses = 0
+
+                    loadAllCourses()
+
+                    onCourseAdded()
+
+                } finally {
+                    isAddingCourse = false
+                }
             }
         }
     }
