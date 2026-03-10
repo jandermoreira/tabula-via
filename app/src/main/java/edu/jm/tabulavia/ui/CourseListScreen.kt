@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.School
@@ -200,7 +201,7 @@ fun CourseListScreen(
                                 contentDescription = "Fazer cópia de segurança"
                             )
                             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("FAZER CÓPIA DE SEGURANÇA")
+                            Text("FAZER CÓPIA")
                         }
 
                         /**
@@ -222,7 +223,31 @@ fun CourseListScreen(
                                 contentDescription = "Restaurar cópia de segurança"
                             )
                             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("RESTAURAR CÓPIA DE SEGURANÇA")
+                            Text("RESTAURAR CÓPIA")
+                        }
+                        /**
+                         * Clears the entire local database.
+                         */
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isBackupLoading = true
+                                    viewModel.clearDatabase()
+                                    isBackupLoading = false
+                                    showBackupDialog = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = "Limpar base de dados"
+                            )
+                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("LIMPAR BASE")
                         }
                     }
                 }

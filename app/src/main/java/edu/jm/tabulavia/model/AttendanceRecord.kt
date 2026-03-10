@@ -1,7 +1,6 @@
 /**
  * Data model for student attendance records and logic for skill score consolidation.
  */
-
 package edu.jm.tabulavia.model
 
 import androidx.room.Entity
@@ -39,12 +38,13 @@ import kotlin.math.min
 )
 data class AttendanceRecord(
     val sessionId: Long,
-    val studentId: Long,
+    val studentId: String,
     val status: AttendanceStatus
 )
 
 /**
  * Utility object for calculating final skill scores by merging different assessment sources.
+ * Applies specific weights to observations, self-assessments, and peer reviews.
  */
 object SkillConsolidator {
 
@@ -54,7 +54,7 @@ object SkillConsolidator {
 
     /**
      * Merges observation, self-assessment, and peer scores into a single consolidated value.
-     * Adjusts the peer weight based on the number of evaluations received.
+     * Adjusts the peer weight based on the number of evaluations received to ensure reliability.
      */
     fun consolidate(
         observationScore: Double,
@@ -65,26 +65,25 @@ object SkillConsolidator {
 
         val peerCount = peerScores.size
 
-        // Determine the representative peer score based on sample size
+        // Selects the calculation method based on the amount of peer data available
         val peerConsolidatedScore = when {
             peerCount == 0 -> 0.0
             peerCount <= 3 -> calculateMedian(peerScores)
             else -> peerScores.average()
         }
 
-        // Apply reliability factor f(n) = min(1, n/N) to the peer weight
+        // Calculates weight adjustment based on evaluation density
         val reliabilityFactor = min(1.0, peerCount.toDouble() / targetPeerCount)
         val adjustedPeerWeight = PEER_BASE_WEIGHT * reliabilityFactor
 
-        // Renormalize all weights so their sum equals 1.0
         val totalWeightRaw =
             OBSERVATION_BASE_WEIGHT + SELF_ASSESSMENT_BASE_WEIGHT + adjustedPeerWeight
 
+        // Normalizes weights to ensure the sum equals 1.0
         val finalObservationWeight = OBSERVATION_BASE_WEIGHT / totalWeightRaw
         val finalSelfWeight = SELF_ASSESSMENT_BASE_WEIGHT / totalWeightRaw
         val finalPeerWeight = adjustedPeerWeight / totalWeightRaw
 
-        // Calculate final weighted average
         return (observationScore * finalObservationWeight) +
                 (selfAssessmentScore * finalSelfWeight) +
                 (peerConsolidatedScore * finalPeerWeight)
@@ -92,6 +91,7 @@ object SkillConsolidator {
 
     /**
      * Calculates the median value of a list of doubles.
+     * Used for peer scores when the sample size is small (3 or fewer).
      */
     private fun calculateMedian(list: List<Double>): Double {
         if (list.isEmpty()) return 0.0

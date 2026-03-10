@@ -108,9 +108,9 @@ fun StudentListScreen(
 @Composable
 fun StudentsGrid(
     students: List<Student>,
-    todaysAttendance: Map<Long, AttendanceStatus>,
+    todaysAttendance: Map<String, AttendanceStatus>,
     modifier: Modifier = Modifier,
-    onStudentClick: (Long) -> Unit,
+    onStudentClick: (String) -> Unit,
     onStudentLongClick: (Student) -> Unit
 ) {
     if (students.isEmpty()) {

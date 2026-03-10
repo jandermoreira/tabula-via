@@ -41,7 +41,7 @@ import java.util.Locale
 
 // Data class para armazenar as avaliações por pares antes da agregação
 private data class PeerAssessmentData(
-    val evaluatedStudentId: Long,
+    val evaluatedStudentId: String,
     val skillName: String,
     val skillValue: Int, // 1=LOW, 2=MEDIUM, 3=HIGH
     val timestamp: Long

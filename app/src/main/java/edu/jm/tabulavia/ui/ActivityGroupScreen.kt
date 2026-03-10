@@ -121,23 +121,23 @@ fun ActivityGroupScreen(
     Scaffold(topBar = {
         TopAppBar(
             title = { Text(activity?.title ?: "Montar Grupos") }, navigationIcon = {
-            IconButton(onClick = onNavigateBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
-            }
-        }, actions = {
-            if (uiState == GroupUiState.SHOW_GROUPS) {
-                IconButton(
-                    onClick = {
-                        viewModel.enterManualMode(forceRefresh = true)
-                        uiState = GroupUiState.CONFIGURE
-                    }) {
-                    Icon(Icons.Default.Edit, null)
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
                 }
-            }
-        }, colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            titleContentColor = MaterialTheme.colorScheme.primary,
-        )
+            }, actions = {
+                if (uiState == GroupUiState.SHOW_GROUPS) {
+                    IconButton(
+                        onClick = {
+                            viewModel.enterManualMode(forceRefresh = true)
+                            uiState = GroupUiState.CONFIGURE
+                        }) {
+                        Icon(Icons.Default.Edit, null)
+                    }
+                }
+            }, colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                titleContentColor = MaterialTheme.colorScheme.primary,
+            )
         )
     }, floatingActionButton = {
         val isConfiguring = uiState == GroupUiState.CONFIGURE || uiState == GroupUiState.NO_GROUPS
@@ -285,7 +285,9 @@ private fun GroupsExpandedView(
     onGroupActionClick: (List<Student>) -> Unit,
     viewModel: CourseViewModel
 ) {
-    val todaysAttendance by viewModel.todaysAttendance.collectAsState()
+    val todaysAttendance: Map<String, AttendanceStatus> by viewModel.todaysAttendance.collectAsState(
+        initial = emptyMap()
+    )
 
     LazyColumn(
         state = lazyListState,
@@ -555,7 +557,7 @@ private fun ManualGroupEditorView(
                 ) {
                     itemsIndexed(
                         items = groups.filter { it.students.isNotEmpty() },
-                        key = { _, group -> group.id }) { index, group ->
+                        key = { _, group: Group -> group.id }) { index, group ->
 
                         // Cleans up the bounding box entry when the group is removed from composition
                         DisposableEffect(group.id) {
@@ -642,15 +644,16 @@ private fun ManualGroupEditorView(
         // FLOATING DRAG GHOST: Renders the draggable student during a drag operation
         if (draggedStudent != null && dragPositionInContainer != null) {
             val currentPos = dragPositionInContainer!!
-            Box(modifier = Modifier
-                .offset {
-                    IntOffset(
-                        currentPos.x.toInt() - 40.dp.toPx().toInt(),
-                        currentPos.y.toInt() - 40.dp.toPx().toInt()
-                    )
-                }
-                .size(80.dp)
-                .alpha(animatedGhostAlpha) // Apply the animated alpha for fade-out
+            Box(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            currentPos.x.toInt() - 40.dp.toPx().toInt(),
+                            currentPos.y.toInt() - 40.dp.toPx().toInt()
+                        )
+                    }
+                    .size(80.dp)
+                    .alpha(animatedGhostAlpha) // Apply the animated alpha for fade-out
             ) {
                 Surface(
                     shadowElevation = 8.dp,
@@ -699,19 +702,20 @@ private fun DraggableStudentWrapper(
     val todaysAttendance by viewModel.todaysAttendance.collectAsState()
     val isStudentAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
 
-    Box(modifier = Modifier
-        .padding(4.dp)
-        .width(80.dp)
-        .onGloballyPositioned { itemCoords = it }
-        .alpha(if (isDragging) 0f else 1f)
-        .pointerInput(student) {
-            detectDragGestures(
-                onDragStart = { offset -> itemCoords?.let { onStart(offset, it) } },
-                onDrag = { change, dragAmount -> change.consume(); onMove(dragAmount) },
-                onDragEnd = onEnd,
-                onDragCancel = onEnd
-            )
-        }) {
+    Box(
+        modifier = Modifier
+            .padding(4.dp)
+            .width(80.dp)
+            .onGloballyPositioned { itemCoords = it }
+            .alpha(if (isDragging) 0f else 1f)
+            .pointerInput(student) {
+                detectDragGestures(
+                    onDragStart = { offset -> itemCoords?.let { onStart(offset, it) } },
+                    onDrag = { change, dragAmount -> change.consume(); onMove(dragAmount) },
+                    onDragEnd = onEnd,
+                    onDragCancel = onEnd
+                )
+            }) {
         StudentItem(
             student = student,
             emoji = mapStudentIdToEmoji(student.studentId),

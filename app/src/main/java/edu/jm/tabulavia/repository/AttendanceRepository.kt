@@ -50,7 +50,7 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
      * @param studentId The student's identifier.
      * @return Total count of absences.
      */
-    suspend fun countStudentAbsences(studentId: Long): Int {
+    suspend fun countStudentAbsences(studentId: String): Int {
         return attendanceDao.countStudentAbsences(studentId)
     }
 
@@ -85,7 +85,7 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
     suspend fun saveAttendance(
         classId: Long,
         timestamp: Long,
-        attendanceMap: Map<Long, AttendanceStatus>,
+        attendanceMap: Map<String, AttendanceStatus>,
         editingSession: ClassSession? = null
     ): SaveAttendanceResult = withContext(Dispatchers.IO) {
         try {

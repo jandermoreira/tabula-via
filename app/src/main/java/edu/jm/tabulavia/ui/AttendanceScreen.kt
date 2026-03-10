@@ -43,7 +43,7 @@ fun AttendanceScreen(
     val calendar = viewModel.newSessionCalendar
     val editingSession = viewModel.editingSession
 
-    var attendanceMap by remember { mutableStateOf<Map<Long, AttendanceStatus>>(emptyMap()) }
+    var attendanceMap by remember { mutableStateOf<Map<String, AttendanceStatus>>(emptyMap()) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
@@ -51,7 +51,7 @@ fun AttendanceScreen(
 
     // Sync local state with ViewModel data
     LaunchedEffect(students, editingSession) {
-        if (students.isNotEmpty()) {
+        if (students.isNotEmpty() && attendanceMap.isEmpty()) {
             attendanceMap = if (editingSession != null) {
                 viewModel.prepareToEditFrequencySession(editingSession)
             } else {

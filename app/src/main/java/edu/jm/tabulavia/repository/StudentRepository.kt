@@ -1,145 +1,86 @@
 /**
- * Repository responsible for student-related database operations.
- * Provides methods for retrieving, adding, updating, and bulk inserting students.
+ * Repository for managing Student entities.
+ * Handles local Room persistence and Firestore synchronization.
  */
 package edu.jm.tabulavia.repository
 
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import edu.jm.tabulavia.dao.StudentDao
 import edu.jm.tabulavia.model.Student
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.tasks.await
 
-class StudentRepository(private val studentDao: StudentDao) {
+class StudentRepository(
+    private val studentDao: StudentDao, private val firestore: FirebaseFirestore
+) {
 
     /**
-     * Retrieves all students belonging to a specific class.
-     * @param classId The identifier of the class.
-     * @return List of students in that class.
+     * Reference to the Firestore collection for a specific user's students.
      */
-    suspend fun getStudentsForClass(classId: Long): List<Student> {
-        return studentDao.getStudentsForClass(classId)
+    private fun userStudentsRef(uid: String) =
+        firestore.collection("users").document(uid).collection("students")
+
+    // ----------------- STUDENT -----------------
+
+    /**
+     * Inserts or updates a student locally and synchronizes with Firestore.
+     * @param student The student entity to persist.
+     * @param uid Firebase user identifier.
+     * @return The local ID if inserted via Room.
+     */
+    suspend fun insertStudent(student: Student, uid: String): String {
+        // Save locally
+        studentDao.insertStudent(student)
+
+        // Prepare Firestore data
+        val data = hashMapOf(
+            "name" to student.name,
+            "displayName" to student.displayName,
+            "studentNumber" to student.studentNumber,
+            "classId" to student.classId
+        )
+
+        return if (student.studentId.isEmpty()) {
+            // New Firestore document
+            val docRef = userStudentsRef(uid).add(data).await()
+            val updatedStudent = student.copy(studentId = docRef.id)
+            studentDao.insertStudent(updatedStudent)
+            docRef.id
+        } else {
+            // Update existing document
+            userStudentsRef(uid).document(student.studentId).set(data, SetOptions.merge()).await()
+            student.studentId
+        }
+
     }
 
     /**
-     * Retrieves all students from the database.
-     * Used primarily for backup operations.
-     * @return List of all students.
-     */
-    suspend fun getAllStudents(): List<Student> {
-        return studentDao.getAllStudents()
-    }
-
-    /**
-     * Fetches a single student by their unique database identifier.
-     * @param studentId The student's ID.
-     * @return The student object or null if not found.
-     */
-    suspend fun getStudentById(studentId: Long): Student? {
-        return studentDao.getStudentById(studentId)
-    }
-
-    /**
-     * Updates an existing student's information in the database.
-     * @param student The student object with updated fields.
-     */
-    suspend fun updateStudent(student: Student) {
-        studentDao.updateStudent(student)
-    }
-
-    /**
-     * Inserts multiple students into the database in a single transaction.
-     * Used during database restoration.
-     * @param students List of students to insert.
+     * Bulk inserts or updates a list of students locally.
+     * @param students List of students.
      */
     suspend fun insertAllStudents(students: List<Student>) {
         studentDao.insertAll(students)
     }
 
     /**
-     * Attempts to add a new student after checking for existing student numbers in the class.
-     * @param name The student's full name.
-     * @param studentNumber The student's registration number.
-     * @param classId The class to which the student belongs.
-     * @return RepositoryResult indicating success or failure with a message.
+     * Retrieves all students from a specific class locally.
+     * @param classId Identifier of the class.
+     * @return List of students in the class.
      */
-    suspend fun addStudent(
-        name: String,
-        studentNumber: String,
-        classId: Long
-    ): RepositoryResult {
-        val existingStudent = studentDao.getStudentByNumberInClass(studentNumber, classId)
-
-        return if (existingStudent == null) {
-            val newStudent = Student(
-                name = name,
-                displayName = name,
-                studentNumber = studentNumber,
-                classId = classId
-            )
-            studentDao.insertStudent(newStudent)
-            RepositoryResult(true, "Aluno '$name' adicionado com sucesso.")
-        } else {
-            RepositoryResult(false, "Erro: Aluno com matrícula '$studentNumber' já existe.")
-        }
-    }
+    suspend fun getStudentsForClass(classId: Long): List<Student> =
+        studentDao.getStudentsForClass(classId)
 
     /**
-     * Parses a raw string and performs batch insertion of students.
-     * Skips students whose numbers are already registered in the class.
-     * @param bulkText Multi-line string where each line contains "number name".
-     * @param classId The target class identifier.
-     * @return RepositoryResult with a summary message.
+     * Retrieves a student by their local identifier.
+     * @param studentId Identifier of the student.
+     * @return Student entity or null if not found.
      */
-    suspend fun addStudentsInBulk(
-        bulkText: String,
-        classId: Long
-    ): RepositoryResult = withContext(Dispatchers.IO) {
-        val existingNumbers = studentDao.getStudentNumbersForClass(classId).toSet()
-        val ignoredStudents = mutableListOf<String>()
-        var addedCount = 0
+    suspend fun getStudentById(studentId: String): Student? =
+        studentDao.getStudentById(studentId)
 
-        bulkText.lines().forEach { line ->
-            val parts = line.trim().split(Regex("\\s+"), 2)
-            if (parts.size == 2) {
-                val number = parts[0]
-                val fullName = parts[1]
-                if (number.isNotBlank() && fullName.isNotBlank()) {
-                    if (existingNumbers.contains(number)) {
-                        ignoredStudents.add(fullName)
-                    } else {
-                        val nameParts = fullName.trim().split(Regex("\\s+"))
-                        val formattedDisplayName = if (nameParts.size > 1) {
-                            "${nameParts.first()} ${nameParts.last()}"
-                        } else {
-                            fullName
-                        }
-
-                        val newStudent = Student(
-                            name = fullName,
-                            displayName = formattedDisplayName,
-                            studentNumber = number,
-                            classId = classId
-                        )
-                        studentDao.insertStudent(newStudent)
-                        addedCount++
-                    }
-                }
-            }
-        }
-
-        val message = when {
-            ignoredStudents.isEmpty() -> "$addedCount alunos adicionados com sucesso."
-            addedCount == 0 -> "Nenhum aluno adicionado. ${ignoredStudents.size} já existiam: ${ignoredStudents.joinToString()}"
-            else -> "$addedCount alunos adicionados. ${ignoredStudents.size} ignorados (já existiam): ${ignoredStudents.joinToString()}"
-        }
-
-        RepositoryResult(addedCount > 0, message)
-    }
+    /**
+     * Retrieves all students locally.
+     * @return List of all students.
+     */
+    suspend fun getAllStudents(): List<Student> = studentDao.getAllStudents()
 }
-
-/**
- * Simple data wrapper for repository operation outcomes.
- * @param isSuccess True if the operation succeeded.
- * @param message A user-readable message describing the result.
- */
-data class RepositoryResult(val isSuccess: Boolean, val message: String)

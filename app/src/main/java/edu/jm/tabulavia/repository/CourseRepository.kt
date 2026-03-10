@@ -1,9 +1,11 @@
 /**
  * Repository for course management, activities, and group formations.
- * Handles the persistence of group memberships, course metadata, and backup operations.
+ * Handles local Room persistence and Firestore synchronization for courses, activities, and groups.
  */
 package edu.jm.tabulavia.repository
 
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import edu.jm.tabulavia.dao.ActivityDao
 import edu.jm.tabulavia.dao.CourseDao
 import edu.jm.tabulavia.dao.GroupMemberDao
@@ -11,95 +13,101 @@ import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.Course
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.Student
+import kotlinx.coroutines.tasks.await
 
 class CourseRepository(
     private val courseDao: CourseDao,
     private val activityDao: ActivityDao,
-    private val groupMemberDao: GroupMemberDao
+    private val groupMemberDao: GroupMemberDao,
+    private val firestore: FirebaseFirestore
 ) {
 
     /**
-     * Retrieves all courses stored in the local database.
-     * @return List of all Course objects.
+     * Helper to get the Firestore collection reference for a specific user's courses.
      */
-    suspend fun getAllCourses(): List<Course> {
-        return courseDao.getAllCourses()
+    private fun userCoursesRef(uid: String) = firestore.collection("users")
+        .document(uid)
+        .collection("courses")
+
+    // ----------------- COURSE -----------------
+
+    /**
+     * Fetches all courses available in the local database.
+     */
+    suspend fun getAllCourses(): List<Course> = courseDao.getAllCourses()
+
+    /**
+     * Retrieves a single course by its local identifier.
+     */
+    suspend fun getCourseById(classId: Long): Course? = courseDao.getCourseById(classId)
+
+    /**
+     * Saves a course locally and synchronizes it with Firestore.
+     * Updates existing remote documents or creates a new one if firestoreId is missing.
+     */
+    suspend fun insertCourse(course: Course, uid: String): Long {
+        // Save locally
+        val localId = courseDao.insertCourse(course)
+
+        // Prepare Firestore data
+        val data = hashMapOf(
+            "className" to course.className,
+            "academicYear" to course.academicYear,
+            "period" to course.period,
+            "numberOfClasses" to course.numberOfClasses
+        )
+
+        if (course.firestoreId == null) {
+            // New Firestore document
+            val docRef = userCoursesRef(uid).add(data).await()
+            val updatedCourse = course.copy(firestoreId = docRef.id)
+            courseDao.insertCourse(updatedCourse)
+        } else {
+            // Update existing document
+            userCoursesRef(uid).document(course.firestoreId).set(data, SetOptions.merge()).await()
+        }
+
+        return localId
     }
 
     /**
-     * Fetches a specific course by its unique identifier.
-     * @param classId The course identifier.
-     * @return The Course object or null if not found.
+     * Bulk inserts a list of courses into the local database.
      */
-    suspend fun getCourseById(classId: Long): Course? {
-        return courseDao.getCourseById(classId)
-    }
+    suspend fun insertAllCourses(courses: List<Course>) = courseDao.insertAll(courses)
+
+    // ----------------- ACTIVITY -----------------
 
     /**
-     * Persists a new course into the database.
-     * @param course The Course object to insert.
-     * @return The generated ID of the new course.
+     * Retrieves all activities associated with a specific course.
      */
-    suspend fun insertCourse(course: Course): Long {
-        return courseDao.insertCourse(course)
-    }
+    suspend fun getActivitiesForClass(classId: Long): List<Activity> =
+        activityDao.getActivitiesForClass(classId)
 
     /**
-     * Inserts multiple courses at once, typically used during database restoration.
-     * @param courses List of Course objects to insert.
+     * Fetches every activity stored in the local database.
      */
-    suspend fun insertAllCourses(courses: List<Course>) {
-        courseDao.insertAll(courses)
-    }
+    suspend fun getAllActivities(): List<Activity> = activityDao.getAllActivities()
 
     /**
-     * Retrieves all activities associated with a specific class.
-     * @param classId The class identifier.
-     * @return List of Activity objects.
+     * Persists a single activity record locally.
      */
-    suspend fun getActivitiesForClass(classId: Long): List<Activity> {
-        return activityDao.getActivitiesForClass(classId)
-    }
+    suspend fun insertActivity(activity: Activity): Long = activityDao.insert(activity)
 
     /**
-     * Retrieves all activities in the database for backup purposes.
-     * @return List of all Activity objects.
+     * Bulk inserts a list of activities into the local database.
      */
-    suspend fun getAllActivities(): List<Activity> {
-        return activityDao.getAllActivities()
-    }
+    suspend fun insertAllActivities(activities: List<Activity>) = activityDao.insertAll(activities)
 
     /**
-     * Inserts a new activity record.
-     * @param activity The Activity object to insert.
-     * @return The generated ID of the new activity.
+     * Retrieves a specific activity by its unique local identifier.
      */
-    suspend fun insertActivity(activity: Activity): Long {
-        return activityDao.insert(activity)
-    }
+    suspend fun getActivityById(activityId: Long): Activity? = activityDao.getActivityById(activityId)
+
+    // ----------------- GROUPS -----------------
 
     /**
-     * Inserts multiple activities at once, used during database restoration.
-     * @param activities List of Activity objects to insert.
-     */
-    suspend fun insertAllActivities(activities: List<Activity>) {
-        activityDao.insertAll(activities)
-    }
-
-    /**
-     * Retrieves an activity by its ID.
-     * @param activityId The activity identifier.
-     * @return The Activity object or null if not found.
-     */
-    suspend fun getActivityById(activityId: Long): Activity? {
-        return activityDao.getActivityById(activityId)
-    }
-
-    /**
-     * Clears and replaces group members for a specific activity.
-     * Used when saving manually edited or automatically generated groups.
-     * @param activityId The activity identifier.
-     * @param groups List of groups, each group being a list of Student objects.
+     * Records group assignments for an activity.
+     * Clears existing members for the activity before inserting the new group structure.
      */
     suspend fun persistGroups(activityId: Long, groups: List<List<Student>>) {
         groupMemberDao.clearGroupMembersForActivity(activityId)
@@ -113,31 +121,23 @@ class CourseRepository(
                 )
             }
         }
+
         groupMemberDao.insertGroupMembers(groupMembers)
     }
 
     /**
-     * Loads the saved group structure for an activity.
-     * @param activityId The activity identifier.
-     * @return List of GroupMember records.
+     * Retrieves all members and their group assignments for a specific activity.
      */
-    suspend fun getGroupMembers(activityId: Long): List<GroupMember> {
-        return groupMemberDao.getGroupMembersForActivity(activityId)
-    }
+    suspend fun getGroupMembers(activityId: Long): List<GroupMember> =
+        groupMemberDao.getGroupMembersForActivity(activityId)
 
     /**
-     * Retrieves all group members for backup purposes.
-     * @return List of all GroupMember objects.
+     * Fetches all group membership records from the local database.
      */
-    suspend fun getAllGroupMembers(): List<GroupMember> {
-        return groupMemberDao.getAllGroupMembers()
-    }
+    suspend fun getAllGroupMembers(): List<GroupMember> = groupMemberDao.getAllGroupMembers()
 
     /**
-     * Inserts multiple group members at once, used during database restoration.
-     * @param members List of GroupMember objects to insert.
+     * Bulk inserts a list of group membership records.
      */
-    suspend fun insertAllGroupMembers(members: List<GroupMember>) {
-        groupMemberDao.insertAll(members)
-    }
+    suspend fun insertAllGroupMembers(members: List<GroupMember>) = groupMemberDao.insertAll(members)
 }

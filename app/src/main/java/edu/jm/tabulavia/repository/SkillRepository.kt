@@ -70,7 +70,7 @@ class SkillRepository(
      * @return List of SkillStatus objects with current level, trend, and metadata.
      */
     suspend fun calculateStudentSkillStatuses(
-        studentId: Long,
+        studentId: String,
         courseSkills: List<CourseSkill>,
         historyCount: Int = 3
     ): List<SkillStatus> {

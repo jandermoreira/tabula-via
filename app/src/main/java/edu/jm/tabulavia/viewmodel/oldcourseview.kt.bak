@@ -213,7 +213,7 @@ class CourseViewModelOLD(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun loadStudentDetails(studentId: Long) {
+    fun loadStudentDetails(studentId: String) {
         viewModelScope.launch {
             _selectedStudentDetails.value = studentDao.getStudentById(studentId)
 
@@ -279,7 +279,7 @@ class CourseViewModelOLD(application: Application) : AndroidViewModel(applicatio
     }
 
     fun addSkillAssessment(
-        studentId: Long,
+        studentId: String,
         skillName: String,
         level: SkillLevel,
         source: AssessmentSource,
@@ -300,7 +300,7 @@ class CourseViewModelOLD(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun addProfessorSkillAssessments(studentId: Long, assessments: List<Pair<String, SkillLevel>>) {
+    fun addProfessorSkillAssessments(studentId: String, assessments: List<Pair<String, SkillLevel>>) {
         viewModelScope.launch {
             val newAssessments = assessments.map { (skillName, level) ->
                 SkillAssessment(
@@ -317,7 +317,7 @@ class CourseViewModelOLD(application: Application) : AndroidViewModel(applicatio
     }
 
     // --- NOVO: Lógica para calcular o status das habilidades do aluno ---
-    private suspend fun calculateStudentSkillStatus(studentId: Long, historyCount: Int = 3) {
+    private suspend fun calculateStudentSkillStatus(studentId: String, historyCount: Int = 3) {
         Log.d(
             "CourseViewModel",
             "Iniciando cálculo de status de habilidades para studentId: $studentId"

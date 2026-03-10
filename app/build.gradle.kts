@@ -91,5 +91,8 @@ dependencies {
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.storage.ktx)
 
+    implementation("com.google.firebase:firebase-firestore-ktx:24.9.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
     implementation(libs.kotlinx.serialization.json)
 }

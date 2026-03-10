@@ -12,11 +12,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.toMutableStateList
+import androidx.compose.runtime.toString
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import edu.jm.tabulavia.db.AppDatabase
 import edu.jm.tabulavia.db.DatabaseProvider
 import edu.jm.tabulavia.model.*
 import edu.jm.tabulavia.model.grouping.Group
@@ -29,25 +31,27 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-/**
- * Main ViewModel for handling course-related operations.
- * Manages state for classes, student records, skill assessments, and group formation.
- */
 class CourseViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = DatabaseProvider.getDatabase(application)
 
-    // Data access repositories
     private val courseRepository = CourseRepository(
         courseDao = db.courseDao(),
         activityDao = db.activityDao(),
-        groupMemberDao = db.groupMemberDao()
+        groupMemberDao = db.groupMemberDao(),
+        firestore = Firebase.firestore
     )
-    private val studentRepository = StudentRepository(db.studentDao())
-    private val attendanceRepository = AttendanceRepository(db.attendanceDao())
+    private val studentRepository = StudentRepository(
+        studentDao = db.studentDao(),
+        firestore = Firebase.firestore
+    )
+    private val attendanceRepository = AttendanceRepository(
+        attendanceDao = db.attendanceDao()
+    )
     private val skillRepository = SkillRepository(
         courseSkillDao = db.courseSkillDao(),
         skillAssessmentDao = db.skillAssessmentDao(),
@@ -104,8 +108,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _generatedGroups = MutableStateFlow<List<List<Student>>>(emptyList())
     val generatedGroups: StateFlow<List<List<Student>>> = _generatedGroups.asStateFlow()
 
-    private val _todaysAttendance = MutableStateFlow<Map<Long, AttendanceStatus>>(emptyMap())
-    val todaysAttendance: StateFlow<Map<Long, AttendanceStatus>> = _todaysAttendance.asStateFlow()
+    private val _todaysAttendance = MutableStateFlow<Map<String, AttendanceStatus>>(emptyMap())
+    val todaysAttendance: StateFlow<Map<String, AttendanceStatus>> = _todaysAttendance.asStateFlow()
 
     private val _selectedGroupDetails = MutableStateFlow<List<Student>>(emptyList())
     val selectedGroupDetails: StateFlow<List<Student>> = _selectedGroupDetails.asStateFlow()
@@ -132,10 +136,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     var groupingCriterion by mutableStateOf("Aleatório")
     var groupFormationType by mutableStateOf("Número de grupos")
     var groupFormationValue by mutableStateOf("")
-
-    init {
-        loadAllCourses()
-    }
 
     // --- Loading and Clearing Logic ---
 
@@ -171,11 +171,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             val lastSessionToday = attendanceRepository.getLastSessionToday(sessions)
 
-            if (lastSessionToday != null) {
+            _todaysAttendance.value = if (lastSessionToday != null) {
                 val records = attendanceRepository.getRecordsForSession(lastSessionToday.sessionId)
-                _todaysAttendance.value = records.associate { it.studentId to it.status }
+                // studentId já é String, então não é necessário converter
+                records.associate { it.studentId.toString() to it.status }
             } else {
-                _todaysAttendance.value = emptyMap()
+                emptyMap()
             }
         }
     }
@@ -204,7 +205,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     // --- Student Management Logic ---
 
     /**
-     * populates form fields for student editing.
+     * Populates form fields for student editing.
      */
     fun selectStudentForEditing(student: Student) {
         studentName = student.name
@@ -223,8 +224,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             displayName = studentDisplayName,
             studentNumber = studentNumber
         )
+        val uid = Firebase.auth.currentUser?.uid ?: return
         viewModelScope.launch {
-            studentRepository.updateStudent(updatedStudent)
+            studentRepository.insertStudent(updatedStudent, uid)
             loadCourseDetails(studentToUpdate.classId)
             onDismiss()
         }
@@ -233,7 +235,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Loads comprehensive data for a student, including attendance percentage and skill status.
      */
-    fun loadStudentDetails(studentId: Long) {
+    fun loadStudentDetails(studentId: String) {
         viewModelScope.launch {
             _selectedStudentDetails.value = studentRepository.getStudentById(studentId)
 
@@ -334,7 +336,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      * records a single skill assessment for a student.
      */
     fun addSkillAssessment(
-        studentId: Long,
+        studentId: String,
         skillName: String,
         level: SkillLevel,
         source: AssessmentSource,
@@ -358,7 +360,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Records multiple professor observations for a student.
      */
-    fun addProfessorSkillAssessments(studentId: Long, assessments: List<Pair<String, SkillLevel>>) {
+    fun addProfessorSkillAssessments(
+        studentId: String,
+        assessments: List<Pair<String, SkillLevel>>
+    ) {
         viewModelScope.launch {
             val newAssessments = assessments.map { (skillName, level) ->
                 SkillAssessment(
@@ -533,7 +538,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * selects a group to display its members.
+     * Selects a group to display its members.
      */
     fun loadGroupDetails(groupNumber: Int) {
         val group = _generatedGroups.value.getOrNull(groupNumber - 1)
@@ -556,7 +561,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         val records = attendanceRepository.getRecordsForSession(session.sessionId)
         val studentNameMap = studentsForClass.value.associate { it.studentId to it.displayName }
         _frequencyDetails.value = records.mapNotNull { record ->
-            studentNameMap[record.studentId]?.let { name -> name to record.status }
+            studentNameMap[record.studentId.toString()]?.let { name -> name to record.status }
         }.toMap()
     }
 
@@ -591,11 +596,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Prepares the state to edit an existing session.
      */
-    suspend fun prepareToEditFrequencySession(session: ClassSession): Map<Long, AttendanceStatus> {
+    suspend fun prepareToEditFrequencySession(session: ClassSession): Map<String, AttendanceStatus> {
         editingSession = session
         newSessionCalendar = Calendar.getInstance().apply { timeInMillis = session.timestamp }
         return attendanceRepository.getRecordsForSession(session.sessionId)
-            .associate { it.studentId to it.status }
+            .associate { it.studentId.toString() to it.status }
     }
 
     /**
@@ -630,7 +635,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Saves attendance records for the selected course and session date.
      */
-    fun saveFrequency(attendanceMap: Map<Long, AttendanceStatus>, onSaveComplete: () -> Unit) {
+    fun saveFrequency(attendanceMap: Map<String, AttendanceStatus>, onSaveComplete: () -> Unit) {
         val classId = _selectedCourse.value?.classId ?: return
         if (attendanceMap.isEmpty()) {
             _userMessage.value = "Nenhum aluno para registrar."
@@ -727,6 +732,61 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Clears all tables from the local Room database.
+     */
+    fun clearDatabase() {
+        viewModelScope.launch {
+            try {
+
+                clearFirestoreDatabase()
+
+                db.clearAllTables()
+
+                _courses.value = emptyList()
+                _selectedCourse.value = null
+                _studentsForClass.value = emptyList()
+                _generatedGroups.value = emptyList()
+
+                _userMessage.value = "Base de dados limpa com sucesso."
+
+            } catch (e: Exception) {
+                _userMessage.value = "Erro ao limpar a base: ${e.message}"
+            }
+        }
+    }
+
+    private suspend fun clearFirestoreDatabase() {
+        deleteCollection("courses")
+        deleteCollection("students")
+        deleteCollection("attendance")
+        deleteCollection("skills")
+        deleteCollection("activities")
+    }
+
+    private suspend fun deleteCollection(collectionPath: String, batchSize: Int = 100) {
+
+        val firestore = Firebase.firestore
+
+        while (true) {
+
+            val snapshot = firestore.collection(collectionPath)
+                .limit(batchSize.toLong())
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) break
+
+            val batch = firestore.batch()
+
+            for (doc in snapshot.documents) {
+                batch.delete(doc.reference)
+            }
+
+            batch.commit().await()
+        }
+    }
+
     // --- Course and Student Creation Logic ---
 
     /**
@@ -734,6 +794,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun addCourse(onCourseAdded: () -> Unit) {
         if (courseName.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
+            val uid = Firebase.auth.currentUser?.uid ?: return
             viewModelScope.launch {
                 val newCourse = Course(
                     className = courseName,
@@ -741,9 +802,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     period = period,
                     numberOfClasses = numberOfClasses
                 )
-                val courseId = courseRepository.insertCourse(newCourse)
+                val courseId = courseRepository.insertCourse(newCourse, uid)
 
-                val skills = defaultComputerScienceSkills.map { CourseSkill(courseId = courseId, skillName = it) }
+                val skills = defaultComputerScienceSkills.map {
+                    CourseSkill(
+                        courseId = courseId,
+                        skillName = it
+                    )
+                }
                 skillRepository.insertCourseSkills(skills)
 
                 courseName = ""
@@ -761,14 +827,31 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun addStudent(onStudentsAdded: () -> Unit) {
         val classId = _selectedCourse.value?.classId ?: return
+        val uid = Firebase.auth.currentUser?.uid ?: run {
+            _userMessage.value = "Usuário não logado."
+            return
+        }
+
         if (studentName.isNotBlank() && studentNumber.isNotBlank()) {
             viewModelScope.launch {
-                val result = studentRepository.addStudent(studentName, studentNumber, classId)
-                _userMessage.value = result.message
-                if (result.isSuccess) {
+                val newStudent = Student(
+                    studentId = "", // generated in firestore
+                    name = studentName,
+                    displayName = studentDisplayName,
+                    studentNumber = studentNumber,
+                    classId = classId
+                )
+
+                try {
+                    val studentId = studentRepository.insertStudent(newStudent, uid)
+                    _userMessage.value = "Aluno adicionado com sucesso (ID: $studentId)."
                     studentName = ""
+                    studentDisplayName = ""
                     studentNumber = ""
+                } catch (e: Exception) {
+                    _userMessage.value = "Erro ao adicionar aluno: ${e.message}"
                 }
+
                 loadCourseDetails(classId)
                 onStudentsAdded()
             }
@@ -776,15 +859,47 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * parses and adds multiple students from a bulk text input.
+     * Parses and adds multiple students from a bulk text input.
+     */
+    /**
+     * Parses and inserts multiple students from a bulk text input.
+     * Each line should contain "name, studentNumber" (displayName optional).
+     * Synchronizes each student with Firestore using the current Firebase UID.
      */
     fun addStudentsInBulk(onStudentsAdded: () -> Unit) {
         val classId = _selectedCourse.value?.classId ?: return
+        val uid = Firebase.auth.currentUser?.uid ?: run {
+            _userMessage.value = "Usuário não logado."
+            return
+        }
+
         if (bulkStudentText.isNotBlank()) {
             viewModelScope.launch {
-                val result = studentRepository.addStudentsInBulk(bulkStudentText, classId)
-                _userMessage.value = result.message
-                bulkStudentText = ""
+                try {
+                    val students = bulkStudentText.lines()
+                        .mapNotNull { line ->
+                            val parts = line.split(",").map { it.trim() }
+                            if (parts.size >= 2) {
+                                Student(
+                                    studentId = "",
+                                    name = parts[0],
+                                    displayName = parts.getOrElse(1) { parts[0] },
+                                    studentNumber = parts[1],
+                                    classId = classId
+                                )
+                            } else null
+                        }
+
+                    for (student in students) {
+                        studentRepository.insertStudent(student, uid)
+                    }
+
+                    _userMessage.value = "Alunos adicionados com sucesso."
+                    bulkStudentText = ""
+                } catch (e: Exception) {
+                    _userMessage.value = "Erro ao adicionar alunos: ${e.message}"
+                }
+
                 loadCourseDetails(classId)
                 onStudentsAdded()
             }
@@ -811,7 +926,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
         val allStudents = _studentsForClass.value
         val currentGroups = _generatedGroups.value
-        val assignedStudentIds = mutableSetOf<Long>()
+        val assignedStudentIds = mutableSetOf<String>()
 
         currentGroups.forEachIndexed { index, groupStudents ->
             if (groupStudents.isNotEmpty()) {
@@ -895,7 +1010,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * persists the manual group configuration to the repository.
+     * Persists the manual group configuration to the repository.
      */
     private fun commitManualGroups() {
         val groups = manualGroups.map { it.students.toList() }
@@ -908,4 +1023,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             )
         }
     }
+
+
 }

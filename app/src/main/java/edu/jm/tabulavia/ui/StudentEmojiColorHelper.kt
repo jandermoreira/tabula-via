@@ -151,8 +151,8 @@ object StudentEmojiColorHelper {
 //        "🧉", "🧊"
 //    )
 
-    fun mapStudentIdToEmoji(studentId: Long): String {
-        val index = (studentId * 137 % animalEmojis.size.toLong()).toInt()
+    fun mapStudentIdToEmoji(studentId: String): String {
+        val index = (studentId.toLong() * 137 % animalEmojis.size.toLong()).toInt()
         return animalEmojis[index]
 //        return "\uD83D\uDC64"
     }
@@ -162,10 +162,10 @@ object StudentEmojiColorHelper {
      * * @param studentId The unique identifier of the student.
      * @return A Compose Color object with calculated Hue, Saturation, and Value.
      */
-    fun generateColorFromId(studentId: Long): Color {
-        val hue = (studentId * 137 % 360).toFloat()
-        val saturation = if (studentId % 2L == 0L) 0.9f else 0.7f
-        val value = if (studentId % 3L == 0L) 0.9f else 1f
+    fun generateColorFromId(studentId: String): Color {
+        val hue = (studentId.toLong() * 137 % 360).toFloat()
+        val saturation = if (studentId.toLong() % 2L == 0L) 0.9f else 0.7f
+        val value = if (studentId.toLong() % 3L == 0L) 0.9f else 1f
 
         return Color.hsv(hue, saturation, value)
     }

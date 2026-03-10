@@ -18,7 +18,7 @@ import edu.jm.tabulavia.viewmodel.CourseViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentSkillsScreen(
-    studentId: Long,
+    studentId: String,
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit
 ) {
@@ -72,7 +72,7 @@ fun StudentSkillsScreen(
 
 @Composable
 fun SkillItemRow(
-    studentId: Long,
+    studentId: String,
     skillSummary: SkillAssessmentsSummary,
     onAssessmentChange: (SkillLevel, AssessmentSource) -> Unit
 ) {
@@ -114,7 +114,7 @@ fun SkillItemRow(
 
 @Composable
 fun AssessmentSourceRow(
-    studentId: Long,
+    studentId: String,
     skillName: String,
     source: AssessmentSource,
     currentLevel: SkillLevel?,
