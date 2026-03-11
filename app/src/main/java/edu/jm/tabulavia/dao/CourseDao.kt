@@ -19,7 +19,7 @@ interface CourseDao {
      * Replaces the existing entry if there is a conflict.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCourse(course: Course): Long
+    suspend fun insertCourse(course: Course)
 
     /**
      * Inserts a list of courses into the database.
@@ -40,11 +40,10 @@ interface CourseDao {
      * Returns null if no course is found with the given ID.
      */
     @Query("SELECT * FROM classes WHERE classId = :classId")
-    suspend fun getCourseById(classId: Long): Course?
+    suspend fun getCourseById(classId: String): Course?
 
     /**
      * Updates a specific course based on its unique identifier.
-     * Returns null if no course is found with the given ID.
      */
     @Update
     suspend fun updateCourse(course: Course)
