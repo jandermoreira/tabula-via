@@ -1,7 +1,7 @@
 /**
  * Data Access Objects for Activity and ActivityHighlightedSkill entities.
  * Provides methods to interact with the 'activities' and
- * 'activity_highlighted_skills' tables.
+ * 'activity_highlighted_skills' tables using String-based identifiers.
  */
 package edu.jm.tabulavia.dao
 
@@ -19,7 +19,7 @@ interface ActivityDao {
      * Inserts a single activity into the database.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(activity: Activity): Long
+    suspend fun insert(activity: Activity)
 
     /**
      * Inserts multiple activities into the database.
@@ -28,19 +28,19 @@ interface ActivityDao {
     suspend fun insertAll(activities: List<Activity>)
 
     /**
-     * Retrieves an activity by its identifier.
+     * Retrieves an activity by its persistent String identifier.
      */
     @Query("SELECT * FROM activities WHERE activityId = :activityId")
-    suspend fun getActivityById(activityId: Long): Activity?
+    suspend fun getActivityById(activityId: String): Activity?
 
     /**
-     * Retrieves all activities for a specific class ordered by due date.
+     * Retrieves all activities for a specific class ordered by timestamp.
      */
-    @Query("SELECT * FROM activities WHERE classId = :classId ORDER BY dueDate DESC")
-    suspend fun getActivitiesForClass(classId: Long): List<Activity>
+    @Query("SELECT * FROM activities WHERE classId = :classId ORDER BY timestamp DESC")
+    suspend fun getActivitiesForClass(classId: String): List<Activity>
 
     /**
-     * Retrieves all activities.
+     * Retrieves all activities across all courses.
      */
     @Query("SELECT * FROM activities")
     suspend fun getAllActivities(): List<Activity>
@@ -56,10 +56,10 @@ interface ActivityHighlightedSkillDao {
     suspend fun insertAll(items: List<ActivityHighlightedSkill>)
 
     /**
-     * Removes all highlighted skills associated with an activity.
+     * Removes all highlighted skills associated with a specific activity.
      */
     @Query("DELETE FROM activity_highlighted_skills WHERE activityId = :activityId")
-    suspend fun clearForActivity(activityId: Long)
+    suspend fun clearForActivity(activityId: String)
 
     /**
      * Retrieves the names of highlighted skills for an activity.
@@ -72,10 +72,10 @@ interface ActivityHighlightedSkillDao {
         ORDER BY skillName ASC
         """
     )
-    suspend fun getHighlightedSkillNamesForActivity(activityId: Long): List<String>
+    suspend fun getHighlightedSkillNamesForActivity(activityId: String): List<String>
 
     /**
-     * Retrieves all highlighted skill mappings.
+     * Retrieves all highlighted skill mappings from the database.
      */
     @Query("SELECT * FROM activity_highlighted_skills")
     suspend fun getAll(): List<ActivityHighlightedSkill>
