@@ -1,7 +1,7 @@
 /**
  * Student entity for the 'students' table.
- * Manages student data and its relationship with the Course entity.
- * Synchronized between Room local database and Firestore.
+ * Manages student data with a unique identifier to ensure isolation per course
+ * and persistence across device reinstalls.
  */
 package edu.jm.tabulavia.model
 
@@ -14,19 +14,21 @@ import kotlinx.serialization.Serializable
 @Serializable
 @Entity(
     tableName = "students",
-    foreignKeys = [ForeignKey(
-        entity = Course::class,
-        parentColumns = ["classId"],
-        childColumns = ["classId"],
-        onDelete = ForeignKey.CASCADE
-    )],
+    foreignKeys = [
+        ForeignKey(
+            entity = Course::class,
+            parentColumns = ["classId"],
+            childColumns = ["classId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
     indices = [Index(value = ["classId"])]
 )
 data class Student(
 
     /**
-     * Firestore document identifier.
-     * Stored locally and used as the Room primary key.
+     * Unique identifier for the student.
+     * Must be a UUID generated at creation or retrieved from Firestore.
      */
     @PrimaryKey
     val studentId: String,
@@ -48,6 +50,7 @@ data class Student(
 
     /**
      * Reference to the associated class ID.
+     * Ensures the student belongs exclusively to one course instance.
      */
-    val classId: Long
+    val classId: String
 )
