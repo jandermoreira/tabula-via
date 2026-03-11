@@ -1,84 +1,73 @@
 /**
  * Repository for managing Student entities.
- * Handles local Room persistence and Firestore synchronization.
+ * Handles local Room persistence and Firestore synchronization using persistent String IDs.
  */
 package edu.jm.tabulavia.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import edu.jm.tabulavia.dao.StudentDao
 import edu.jm.tabulavia.model.Student
 import kotlinx.coroutines.tasks.await
 
 class StudentRepository(
-    private val studentDao: StudentDao, private val firestore: FirebaseFirestore
+    private val studentDao: StudentDao,
+    private val firestore: FirebaseFirestore
 ) {
 
     /**
-     * Reference to the Firestore collection for a specific user's students.
+     * Reference to the Firestore document for a specific student.
+     * Path: users/{uid}/courses/{classId}/students/{studentId}
      */
-    private fun userStudentsRef(uid: String) =
-        firestore.collection("users").document(uid).collection("students")
+    private fun studentDocRef(uid: String, classId: String, studentId: String) =
+        firestore.collection("users")
+            .document(uid)
+            .collection("courses")
+            .document(classId)
+            .collection("students")
+            .document(studentId)
 
     // ----------------- STUDENT -----------------
 
     /**
      * Inserts or updates a student locally and synchronizes with Firestore.
-     * Ensures no duplication by checking studentNumber within the class.
-     * @param student The student entity to persist.
+     * Uses the studentId (UUID) provided by the model.
+     * @param student The student entity with a pre-generated UUID.
      * @param uid Firebase user identifier.
-     * @return The Firestore ID of the student.
      */
-    suspend fun insertStudent(student: Student, uid: String): String {
-        val existingStudent = studentDao.getStudentByNumberInClass(student.studentNumber, student.classId)
+    suspend fun insertStudent(student: Student, uid: String) {
+        // Persistência Local (Room)
+        // O studentId já é um UUID gerado no ViewModel
+        studentDao.insertStudent(student)
 
-        val data = hashMapOf(
-            "name" to student.name,
-            "displayName" to student.displayName,
-            "studentNumber" to student.studentNumber,
-            "classId" to student.classId
-        )
-
-        return if (existingStudent != null) {
-            val updatedStudent = student.copy(studentId = existingStudent.studentId)
-            studentDao.updateStudent(updatedStudent)
-            userStudentsRef(uid).document(existingStudent.studentId).set(data, SetOptions.merge()).await()
-            existingStudent.studentId
-        } else {
-            val docRef = userStudentsRef(uid).add(data).await()
-            val newStudent = student.copy(studentId = docRef.id)
-            studentDao.insertStudent(newStudent)
-            docRef.id
-        }
+        // Sincronização Remota (Firestore)
+        // Usamos o studentId como o ID do documento para garantir consistência
+        studentDocRef(uid, student.classId, student.studentId)
+            .set(student)
+            .await()
     }
 
     /**
      * Bulk inserts or updates a list of students locally.
-     * @param students List of students.
+     * Useful for restoration or bulk migrations.
      */
     suspend fun insertAllStudents(students: List<Student>) {
         studentDao.insertAll(students)
     }
 
     /**
-     * Retrieves all students from a specific class locally.
-     * @param classId Identifier of the class.
-     * @return List of students in the class.
+     * Retrieves all students from a specific class locally using String ID.
      */
-    suspend fun getStudentsForClass(classId: Long): List<Student> =
+    suspend fun getStudentsForClass(classId: String): List<Student> =
         studentDao.getStudentsForClass(classId)
 
     /**
-     * Retrieves a student by their local identifier.
-     * @param studentId Identifier of the student.
-     * @return Student entity or null if not found.
+     * Retrieves a student by their unique String identifier.
      */
     suspend fun getStudentById(studentId: String): Student? =
         studentDao.getStudentById(studentId)
 
     /**
-     * Retrieves all students locally.
-     * @return List of all students.
+     * Retrieves all students across all courses locally.
      */
     suspend fun getAllStudents(): List<Student> = studentDao.getAllStudents()
 }

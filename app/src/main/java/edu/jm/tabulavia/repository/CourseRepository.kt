@@ -1,11 +1,10 @@
 /**
  * Repository for course management, activities, and group formations.
- * Handles local Room persistence and Firestore synchronization for courses, activities, and groups.
+ * Handles local Room persistence and Firestore synchronization using persistent String IDs.
  */
 package edu.jm.tabulavia.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import edu.jm.tabulavia.dao.ActivityDao
 import edu.jm.tabulavia.dao.CourseDao
 import edu.jm.tabulavia.dao.GroupMemberDao
@@ -37,43 +36,25 @@ class CourseRepository(
     suspend fun getAllCourses(): List<Course> = courseDao.getAllCourses()
 
     /**
-     * Retrieves a single course by its local identifier.
+     * Retrieves a single course by its persistent String identifier.
      */
-    suspend fun getCourseById(classId: Long): Course? = courseDao.getCourseById(classId)
+    suspend fun getCourseById(classId: String): Course? = courseDao.getCourseById(classId)
 
     /**
      * Saves a course locally and synchronizes it with Firestore.
-     * Updates existing remote documents or creates a new one if firestoreId is missing.
+     * Uses the pre-generated classId (UUID) as the document name.
      */
-    suspend fun insertCourse(course: Course, uid: String): Long {
+    suspend fun insertCourse(course: Course, uid: String): String {
+        // Save locally - O classId já é o UUID gerado no CourseViewModel
+        courseDao.insertCourse(course)
 
-        // Save locally
-        val localId = courseDao.insertCourse(course)
+        // Sincronização direta: O ID do documento no Firestore é o próprio UUID do curso
+        userCoursesRef(uid)
+            .document(course.classId)
+            .set(course)
+            .await()
 
-        // Prepare Firestore data
-        val data = hashMapOf(
-            "className" to course.className,
-            "academicYear" to course.academicYear,
-            "period" to course.period,
-            "numberOfClasses" to course.numberOfClasses
-        )
-
-        if (course.firestoreId == null) {
-            val docRef = userCoursesRef(uid).add(data).await()
-            val updatedCourse = course.copy(
-                classId = localId,
-                firestoreId = docRef.id
-            )
-
-            courseDao.updateCourse(updatedCourse)
-        } else {
-            userCoursesRef(uid)
-                .document(course.firestoreId)
-                .set(data, SetOptions.merge())
-                .await()
-        }
-
-        return localId
+        return course.classId
     }
 
     /**
@@ -84,9 +65,9 @@ class CourseRepository(
     // ----------------- ACTIVITY -----------------
 
     /**
-     * Retrieves all activities associated with a specific course.
+     * Retrieves all activities associated with a specific course via String ID.
      */
-    suspend fun getActivitiesForClass(classId: Long): List<Activity> =
+    suspend fun getActivitiesForClass(classId: String): List<Activity> =
         activityDao.getActivitiesForClass(classId)
 
     /**
@@ -96,6 +77,7 @@ class CourseRepository(
 
     /**
      * Persists a single activity record locally.
+     * Atividades também devem migrar para String ID se precisarem de sincronização robusta.
      */
     suspend fun insertActivity(activity: Activity): Long = activityDao.insert(activity)
 
@@ -113,7 +95,6 @@ class CourseRepository(
 
     /**
      * Records group assignments for an activity.
-     * Clears existing members for the activity before inserting the new group structure.
      */
     suspend fun persistGroups(activityId: Long, groups: List<List<Student>>) {
         groupMemberDao.clearGroupMembersForActivity(activityId)
@@ -122,7 +103,7 @@ class CourseRepository(
             studentList.map { student ->
                 GroupMember(
                     activityId = activityId,
-                    studentId = student.studentId,
+                    studentId = student.studentId, // studentId já é String (UUID)
                     groupNumber = groupIndex + 1
                 )
             }
@@ -145,5 +126,5 @@ class CourseRepository(
     /**
      * Bulk inserts a list of group membership records.
      */
-    suspend fun insertAllGroupMembers(members: List<GroupMember>) = groupMemberDao.insertAll(members)
+    suspend fun insertAllMembers(members: List<GroupMember>) = groupMemberDao.insertAll(members)
 }
