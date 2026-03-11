@@ -25,23 +25,21 @@ fun EditStudentDialog(
         text = {
             Column {
                 OutlinedTextField(
+                    value = viewModel.studentNumber,
+                    onValueChange = { viewModel.studentNumber = it },
+                    label = { Text("Nº UFSCar") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
                     value = viewModel.studentName,
                     onValueChange = { viewModel.studentName = it },
                     label = { Text("Nome Completo") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = viewModel.studentDisplayName,
                     onValueChange = { viewModel.studentDisplayName = it },
                     label = { Text("Nome de Apresentação") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = viewModel.studentNumber,
-                    onValueChange = { viewModel.studentNumber = it },
-                    label = { Text("Nº UFSCar") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }

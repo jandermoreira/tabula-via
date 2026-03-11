@@ -86,7 +86,6 @@ fun ActivityStudentListScreen(
 
                     StudentItem(
                         student = student,
-                        emoji = studentEmoji,
                         isAbsent = isStudentAbsent,
                         modifier = Modifier
                             .padding(8.dp)

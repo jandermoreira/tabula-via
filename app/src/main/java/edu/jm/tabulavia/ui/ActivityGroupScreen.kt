@@ -60,7 +60,6 @@ import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.grouping.Location
 import edu.jm.tabulavia.viewmodel.CourseViewModel
-import edu.jm.tabulavia.ui.StudentEmojiColorHelper.mapStudentIdToEmoji
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -334,12 +333,10 @@ private fun GroupsExpandedView(
                                 todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
                             StudentItem(
                                 student = student,
-                                emoji = mapStudentIdToEmoji(student.studentId),
                                 isAbsent = isStudentAbsent,
                                 modifier = Modifier
                                     .width(90.dp)
                                     .clickable { onStudentClick(student) }
-//                                    .alpha(if (isStudentAbsent) 0.5f else 1f)
                             )
                         }
                     }
@@ -666,9 +663,7 @@ private fun ManualGroupEditorView(
                         viewModel.todaysAttendance.collectAsState().value[draggedStudent!!.student.studentId] == AttendanceStatus.ABSENT
                     StudentItem(
                         student = draggedStudent!!.student,
-                        emoji = mapStudentIdToEmoji(draggedStudent!!.student.studentId),
                         isAbsent = isStudentAbsent,
-//                        modifier = Modifier.alpha(if (isStudentAbsent) 0.5f else 1f)
                     )
                 }
             }
@@ -718,9 +713,7 @@ private fun DraggableStudentWrapper(
             }) {
         StudentItem(
             student = student,
-            emoji = mapStudentIdToEmoji(student.studentId),
             isAbsent = isStudentAbsent,
-//            modifier = Modifier.alpha(if (isStudentAbsent) 0.5f else 1f)
         )
     }
 }

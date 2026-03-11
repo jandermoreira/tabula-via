@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.ui.StudentEmojiColorHelper.generateColorFromId
+import edu.jm.tabulavia.ui.StudentEmojiColorHelper.mapStudentIdToEmoji
 
 /**
  * Custom organic shape used as a background highlight for icons and emojis.
@@ -52,22 +53,20 @@ private val BlobShape = GenericShape { size, _ ->
 /**
  * Displays a student entry with an emoji avatar and their display name.
  * * @param student The student data model.
- * @param emoji The emoji character to represent the student.
  * @param modifier Decorator for the root layout of this item.
  * @param isAbsent Flag to trigger visual styling for missing students.
  */
 @Composable
 fun StudentItem(
     student: Student,
-    emoji: String,
     modifier: Modifier = Modifier,
     isAbsent: Boolean
 ) {
     // Determine visual state and color based on presence
-    val backgroundColor = remember(student.studentId, isAbsent) {
-        if (isAbsent) Color.Gray else generateColorFromId(student.studentId)
-    }
+    val backgroundColor = if (isAbsent) Color.Gray else generateColorFromId(student.studentNumber)
     val emojiColor = if (isAbsent) Color.Gray else MaterialTheme.colorScheme.onSurface
+
+    val emoji = mapStudentIdToEmoji(student.studentNumber)
 
     Column(
         modifier = modifier.alpha(if (isAbsent) 0.5f else 1f),
@@ -104,8 +103,8 @@ fun StudentItem(
 fun EmojiWithBlob(
     emoji: String,
     backgroundColor: Color,
-    color: Color = MaterialTheme.colorScheme.onSurface,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.onSurface
 ) {
     Box(
         modifier = modifier.size(64.dp),

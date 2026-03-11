@@ -9,18 +9,24 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.ui.StudentEmojiColorHelper.generateColorFromId
+import edu.jm.tabulavia.ui.StudentEmojiColorHelper.mapStudentIdToEmoji
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -113,7 +119,25 @@ fun AttendanceScreen(
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            // No AttendanceScreen, abaixo do HorizontalDivider
+            val stats = attendanceMap.values.groupingBy { it }.eachCount()
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "${stats[AttendanceStatus.PRESENT] ?: 0} Presentes",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "${stats[AttendanceStatus.ABSENT] ?: 0} Faltas",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+//            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
             // Scrollable list of students
             if (attendanceMap.isEmpty() && students.isNotEmpty()) {
@@ -198,55 +222,63 @@ fun AttendanceItem(
 ) {
     val isAbsent = status == AttendanceStatus.ABSENT
 
-    val studentEmoji = remember(student.studentId) {
-        StudentEmojiColorHelper.mapStudentIdToEmoji(student.studentId)
-    }
-    val backgroundColor = remember(student.studentId, isAbsent) {
-        if (isAbsent) androidx.compose.ui.graphics.Color.Gray
-        else StudentEmojiColorHelper.generateColorFromId(student.studentId)
-    }
-
     Card(
+        onClick = {
+            val nextStatus = if (isAbsent) AttendanceStatus.PRESENT else AttendanceStatus.ABSENT
+            onStatusChange(nextStatus)
+        },
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (isAbsent) 0.6f else 1f)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isAbsent)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            else
+                MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isAbsent) 0.dp else 2.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            EmojiWithBlob(
-                emoji = studentEmoji,
-                backgroundColor = backgroundColor,
-                modifier = Modifier.size(56.dp)
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text(
-                text = student.displayName,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            SingleChoiceSegmentedButtonRow {
-                SegmentedButton(
-                    selected = status == AttendanceStatus.PRESENT,
-                    onClick = { onStatusChange(AttendanceStatus.PRESENT) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                ) {
-                    Text("P")
-                }
-                SegmentedButton(
-                    selected = status == AttendanceStatus.ABSENT,
-                    onClick = { onStatusChange(AttendanceStatus.ABSENT) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                ) {
-                    Text("F")
-                }
+            Box(modifier = Modifier.scale(0.8f)) {
+                EmojiWithBlob(
+                    emoji = mapStudentIdToEmoji(student.studentNumber),
+                    backgroundColor = if (isAbsent) Color.Gray else generateColorFromId(student.studentNumber),
+                    color = if (isAbsent) Color.Gray else MaterialTheme.colorScheme.onSurface
+                )
             }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp)
+            ) {
+                Text(
+                    text = student.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isAbsent) Color.Gray else Color.Unspecified
+                )
+                Text(
+                    text = "${student.studentNumber}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isAbsent) Color.Gray.copy(alpha = 0.7f) else Color.Gray
+                )
+            }
+
+            Icon(
+                imageVector = if (isAbsent) Icons.Default.Close else Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = if (isAbsent)
+                    MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                else
+                    Color.Green,
+                modifier = Modifier.size(28.dp)
+            )
         }
     }
 }

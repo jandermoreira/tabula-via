@@ -7,6 +7,7 @@
 package edu.jm.tabulavia.ui
 
 import androidx.compose.ui.graphics.Color
+import android.util.Log
 
 object StudentEmojiColorHelper {
 
@@ -152,20 +153,22 @@ object StudentEmojiColorHelper {
 //    )
 
     fun mapStudentIdToEmoji(studentId: String): String {
-        val index = (studentId.toLong() * 137 % animalEmojis.size.toLong()).toInt()
+        val id = studentId.toLongOrNull() ?: return animalEmojis.first()
+        val index = (id * 137 % animalEmojis.size.toLong()).toInt()
         return animalEmojis[index]
-//        return "\uD83D\uDC64"
     }
 
     /**
      * Generates a deterministic color based on a student identifier using the HSV model.
-     * * @param studentId The unique identifier of the student.
+     * * @param studentNumber The unique identifier of the student.
      * @return A Compose Color object with calculated Hue, Saturation, and Value.
      */
-    fun generateColorFromId(studentId: String): Color {
-        val hue = (studentId.toLong() * 137 % 360).toFloat()
-        val saturation = if (studentId.toLong() % 2L == 0L) 0.9f else 0.7f
-        val value = if (studentId.toLong() % 3L == 0L) 0.9f else 1f
+    fun generateColorFromId(studentNumber: String): Color {
+        val id = studentNumber.toLongOrNull() ?: return Color.Red
+
+        val hue = (id * 137 % 360).toFloat()
+        val saturation = if (id % 2L == 0L) 0.9f else 0.7f
+        val value = if (id % 3L == 0L) 0.9f else 1f
 
         return Color.hsv(hue, saturation, value)
     }

@@ -45,7 +45,6 @@ fun AddStudentDialog(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Conteúdo que muda de acordo com a aba
                 when (selectedTabIndex) {
                     0 -> IndividualStudentForm(viewModel)
                     1 -> BulkStudentForm(viewModel)
@@ -86,6 +85,12 @@ fun IndividualStudentForm(viewModel: CourseViewModel) {
             value = viewModel.studentName,
             onValueChange = { viewModel.studentName = it },
             label = { Text("Nome Completo") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = viewModel.studentDisplayName,
+            onValueChange = { viewModel.studentDisplayName = it },
+            label = { Text("Nome Abreviado (opcional)") },
             modifier = Modifier.fillMaxWidth()
         )
     }

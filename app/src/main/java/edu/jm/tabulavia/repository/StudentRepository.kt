@@ -24,15 +24,14 @@ class StudentRepository(
 
     /**
      * Inserts or updates a student locally and synchronizes with Firestore.
+     * Ensures no duplication by checking studentNumber within the class.
      * @param student The student entity to persist.
      * @param uid Firebase user identifier.
-     * @return The local ID if inserted via Room.
+     * @return The Firestore ID of the student.
      */
     suspend fun insertStudent(student: Student, uid: String): String {
-        // Save locally
-        studentDao.insertStudent(student)
+        val existingStudent = studentDao.getStudentByNumberInClass(student.studentNumber, student.classId)
 
-        // Prepare Firestore data
         val data = hashMapOf(
             "name" to student.name,
             "displayName" to student.displayName,
@@ -40,18 +39,17 @@ class StudentRepository(
             "classId" to student.classId
         )
 
-        return if (student.studentId.isEmpty()) {
-            // New Firestore document
-            val docRef = userStudentsRef(uid).add(data).await()
-            val updatedStudent = student.copy(studentId = docRef.id)
-            studentDao.insertStudent(updatedStudent)
-            docRef.id
+        return if (existingStudent != null) {
+            val updatedStudent = student.copy(studentId = existingStudent.studentId)
+            studentDao.updateStudent(updatedStudent)
+            userStudentsRef(uid).document(existingStudent.studentId).set(data, SetOptions.merge()).await()
+            existingStudent.studentId
         } else {
-            // Update existing document
-            userStudentsRef(uid).document(student.studentId).set(data, SetOptions.merge()).await()
-            student.studentId
+            val docRef = userStudentsRef(uid).add(data).await()
+            val newStudent = student.copy(studentId = docRef.id)
+            studentDao.insertStudent(newStudent)
+            docRef.id
         }
-
     }
 
     /**

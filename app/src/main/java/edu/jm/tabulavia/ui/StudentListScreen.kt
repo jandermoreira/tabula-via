@@ -16,13 +16,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import edu.jm.tabulavia.R
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.viewmodel.CourseViewModel
-import edu.jm.tabulavia.ui.StudentEmojiColorHelper.mapStudentIdToEmoji
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -127,11 +124,9 @@ fun StudentsGrid(
         ) {
             items(students, key = { it.studentId }) { student ->
                 val isAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
-                val emoji = mapStudentIdToEmoji(student.studentId)
 
                 StudentItem(
                     student = student,
-                    emoji = emoji,
                     isAbsent = isAbsent,
                     modifier = Modifier.combinedClickable(
                         onClick = { onStudentClick(student.studentId) },

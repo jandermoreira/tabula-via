@@ -142,7 +142,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Loads the full list of available courses.
      */
-    private fun loadAllCourses() {
+    fun loadAllCourses() {
         viewModelScope.launch {
             _courses.value = courseRepository.getAllCourses()
         }
@@ -733,13 +733,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Clears all tables from the local Room database.
+     * Clears all local data and Firestore documents of the current user.
      */
     fun clearDatabase() {
         viewModelScope.launch {
             try {
-
-                clearFirestoreDatabase()
+                clearFirestoreDatabaseForCurrentUser()
 
                 withContext(Dispatchers.IO) {
                     db.clearAllTables()
@@ -758,20 +757,26 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private suspend fun clearFirestoreDatabase() {
-        deleteCollection("courses")
-        deleteCollection("students")
-        deleteCollection("attendance")
-        deleteCollection("skills")
-        deleteCollection("activities")
+    /**
+     * Deletes Firestore collections only for the current user.
+     */
+    private suspend fun clearFirestoreDatabaseForCurrentUser() {
+        val uid = Firebase.auth.currentUser?.uid ?: return
+
+        deleteCollection("users/$uid/courses")
+        deleteCollection("users/$uid/students")
+        deleteCollection("users/$uid/attendance")
+        deleteCollection("users/$uid/skills")
+        deleteCollection("users/$uid/activities")
     }
 
+    /**
+     * Deletes a collection in batches.
+     */
     private suspend fun deleteCollection(collectionPath: String, batchSize: Int = 100) {
-
         val firestore = Firebase.firestore
 
         while (true) {
-
             val snapshot = firestore.collection(collectionPath)
                 .limit(batchSize.toLong())
                 .get()
@@ -780,11 +785,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             if (snapshot.isEmpty) break
 
             val batch = firestore.batch()
-
             for (doc in snapshot.documents) {
                 batch.delete(doc.reference)
             }
-
             batch.commit().await()
         }
     }
@@ -859,16 +862,18 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         if (studentName.isNotBlank() && studentNumber.isNotBlank()) {
             viewModelScope.launch {
                 val newStudent = Student(
-                    studentId = "", // generated in firestore
+                    studentId = "",
                     name = studentName,
-                    displayName = studentDisplayName,
+                    displayName = if (studentDisplayName.isBlank()) studentName else studentDisplayName,
                     studentNumber = studentNumber,
                     classId = classId
                 )
 
                 try {
-                    val studentId = studentRepository.insertStudent(newStudent, uid)
-                    _userMessage.value = "Aluno adicionado com sucesso (ID: $studentId)."
+                    studentRepository.insertStudent(newStudent, uid)
+
+                    _userMessage.value = "Aluno adicionado com sucesso."
+
                     studentName = ""
                     studentDisplayName = ""
                     studentNumber = ""
@@ -883,49 +888,72 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Parses and adds multiple students from a bulk text input.
-     */
-    /**
-     * Parses and inserts multiple students from a bulk text input.
-     * Each line should contain "name, studentNumber" (displayName optional).
-     * Synchronizes each student with Firestore using the current Firebase UID.
+     * Processes and inserts multiple students from a bulk text input.
+     * Expected format per line: "studentNumber Full Name"
+     * Sets displayName as "First Name + Last Name".
      */
     fun addStudentsInBulk(onStudentsAdded: () -> Unit) {
-        val classId = _selectedCourse.value?.classId ?: return
-        val uid = Firebase.auth.currentUser?.uid ?: run {
+        val targetClassId = _selectedCourse.value?.classId ?: return
+        val currentUserId = Firebase.auth.currentUser?.uid ?: run {
             _userMessage.value = "Usuário não logado."
             return
         }
 
-        if (bulkStudentText.isNotBlank()) {
-            viewModelScope.launch {
-                try {
-                    val students = bulkStudentText.lines()
-                        .mapNotNull { line ->
-                            val parts = line.split(",").map { it.trim() }
-                            if (parts.size >= 2) {
-                                Student(
-                                    studentId = "",
-                                    name = parts[0],
-                                    displayName = parts.getOrElse(1) { parts[0] },
-                                    studentNumber = parts[1],
-                                    classId = classId
-                                )
-                            } else null
-                        }
+        if (bulkStudentText.isBlank()) {
+            _userMessage.value = "O texto de entrada está vazio."
+            return
+        }
 
-                    for (student in students) {
-                        studentRepository.insertStudent(student, uid)
+        viewModelScope.launch {
+            try {
+                val studentsToInsert = bulkStudentText.lineSequence()
+                    .filter { it.isNotBlank() }
+                    .mapNotNull { line ->
+                        // Splits by the first whitespace: [0] = Number, [1] = Full Name
+                        val lineParts = line.trim().split(Regex("\\s+"), limit = 2)
+
+                        if (lineParts.size == 2) {
+                            val number = lineParts[0]
+                            val fullName = lineParts[1]
+
+                            // Split the name to extract first and last parts
+                            val nameSegments = fullName.split(Regex("\\s+")).filter { it.isNotBlank() }
+
+                            val formattedDisplayName = when {
+                                nameSegments.size >= 2 -> "${nameSegments.first()} ${nameSegments.last()}"
+                                nameSegments.isNotEmpty() -> nameSegments.first()
+                                else -> fullName
+                            }
+
+                            Student(
+                                studentId = "",
+                                name = fullName,
+                                displayName = formattedDisplayName,
+                                studentNumber = number,
+                                classId = targetClassId
+                            )
+                        } else null
                     }
+                    .toList()
 
-                    _userMessage.value = "Alunos adicionados com sucesso."
-                    bulkStudentText = ""
-                } catch (e: Exception) {
-                    _userMessage.value = "Erro ao adicionar alunos: ${e.message}"
+                if (studentsToInsert.isEmpty()) {
+                    _userMessage.value = "Nenhum aluno válido encontrado. Use: Nº Nome"
+                    return@launch
                 }
 
-                loadCourseDetails(classId)
+                // Persist each student to the repository
+                for (student in studentsToInsert) {
+                    studentRepository.insertStudent(student, currentUserId)
+                }
+
+                _userMessage.value = "${studentsToInsert.size} aluno(s) adicionado(s) com sucesso."
+                bulkStudentText = ""
+
+                loadCourseDetails(targetClassId)
                 onStudentsAdded()
+
+            } catch (e: Exception) {
+                _userMessage.value = "Erro ao processar inserção: ${e.message}"
             }
         }
     }
