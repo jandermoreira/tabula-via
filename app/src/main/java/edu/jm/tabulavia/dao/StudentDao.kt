@@ -19,7 +19,7 @@ interface StudentDao {
      * Replaces the existing entry if there is a conflict.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertStudent(student: Student): Long
+    suspend fun insertStudent(student: Student)
 
     /**
      * Inserts a list of students into the database.
@@ -38,7 +38,7 @@ interface StudentDao {
      * Retrieves all students for a given class ordered by name.
      */
     @Query("SELECT * FROM students WHERE classId = :classId ORDER BY name ASC")
-    suspend fun getStudentsForClass(classId: Long): List<Student>
+    suspend fun getStudentsForClass(classId: String): List<Student>
 
     /**
      * Retrieves a specific student based on its unique identifier.
@@ -50,13 +50,13 @@ interface StudentDao {
      * Retrieves a student by number within a specific class.
      */
     @Query("SELECT * FROM students WHERE studentNumber = :studentNumber AND classId = :classId LIMIT 1")
-    suspend fun getStudentByNumberInClass(studentNumber: String, classId: Long): Student?
+    suspend fun getStudentByNumberInClass(studentNumber: String, classId: String): Student?
 
     /**
      * Retrieves all student numbers for a specific class.
      */
     @Query("SELECT studentNumber FROM students WHERE classId = :classId")
-    suspend fun getStudentNumbersForClass(classId: Long): List<String>
+    suspend fun getStudentNumbersForClass(classId: String): List<String>
 
     /**
      * Retrieves all students from the database.
