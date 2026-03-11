@@ -20,7 +20,7 @@ interface AttendanceDao {
      * Inserts a class session into the database.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertClassSession(session: ClassSession): Long
+    suspend fun insertClassSession(session: ClassSession)
 
     /**
      * Inserts multiple class sessions into the database.
@@ -32,7 +32,7 @@ interface AttendanceDao {
      * Retrieves all sessions for a specific class ordered by timestamp.
      */
     @Query("SELECT * FROM class_sessions WHERE classId = :classId ORDER BY timestamp DESC")
-    suspend fun getClassSessionsForClass(classId: Long): List<ClassSession>
+    suspend fun getClassSessionsForClass(classId: String): List<ClassSession>
 
     /**
      * Retrieves all class sessions.
@@ -56,7 +56,7 @@ interface AttendanceDao {
      * Retrieves attendance records for a specific session.
      */
     @Query("SELECT * FROM attendance_records WHERE sessionId = :sessionId")
-    suspend fun getAttendanceRecordsForSession(sessionId: Long): List<AttendanceRecord>
+    suspend fun getAttendanceRecordsForSession(sessionId: String): List<AttendanceRecord>
 
     /**
      * Retrieves all attendance records.
@@ -77,5 +77,5 @@ interface AttendanceDao {
      * Deletes all attendance records associated with a specific session.
      */
     @Query("DELETE FROM attendance_records WHERE sessionId = :sessionId")
-    suspend fun deleteAttendanceRecordsForSession(sessionId: Long)
+    suspend fun deleteAttendanceRecordsForSession(sessionId: String)
 }
