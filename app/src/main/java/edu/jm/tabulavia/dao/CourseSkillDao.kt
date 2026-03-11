@@ -25,13 +25,13 @@ interface CourseSkillDao {
      * Retrieves all skills associated with a specific course.
      */
     @Query("SELECT * FROM course_skills WHERE courseId = :courseId")
-    suspend fun getSkillsForCourse(courseId: Long): List<CourseSkill>
+    suspend fun getSkillsForCourse(courseId: String): List<CourseSkill>
 
     /**
      * Removes all skills associated with a specific course.
      */
     @Query("DELETE FROM course_skills WHERE courseId = :courseId")
-    suspend fun clearSkillsForCourse(courseId: Long)
+    suspend fun clearSkillsForCourse(courseId: String)
 
     /**
      * Deletes a single course skill mapping.

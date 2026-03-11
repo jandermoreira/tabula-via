@@ -131,5 +131,5 @@ class CourseRepository(
     /**
      * Bulk inserts a list of group membership records.
      */
-    suspend fun insertAllMembers(members: List<GroupMember>) = groupMemberDao.insertAll(members)
+    suspend fun insertAllGroupMembers(members: List<GroupMember>) = groupMemberDao.insertAll(members)
 }

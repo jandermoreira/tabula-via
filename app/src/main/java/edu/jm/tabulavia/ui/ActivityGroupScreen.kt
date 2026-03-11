@@ -81,7 +81,7 @@ private data class DraggedStudent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityGroupScreen(
-    activityId: Long, viewModel: CourseViewModel, onNavigateBack: () -> Unit
+    activityId: String, viewModel: CourseViewModel, onNavigateBack: () -> Unit
 ) {
     val activity by viewModel.selectedActivity.collectAsState()
     val groups by viewModel.generatedGroups.collectAsState()
@@ -846,14 +846,14 @@ private fun CriterionSelector(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AssignGroupSkillsForAllDialog(
-    students: List<Student>, viewModel: CourseViewModel, activityId: Long?, onDismiss: () -> Unit
+    students: List<Student>, viewModel: CourseViewModel, activityId: String?, onDismiss: () -> Unit
 ) {
     val courseSkills by viewModel.courseSkills.collectAsState()
     val context = LocalContext.current
     var highlightedSkillNames by remember(activityId) { mutableStateOf<Set<String>>(emptySet()) }
 
     LaunchedEffect(activityId) {
-        if (activityId == null || activityId == 0L) return@LaunchedEffect
+        if (activityId == null || activityId == "0") return@LaunchedEffect
         val db = DatabaseProvider.getDatabase(context.applicationContext)
         highlightedSkillNames = withContext(Dispatchers.IO) {
             db.activityHighlightedSkillDao().getHighlightedSkillNamesForActivity(activityId).toSet()
@@ -913,14 +913,14 @@ private fun AssignGroupSkillsForAllDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AssignGroupSkillsDialog(
-    student: Student, viewModel: CourseViewModel, activityId: Long?, onDismiss: () -> Unit
+    student: Student, viewModel: CourseViewModel, activityId: String?, onDismiss: () -> Unit
 ) {
     val courseSkills by viewModel.courseSkills.collectAsState()
     val context = LocalContext.current
     var highlightedSkillNames by remember(activityId) { mutableStateOf<Set<String>>(emptySet()) }
 
     LaunchedEffect(activityId) {
-        if (activityId == null || activityId == 0L) return@LaunchedEffect
+        if (activityId == null || activityId == "0") return@LaunchedEffect
         val db = DatabaseProvider.getDatabase(context.applicationContext)
         highlightedSkillNames = withContext(Dispatchers.IO) {
             db.activityHighlightedSkillDao().getHighlightedSkillNamesForActivity(activityId).toSet()

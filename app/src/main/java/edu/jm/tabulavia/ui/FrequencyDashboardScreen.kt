@@ -152,7 +152,7 @@ fun FrequencyDashboardScreen(
             text = { Text("Esta ação é definitiva e não pode ser desfeita. Deseja apagar este registro de frequência?") },
             confirmButton = {
                 Button(onClick = {
-                    viewModel.deleteFrequencySession(session)
+                    viewModel.clearFrequencyDetails()
                     sessionToDelete = null
                 }) {
                     Text("Confirmar")

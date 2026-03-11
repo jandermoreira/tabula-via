@@ -32,7 +32,7 @@ data class CourseSkill(
     /**
      * Identifier of the associated course.
      */
-    val courseId: Long,
+    val courseId: String,
 
     /**
      * Name of the skill associated with the course.

@@ -26,7 +26,7 @@ class SkillRepository(
      * @param courseId The course identifier.
      * @return List of CourseSkill objects.
      */
-    suspend fun getSkillsForCourse(courseId: Long): List<CourseSkill> {
+    suspend fun getSkillsForCourse(courseId: String): List<CourseSkill> {
         return courseSkillDao.getSkillsForCourse(courseId)
     }
 
@@ -133,7 +133,7 @@ class SkillRepository(
      * @param activityId The activity identifier.
      * @param skills List of ActivityHighlightedSkill objects to associate with the activity.
      */
-    suspend fun updateActivityHighlightedSkills(activityId: Long, skills: List<ActivityHighlightedSkill>) {
+    suspend fun updateActivityHighlightedSkills(activityId: String, skills: List<ActivityHighlightedSkill>) {
         activityHighlightedSkillDao.clearForActivity(activityId)
         activityHighlightedSkillDao.insertAll(skills)
     }

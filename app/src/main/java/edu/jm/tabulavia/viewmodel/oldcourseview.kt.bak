@@ -133,7 +133,7 @@ class CourseViewModelOLD(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch { _courses.value = courseDao.getAllCourses() }
     }
 
-    fun loadCourseDetails(classId: Long) {
+    fun loadCourseDetails(classId: String) {
         viewModelScope.launch {
             _selectedCourse.value = courseDao.getCourseById(classId)
             _studentsForClass.value = studentDao.getStudentsForClass(classId)
@@ -247,7 +247,7 @@ class CourseViewModelOLD(application: Application) : AndroidViewModel(applicatio
         "Técnica", "Colaboração", "Reflexão"
     )
 
-    fun loadSkillsForCourse(courseId: Long) {
+    fun loadSkillsForCourse(courseId: String) {
         viewModelScope.launch {
             _courseSkills.value = courseSkillDao.getSkillsForCourse(courseId)
         }
@@ -412,7 +412,7 @@ class CourseViewModelOLD(application: Application) : AndroidViewModel(applicatio
     private val _loadedActivityId = MutableStateFlow<Long?>(null)
     val loadedActivityId: StateFlow<Long?> = _loadedActivityId.asStateFlow()
 
-    fun loadActivityDetails(activityId: Long) {
+    fun loadActivityDetails(activityId: String) {
         _groupsLoaded.value = false
         _loadedActivityId.value = null
 
@@ -453,7 +453,7 @@ class CourseViewModelOLD(application: Application) : AndroidViewModel(applicatio
     }
 
 
-    private suspend fun loadPersistedGroups(activityId: Long) {
+    private suspend fun loadPersistedGroups(activityId: String) {
         val groupMembers = groupMemberDao.getGroupMembersForActivity(activityId)
         if (groupMembers.isNotEmpty()) {
             val students = studentDao.getStudentsForClass(_selectedCourse.value?.classId ?: 0)
@@ -506,7 +506,7 @@ class CourseViewModelOLD(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun loadActivitiesForClass(classId: Long) {
+    fun loadActivitiesForClass(classId: String) {
         viewModelScope.launch {
             _activities.value = activityDao.getActivitiesForClass(classId)
         }

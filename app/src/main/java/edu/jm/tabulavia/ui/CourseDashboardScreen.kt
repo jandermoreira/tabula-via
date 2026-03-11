@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseDashboardScreen(
-    classId: Long,
+    classId: String,
     viewModel: CourseViewModel,
     navController: NavController,
     onNavigateBack: () -> Unit

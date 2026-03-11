@@ -5,7 +5,6 @@
 package edu.jm.tabulavia.viewmodel
 
 import android.app.Application
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -15,12 +14,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.toMutableStateList
-import androidx.compose.runtime.toString
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
-import edu.jm.tabulavia.db.AppDatabase
 import edu.jm.tabulavia.db.DatabaseProvider
 import edu.jm.tabulavia.model.*
 import edu.jm.tabulavia.model.grouping.Group
@@ -36,6 +30,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.google.firebase.firestore.firestore
+import com.google.firebase.storage.storage
 
 class CourseViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -118,6 +116,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _studentSkillStatuses = MutableStateFlow<List<SkillStatus>>(emptyList())
     val studentSkillStatuses: StateFlow<List<SkillStatus>> = _studentSkillStatuses.asStateFlow()
+
+    private val _groupsLoaded = MutableStateFlow(false)
+    val groupsLoaded: StateFlow<Boolean> = _groupsLoaded.asStateFlow()
 
     // --- Compose-driven Form State ---
     var courseName by mutableStateOf("")
@@ -369,13 +370,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _loadedActivityId = MutableStateFlow<String?>(null)
     val loadedActivityId: StateFlow<String?> = _loadedActivityId.asStateFlow()
 
-    private val _loadedActivityId = MutableStateFlow<Long?>(null)
-    val loadedActivityId: StateFlow<Long?> = _loadedActivityId.asStateFlow()
-
     /**
      * Loads an activity and its persisted groups.
      */
-    fun loadActivityDetails(activityId: Long) {
+    fun loadActivityDetails(activityId: String) {
         _groupsLoaded.value = false
         _loadedActivityId.value = null
 
@@ -395,7 +393,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Helper to load saved groups from the database.
      */
-    private suspend fun loadPersistedGroups(activityId: Long, classId: Long) {
+    private suspend fun loadPersistedGroups(activityId: String, classId: String) {
         val groupMembers = courseRepository.getGroupMembers(activityId)
         if (groupMembers.isNotEmpty()) {
             val students = studentRepository.getStudentsForClass(classId)
@@ -425,30 +423,36 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     /**
      * Creates a new activity for the current course.
+     * Generates a persistent UUID and synchronizes with Firestore using the user's UID.
      */
     fun addActivity(onActivityAdded: () -> Unit) {
         val classId = _selectedCourse.value?.classId ?: return
+        val uid = com.google.firebase.Firebase.auth.currentUser?.uid ?: return
+
         if (activityName.isNotBlank()) {
             viewModelScope.launch {
                 val savedTitle = activityName
+                val newActivityId = java.util.UUID.randomUUID().toString()
+
                 val newActivity = Activity(
+                    activityId = newActivityId,
                     title = savedTitle,
                     description = activityType,
                     classId = classId
                 )
 
-                val activityId = courseRepository.insertActivity(newActivity)
+                courseRepository.insertActivity(newActivity, uid)
 
                 val highlightedSkills = activityHighlightedSkills
                     .sorted()
                     .map { skillName ->
                         ActivityHighlightedSkill(
-                            activityId = activityId,
+                            activityId = newActivityId,
                             skillName = skillName
                         )
                     }
 
-                skillRepository.updateActivityHighlightedSkills(activityId, highlightedSkills)
+                skillRepository.updateActivityHighlightedSkills(newActivityId, highlightedSkills)
 
                 activityName = ""
                 activityType = "Grupo"
@@ -574,23 +578,38 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     val attendanceMap = mutableStateMapOf<String, AttendanceStatus>()
 
     /**
-     * Prepara o estado para editar uma sessão existente.
-     * Garante que o mapa de frequência use as IDs de String persistentes.
+     * Prepares the state for a new frequency session.
+     * Resets the current session and initializes attendance for all students.
      */
-    suspend fun prepareToEditFrequencySession(session: ClassSession): Map<String, AttendanceStatus> {
-        editingSession = session
-
-        newSessionCalendar = Calendar.getInstance().apply {
-            timeInMillis = session.timestamp
-        }
-
-        val records = attendanceRepository.getRecordsForSession(session.sessionId)
-        val statusMap = records.associate { it.studentId to it.status }
-
+    fun prepareNewFrequencySession() {
+        editingSession = null
+        newSessionCalendar = java.util.Calendar.getInstance()
         attendanceMap.clear()
-        attendanceMap.putAll(statusMap)
 
-        return statusMap
+        // Initializes all students as present by default
+        studentsForClass.value.forEach { student ->
+            attendanceMap[student.studentId] = AttendanceStatus.PRESENT
+        }
+    }
+
+    /**
+     * Prepares the state to edit an existing session.
+     * Launches a coroutine to fetch records and updates the observable UI state.
+     */
+    fun prepareToEditFrequencySession(session: ClassSession) {
+        viewModelScope.launch {
+            editingSession = session
+
+            newSessionCalendar = java.util.Calendar.getInstance().apply {
+                timeInMillis = session.timestamp
+            }
+
+            val records = attendanceRepository.getRecordsForSession(session.sessionId)
+            val statusMap = records.associate { it.studentId to it.status }
+
+            attendanceMap.clear()
+            attendanceMap.putAll(statusMap)
+        }
     }
 
     /**

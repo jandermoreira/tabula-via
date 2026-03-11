@@ -78,7 +78,7 @@ fun AttendanceScreen(
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 // Fetch courseId from students or ViewModel context
-                val courseId = students.firstOrNull()?.classId ?: 0L
+                val courseId = students.firstOrNull()?.classId ?: ""
                 viewModel.saveFrequency(courseId, onNavigateBack)
             }) {
                 Icon(Icons.Filled.Check, contentDescription = "Salvar Frequência")

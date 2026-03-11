@@ -2,9 +2,8 @@
  * MainActivity.kt
  *
  * Main entry point of the application.
- * Responsible for navigation setup and authentication integration.
+ * Responsible for navigation setup and authentication integration using persistent String IDs.
  */
-
 package edu.jm.tabulavia
 
 import android.os.Bundle
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -80,10 +78,6 @@ class MainActivity : ComponentActivity() {
         authViewModel.clearUser()
     }
 
-    /**
-     * Activity creation lifecycle method.
-     * Configures Compose content and navigation graph.
-     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -96,11 +90,7 @@ class MainActivity : ComponentActivity() {
                 ) {
 
                     val navController = rememberNavController()
-                    val scope = rememberCoroutineScope()
 
-                    /**
-                     * Application navigation graph.
-                     */
                     NavHost(
                         navController = navController, startDestination = "splash"
                     ) {
@@ -118,13 +108,9 @@ class MainActivity : ComponentActivity() {
                             CourseListScreen(
                                 viewModel = courseViewModel,
                                 authViewModel = authViewModel,
-                                onAddCourseClicked = {
-                                    navController.navigate("addCourse")
-                                },
+                                onAddCourseClicked = { navController.navigate("addCourse") },
                                 onCourseClicked = { course ->
-                                    navController.navigate(
-                                        "courseDashboard/${course.classId}"
-                                    )
+                                    navController.navigate("courseDashboard/${course.classId}")
                                 },
                                 onLoginClicked = { signIn() },
                                 onLogoutClicked = { logout() })
@@ -138,13 +124,10 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(
-                            route = "courseDashboard/{classId}", arguments = listOf(
-                            navArgument("classId") {
-                                type = NavType.LongType
-                            })) { backStackEntry ->
-
-                            val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
-
+                            route = "courseDashboard/{classId}",
+                            arguments = listOf(navArgument("classId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val classId = backStackEntry.arguments?.getString("classId") ?: ""
                             CourseDashboardScreen(
                                 classId = classId,
                                 viewModel = courseViewModel,
@@ -156,23 +139,19 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(
-                            route = "studentList/{classId}", arguments = listOf(
-                            navArgument("classId") {
-                                type = NavType.LongType
-                            })) {
+                            route = "studentList/{classId}",
+                            arguments = listOf(navArgument("classId") { type = NavType.StringType })
+                        ) {
                             StudentListScreen(
                                 viewModel = courseViewModel,
                                 onNavigateBack = { navController.popBackStack() })
                         }
 
                         composable(
-                            route = "courseSkills/{classId}", arguments = listOf(
-                            navArgument("classId") {
-                                type = NavType.LongType
-                            })) { backStackEntry ->
-
-                            val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
-
+                            route = "courseSkills/{classId}",
+                            arguments = listOf(navArgument("classId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val classId = backStackEntry.arguments?.getString("classId") ?: ""
                             CourseSkillsScreen(
                                 courseId = classId,
                                 viewModel = courseViewModel,
@@ -180,10 +159,9 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(
-                            route = "frequencyDashboard/{classId}", arguments = listOf(
-                            navArgument("classId") {
-                                type = NavType.LongType
-                            })) {
+                            route = "frequencyDashboard/{classId}",
+                            arguments = listOf(navArgument("classId") { type = NavType.StringType })
+                        ) {
                             FrequencyDashboardScreen(
                                 viewModel = courseViewModel,
                                 onNavigateBack = { navController.popBackStack() },
@@ -192,10 +170,8 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("attendanceScreen")
                                 },
                                 onEditAttendance = { session ->
-                                    scope.launch {
-                                        courseViewModel.prepareToEditFrequencySession(session)
-                                        navController.navigate("attendanceScreen")
-                                    }
+                                    courseViewModel.prepareToEditFrequencySession(session)
+                                    navController.navigate("attendanceScreen")
                                 })
                         }
 
@@ -206,34 +182,23 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(
-                            route = "activityList/{classId}", arguments = listOf(
-                            navArgument("classId") {
-                                type = NavType.LongType
-                            })) {
+                            route = "activityList/{classId}",
+                            arguments = listOf(navArgument("classId") { type = NavType.StringType })
+                        ) {
                             ActivityListScreen(
                                 viewModel = courseViewModel,
                                 onNavigateBack = { navController.popBackStack() },
                                 onActivityClicked = { activity ->
-                                    if (activity.description == "Individual") {
-                                        navController.navigate(
-                                            "activityStudentList/${activity.activityId}"
-                                        )
-                                    } else {
-                                        navController.navigate(
-                                            "activityGroupScreen/${activity.activityId}"
-                                        )
-                                    }
+                                    val route = if (activity.description == "Individual") "activityStudentList" else "activityGroupScreen"
+                                    navController.navigate("$route/${activity.activityId}")
                                 })
                         }
 
                         composable(
-                            route = "activityStudentList/{activityId}", arguments = listOf(
-                            navArgument("activityId") {
-                                type = NavType.LongType
-                            })) { backStackEntry ->
-
-                            val activityId = backStackEntry.arguments?.getLong("activityId") ?: 0L
-
+                            route = "activityStudentList/{activityId}",
+                            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
                             ActivityStudentListScreen(
                                 activityId = activityId,
                                 viewModel = courseViewModel,
@@ -241,13 +206,10 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(
-                            route = "activityGroupScreen/{activityId}", arguments = listOf(
-                            navArgument("activityId") {
-                                type = NavType.LongType
-                            })) { backStackEntry ->
-
-                            val activityId = backStackEntry.arguments?.getLong("activityId") ?: 0L
-
+                            route = "activityGroupScreen/{activityId}",
+                            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
                             ActivityGroupScreen(
                                 activityId = activityId,
                                 viewModel = courseViewModel,

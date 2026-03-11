@@ -25,7 +25,7 @@ import edu.jm.tabulavia.viewmodel.CourseViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseSkillsScreen(
-    courseId: Long,
+    courseId: String,
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit
 ) {

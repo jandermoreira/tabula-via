@@ -32,7 +32,7 @@ data class ActivityHighlightedSkill(
     /**
      * Identifier of the associated activity.
      */
-    val activityId: Long,
+    val activityId: String,
 
     /**
      * Name of the highlighted skill.
