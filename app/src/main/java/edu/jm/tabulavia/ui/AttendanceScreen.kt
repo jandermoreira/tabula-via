@@ -1,7 +1,5 @@
 /**
  * Attendance management screen for tracking student presence.
- * This version integrates with the StudentEmojiColorHelper and applies
- * the organic blob visual style for student avatars.
  */
 package edu.jm.tabulavia.ui
 
@@ -19,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,9 +32,6 @@ import java.util.TimeZone
 
 /**
  * Main screen for recording student attendance sessions.
- *
- * @param viewModel The state holder for course and session data.
- * @param onNavigateBack Callback to return to the previous screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,19 +43,23 @@ fun AttendanceScreen(
     val calendar = viewModel.newSessionCalendar
     val editingSession = viewModel.editingSession
 
-    var attendanceMap by remember { mutableStateOf<Map<String, AttendanceStatus>>(emptyMap()) }
+    // Access reactive attendance map from ViewModel
+    val attendanceMap = viewModel.attendanceMap
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
     val timeOptions = (0..23).toList()
 
-    // Sync local state with ViewModel data
+    // Sync ViewModel data when screen loads
     LaunchedEffect(students, editingSession) {
         if (students.isNotEmpty() && attendanceMap.isEmpty()) {
-            attendanceMap = if (editingSession != null) {
+            if (editingSession != null) {
                 viewModel.prepareToEditFrequencySession(editingSession)
             } else {
-                students.associate { it.studentId to AttendanceStatus.PRESENT }
+                // Initialize default presence for new sessions
+                students.forEach { student ->
+                    attendanceMap[student.studentId] = AttendanceStatus.PRESENT
+                }
             }
         }
     }
@@ -79,7 +77,9 @@ fun AttendanceScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                viewModel.saveFrequency(attendanceMap, onNavigateBack)
+                // Fetch courseId from students or ViewModel context
+                val courseId = students.firstOrNull()?.classId ?: 0L
+                viewModel.saveFrequency(courseId, onNavigateBack)
             }) {
                 Icon(Icons.Filled.Check, contentDescription = "Salvar Frequência")
             }
@@ -119,25 +119,25 @@ fun AttendanceScreen(
                 }
             }
 
-            // No AttendanceScreen, abaixo do HorizontalDivider
-            val stats = attendanceMap.values.groupingBy { it }.eachCount()
+            // Attendance Statistics
+            val presentCount = attendanceMap.values.count { it == AttendanceStatus.PRESENT }
+            val absentCount = attendanceMap.values.count { it == AttendanceStatus.ABSENT }
+
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${stats[AttendanceStatus.PRESENT] ?: 0} Presentes",
+                    text = "$presentCount Presentes",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "${stats[AttendanceStatus.ABSENT] ?: 0} Faltas",
+                    text = "$absentCount Faltas",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.error
                 )
             }
-
-//            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
             // Scrollable list of students
             if (attendanceMap.isEmpty() && students.isNotEmpty()) {
@@ -155,7 +155,7 @@ fun AttendanceScreen(
                             student = student,
                             status = attendanceMap[student.studentId] ?: AttendanceStatus.PRESENT,
                             onStatusChange = { newStatus ->
-                                attendanceMap = attendanceMap + (student.studentId to newStatus)
+                                attendanceMap[student.studentId] = newStatus
                             }
                         )
                     }
@@ -164,7 +164,7 @@ fun AttendanceScreen(
         }
     }
 
-    // Date selection dialog logic
+    // Date selection logic
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = calendar.timeInMillis)
         DatePickerDialog(
@@ -172,8 +172,6 @@ fun AttendanceScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { utcMillis ->
-                        // FIX: Use UTC TimeZone to extract exact Year, Month and Day
-                        // from the picker to avoid local timezone offset errors.
                         val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
                             timeInMillis = utcMillis
                         }
@@ -209,10 +207,6 @@ fun Calendar.toFormattedDateString(): String {
 
 /**
  * List item representing a student and their attendance selector.
- *
- * @param student The student model.
- * @param status Current selected attendance status.
- * @param onStatusChange Callback for updating the status.
  */
 @Composable
 fun AttendanceItem(
@@ -264,7 +258,7 @@ fun AttendanceItem(
                     color = if (isAbsent) Color.Gray else Color.Unspecified
                 )
                 Text(
-                    text = "${student.studentNumber}",
+                    text = student.studentNumber,
                     style = MaterialTheme.typography.bodySmall,
                     color = if (isAbsent) Color.Gray.copy(alpha = 0.7f) else Color.Gray
                 )

@@ -5,6 +5,7 @@
 package edu.jm.tabulavia.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -12,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.runtime.toString
 import com.google.firebase.auth.ktx.auth
@@ -151,7 +153,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Fetches details for a specific class including students, sessions, and activities.
      */
-    fun loadCourseDetails(classId: Long) {
+    fun loadCourseDetails(classId: String) {
         viewModelScope.launch {
             _selectedCourse.value = courseRepository.getCourseById(classId)
             _studentsForClass.value = studentRepository.getStudentsForClass(classId)
@@ -161,23 +163,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             _courseSkills.value = skillRepository.getSkillsForCourse(classId)
 
             loadTodaysAttendance(allSessions)
-        }
-    }
-
-    /**
-     * Identifies and loads attendance records for the most recent session today.
-     */
-    private fun loadTodaysAttendance(sessions: List<ClassSession>) {
-        viewModelScope.launch {
-            val lastSessionToday = attendanceRepository.getLastSessionToday(sessions)
-
-            _todaysAttendance.value = if (lastSessionToday != null) {
-                val records = attendanceRepository.getRecordsForSession(lastSessionToday.sessionId)
-                // studentId já é String, então não é necessário converter
-                records.associate { it.studentId.toString() to it.status }
-            } else {
-                emptyMap()
-            }
         }
     }
 
@@ -291,7 +276,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Fetches skills associated with a course.
      */
-    fun loadSkillsForCourse(courseId: Long) {
+    fun loadSkillsForCourse(courseId: String) {
         viewModelScope.launch {
             _courseSkills.value = skillRepository.getSkillsForCourse(courseId)
         }
@@ -380,8 +365,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // --- Activity and Grouping Logic ---
-    private val _groupsLoaded = MutableStateFlow(false)
-    val groupsLoaded: StateFlow<Boolean> = _groupsLoaded.asStateFlow()
+    // --- State Updates ---
+    private val _loadedActivityId = MutableStateFlow<String?>(null)
+    val loadedActivityId: StateFlow<String?> = _loadedActivityId.asStateFlow()
 
     private val _loadedActivityId = MutableStateFlow<Long?>(null)
     val loadedActivityId: StateFlow<Long?> = _loadedActivityId.asStateFlow()
@@ -478,7 +464,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Fetches all activities for a class.
      */
-    fun loadActivitiesForClass(classId: Long) {
+    fun loadActivitiesForClass(classId: String) {
         viewModelScope.launch {
             _activities.value = courseRepository.getActivitiesForClass(classId)
         }
@@ -552,17 +538,59 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         _selectedGroupDetails.value = emptyList()
     }
 
-    // --- Frequency Management Logic ---
+// --- Frequency Management Logic ---
 
     /**
-     * Loads attendance records for a specific session.
+     * Identifica e carrega registros de frequência para a sessão mais recente de hoje.
+     */
+    private fun loadTodaysAttendance(sessions: List<ClassSession>) {
+        viewModelScope.launch {
+            val lastSessionToday = attendanceRepository.getLastSessionToday(sessions)
+
+            _todaysAttendance.value = if (lastSessionToday != null) {
+                val records = attendanceRepository.getRecordsForSession(lastSessionToday.sessionId)
+                records.associate { it.studentId to it.status }
+            } else {
+                emptyMap()
+            }
+        }
+    }
+
+    /**
+     * Carrega detalhes de frequência para uma sessão específica.
      */
     suspend fun loadFrequencyDetails(session: ClassSession) {
         val records = attendanceRepository.getRecordsForSession(session.sessionId)
         val studentNameMap = studentsForClass.value.associate { it.studentId to it.displayName }
+
         _frequencyDetails.value = records.mapNotNull { record ->
-            studentNameMap[record.studentId.toString()]?.let { name -> name to record.status }
+            studentNameMap[record.studentId]?.let { name -> name to record.status }
         }.toMap()
+    }
+
+    /**
+     * Map holding the current attendance status for each student.
+     */
+    val attendanceMap = mutableStateMapOf<String, AttendanceStatus>()
+
+    /**
+     * Prepara o estado para editar uma sessão existente.
+     * Garante que o mapa de frequência use as IDs de String persistentes.
+     */
+    suspend fun prepareToEditFrequencySession(session: ClassSession): Map<String, AttendanceStatus> {
+        editingSession = session
+
+        newSessionCalendar = Calendar.getInstance().apply {
+            timeInMillis = session.timestamp
+        }
+
+        val records = attendanceRepository.getRecordsForSession(session.sessionId)
+        val statusMap = records.associate { it.studentId to it.status }
+
+        attendanceMap.clear()
+        attendanceMap.putAll(statusMap)
+
+        return statusMap
     }
 
     /**
@@ -573,44 +601,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Initializes state for a new attendance session with a default time.
+     * Deletes a specific class session from local and remote storage.
      */
-    fun prepareNewFrequencySession() {
-        editingSession = null
-        val calendar = Calendar.getInstance()
-        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
-
-        val defaultHour = when {
-            currentHour >= 16 -> 16
-            currentHour >= 14 -> 14
-            currentHour >= 10 -> 10
-            else -> 8
-        }
-        calendar.set(Calendar.HOUR_OF_DAY, defaultHour)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        newSessionCalendar = calendar
-    }
-
-    /**
-     * Prepares the state to edit an existing session.
-     */
-    suspend fun prepareToEditFrequencySession(session: ClassSession): Map<String, AttendanceStatus> {
-        editingSession = session
-        newSessionCalendar = Calendar.getInstance().apply { timeInMillis = session.timestamp }
-        return attendanceRepository.getRecordsForSession(session.sessionId)
-            .associate { it.studentId.toString() to it.status }
-    }
-
-    /**
-     * Deletes an attendance session.
-     */
-    fun deleteFrequencySession(session: ClassSession) {
+    fun deleteSession(session: ClassSession, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             attendanceRepository.deleteSession(session)
             loadCourseDetails(session.classId)
             _userMessage.value = "Registro de frequência apagado."
+            onComplete()
         }
     }
 
@@ -633,34 +631,35 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Saves attendance records for the selected course and session date.
+     * Saves the current attendance state.
+     * Syncs data to the repository and resets the frequency UI state.
      */
-    fun saveFrequency(attendanceMap: Map<String, AttendanceStatus>, onSaveComplete: () -> Unit) {
-        val classId = _selectedCourse.value?.classId ?: return
-        if (attendanceMap.isEmpty()) {
-            _userMessage.value = "Nenhum aluno para registrar."
-            return
-        }
+    fun saveFrequency(classId: String, onComplete: () -> Unit) {
+        val currentTimestamp = newSessionCalendar.timeInMillis
+
         viewModelScope.launch {
             val result = attendanceRepository.saveAttendance(
                 classId = classId,
-                timestamp = newSessionCalendar.timeInMillis,
-                attendanceMap = attendanceMap,
+                timestamp = currentTimestamp,
+                attendanceMap = attendanceMap.toMap(),
                 editingSession = editingSession
             )
-            when (result) {
-                is SaveAttendanceResult.Success -> {
-                    loadCourseDetails(classId)
-                    _userMessage.value =
-                        "Frequência de ${attendanceMap.size} alunos salva com sucesso."
-                    onSaveComplete()
-                }
 
-                is SaveAttendanceResult.Error -> {
-                    _userMessage.value = result.message
-                }
+            if (result is SaveAttendanceResult.Success) {
+                resetFrequencyState()
+                onComplete()
+            } else if (result is SaveAttendanceResult.Error) {
+                _userMessage.value = "Erro ao salvar frequência: ${result.message}"
             }
         }
+    }
+
+    /**
+     * Resets the internal state related to attendance frequency editing.
+     */
+    private fun resetFrequencyState() {
+        editingSession = null
+        attendanceMap.clear()
     }
 
     // --- Backup and Restore Logic ---
@@ -816,6 +815,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 try {
 
                     val newCourse = Course(
+                        classId = java.util.UUID.randomUUID().toString(),
                         className = courseName,
                         academicYear = academicYear,
                         period = period,
@@ -862,7 +862,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         if (studentName.isNotBlank() && studentNumber.isNotBlank()) {
             viewModelScope.launch {
                 val newStudent = Student(
-                    studentId = "",
+                    studentId = java.util.UUID.randomUUID().toString(),
                     name = studentName,
                     displayName = if (studentDisplayName.isBlank()) studentName else studentDisplayName,
                     studentNumber = studentNumber,
@@ -926,7 +926,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                             }
 
                             Student(
-                                studentId = "",
+                                studentId = java.util.UUID.randomUUID().toString(),
                                 name = fullName,
                                 displayName = formattedDisplayName,
                                 studentNumber = number,

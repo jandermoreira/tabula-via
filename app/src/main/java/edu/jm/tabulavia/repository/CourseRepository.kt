@@ -42,13 +42,10 @@ class CourseRepository(
 
     /**
      * Saves a course locally and synchronizes it with Firestore.
-     * Uses the pre-generated classId (UUID) as the document name.
      */
     suspend fun insertCourse(course: Course, uid: String): String {
-        // Save locally - O classId já é o UUID gerado no CourseViewModel
         courseDao.insertCourse(course)
 
-        // Sincronização direta: O ID do documento no Firestore é o próprio UUID do curso
         userCoursesRef(uid)
             .document(course.classId)
             .set(course)
@@ -76,10 +73,18 @@ class CourseRepository(
     suspend fun getAllActivities(): List<Activity> = activityDao.getAllActivities()
 
     /**
-     * Persists a single activity record locally.
-     * Atividades também devem migrar para String ID se precisarem de sincronização robusta.
+     * Persists a single activity record locally and synchronizes with Firestore.
      */
-    suspend fun insertActivity(activity: Activity): Long = activityDao.insert(activity)
+    suspend fun insertActivity(activity: Activity, uid: String) {
+        activityDao.insert(activity)
+
+        userCoursesRef(uid)
+            .document(activity.classId)
+            .collection("activities")
+            .document(activity.activityId)
+            .set(activity)
+            .await()
+    }
 
     /**
      * Bulk inserts a list of activities into the local database.
@@ -87,23 +92,23 @@ class CourseRepository(
     suspend fun insertAllActivities(activities: List<Activity>) = activityDao.insertAll(activities)
 
     /**
-     * Retrieves a specific activity by its unique local identifier.
+     * Retrieves a specific activity by its persistent String identifier.
      */
-    suspend fun getActivityById(activityId: Long): Activity? = activityDao.getActivityById(activityId)
+    suspend fun getActivityById(activityId: String): Activity? = activityDao.getActivityById(activityId)
 
     // ----------------- GROUPS -----------------
 
     /**
      * Records group assignments for an activity.
      */
-    suspend fun persistGroups(activityId: Long, groups: List<List<Student>>) {
+    suspend fun persistGroups(activityId: String, groups: List<List<Student>>) {
         groupMemberDao.clearGroupMembersForActivity(activityId)
 
         val groupMembers = groups.flatMapIndexed { groupIndex, studentList ->
             studentList.map { student ->
                 GroupMember(
                     activityId = activityId,
-                    studentId = student.studentId, // studentId já é String (UUID)
+                    studentId = student.studentId,
                     groupNumber = groupIndex + 1
                 )
             }
@@ -115,7 +120,7 @@ class CourseRepository(
     /**
      * Retrieves all members and their group assignments for a specific activity.
      */
-    suspend fun getGroupMembers(activityId: Long): List<GroupMember> =
+    suspend fun getGroupMembers(activityId: String): List<GroupMember> =
         groupMemberDao.getGroupMembersForActivity(activityId)
 
     /**

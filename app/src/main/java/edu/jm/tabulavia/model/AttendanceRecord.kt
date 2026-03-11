@@ -1,5 +1,7 @@
+
 /**
- * Data model for student attendance records and logic for skill score consolidation.
+ * AttendanceRecord entity for the 'attendance_records' table.
+ * Links students to class sessions using String identifiers for persistent synchronization.
  */
 package edu.jm.tabulavia.model
 
@@ -9,10 +11,6 @@ import androidx.room.Index
 import kotlinx.serialization.Serializable
 import kotlin.math.min
 
-/**
- * Represents the attendance status of a student in a specific class session.
- * Linked to ClassSession and Student entities via foreign keys.
- */
 @Serializable
 @Entity(
     tableName = "attendance_records",
@@ -37,8 +35,20 @@ import kotlin.math.min
     ]
 )
 data class AttendanceRecord(
-    val sessionId: Long,
+
+    /**
+     * Unique identifier of the session, referencing ClassSession.sessionId.
+     */
+    val sessionId: String,
+
+    /**
+     * Unique identifier of the student, referencing Student.studentId.
+     */
     val studentId: String,
+
+    /**
+     * Status of the student's attendance in the session.
+     */
     val status: AttendanceStatus
 )
 
