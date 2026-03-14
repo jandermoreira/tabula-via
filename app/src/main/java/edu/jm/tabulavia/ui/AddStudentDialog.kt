@@ -55,10 +55,11 @@ fun AddStudentDialog(
             Button(
                 onClick = {
                     if (selectedTabIndex == 0) {
-                        viewModel.addStudent(onStudentsAdded = onDismiss)
+                        viewModel.addStudent(onStudentsAdded = {}) // Passa um callback vazio
                     } else {
-                        viewModel.addStudentsInBulk(onStudentsAdded = onDismiss)
+                        viewModel.addStudentsInBulk(onStudentsAdded = {})
                     }
+                    onDismiss()
                 }
             ) {
                 Text("Salvar")
