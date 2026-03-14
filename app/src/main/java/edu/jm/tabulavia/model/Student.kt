@@ -31,26 +31,26 @@ data class Student(
      * Must be a UUID generated at creation or retrieved from Firestore.
      */
     @PrimaryKey
-    val studentId: String,
+    val studentId: String = "",
 
     /**
      * Full legal name of the student.
      */
-    val name: String,
+    val name: String = "",
 
     /**
      * Name intended for UI display purposes.
      */
-    val displayName: String,
+    val displayName: String = "",
 
     /**
      * Academic registration number or institutional ID.
      */
-    val studentNumber: String,
+    val studentNumber: String = "",
 
     /**
      * Reference to the associated class ID.
      * Ensures the student belongs exclusively to one course instance.
      */
-    val classId: String
+    val classId: String = ""
 )
