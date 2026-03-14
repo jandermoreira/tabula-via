@@ -35,6 +35,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
 class CourseViewModel(application: Application) : AndroidViewModel(application) {
@@ -44,6 +45,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val courseRepository = CourseRepository(
         context = application.applicationContext,
         courseDao = db.courseDao(),
+        studentDao = db.studentDao(),
         activityDao = db.activityDao(),
         groupMemberDao = db.groupMemberDao(),
         firestore = Firebase.firestore
@@ -149,16 +151,72 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = emptyList()
         )
 
+    init {
+        // Starts real-time synchronization when the ViewModel is initialized
+        Firebase.auth.currentUser?.uid?.let { uid ->
+            courseRepository.startCoursesSync(uid)
+        }
+    }
+
+    /**
+     * Cleans up resources when the ViewModel is about to be destroyed.
+     * Ensures the Firestore listener is properly unregistered.
+     */
+    override fun onCleared() {
+        super.onCleared()
+        courseRepository.stopCoursesSync()
+        courseRepository.stopStudentsSync()
+        courseRepository.stopActivitiesSync()
+    }
+
+    /**
+     * Refreshes all course data by pulling information from the cloud provider.
+     */
+    fun refreshAllData(uid: String) {
+        viewModelScope.launch {
+            try {
+                courseRepository.syncCoursesFromCloud(uid)
+            } catch (e: Exception) {
+                _userMessage.value = "Sync failed: ${e.message}"
+            }
+        }
+    }
+
     /**
      * Fetches details for a specific class including students, sessions, and activities.
+     * Initiates real-time synchronization and observes database changes via Flow.
+     */
+    /**
+     * Fetches details for a specific class including students, sessions, and activities.
+     * Initiates real-time synchronization and observes database changes via Flow.
      */
     fun loadCourseDetails(classId: String) {
+        // Start real-time synchronization with Firestore
+        Firebase.auth.currentUser?.uid?.let { uid ->
+            courseRepository.startStudentsSync(uid, classId)
+            courseRepository.startActivitiesSync(uid, classId)
+        }
+
+        // Collect student updates and initial course data
         viewModelScope.launch {
             _selectedCourse.value = courseRepository.getCourseById(classId)
-            _studentsForClass.value = studentRepository.getStudentsForClass(classId)
+
+            studentRepository.getStudentsForClass(classId).collect { studentsList ->
+                _studentsForClass.value = studentsList
+            }
+        }
+
+        // Collect activity updates in a separate coroutine
+        viewModelScope.launch {
+            courseRepository.getActivitiesForClass(classId).collect { activitiesList ->
+                _activities.value = activitiesList
+            }
+        }
+
+        // Load sessions and skills data
+        viewModelScope.launch {
             val allSessions = attendanceRepository.getClassSessions(classId)
             _classSessions.value = allSessions
-            _activities.value = courseRepository.getActivitiesForClass(classId)
             _courseSkills.value = skillRepository.getSkillsForCourse(classId)
 
             loadTodaysAttendance(allSessions)
@@ -389,20 +447,29 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Helper to load saved groups from the database.
+     * Helper to observe and load saved groups from the database.
+     * Combines group members and students flows to maintain a reactive UI state.
      */
-    private suspend fun loadPersistedGroups(activityId: String, classId: String) {
-        val groupMembers = courseRepository.getGroupMembers(activityId)
-        if (groupMembers.isNotEmpty()) {
-            val students = studentRepository.getStudentsForClass(classId)
-            val studentMap = students.associateBy { it.studentId }
-            val groups = groupMembers.groupBy { it.groupNumber }
-                .toSortedMap()
-                .values
-                .map { members -> members.mapNotNull { studentMap[it.studentId] } }
-            _generatedGroups.value = groups
-        } else {
-            _generatedGroups.value = emptyList()
+    private fun loadPersistedGroups(activityId: String, classId: String) {
+        viewModelScope.launch {
+            // Combines both flows to reactively reconstruct the groups list
+            courseRepository.getGroupMembers(activityId)
+                .combine(studentRepository.getStudentsForClass(classId)) { members, students ->
+                    if (members.isNotEmpty()) {
+                        val studentMap = students.associateBy { it.studentId }
+
+                        members.groupBy { it.groupNumber }
+                            .toSortedMap()
+                            .values
+                            .map { groupList ->
+                                groupList.mapNotNull { member -> studentMap[member.studentId] }
+                            }
+                    } else {
+                        emptyList()
+                    }
+                }.collect { groups ->
+                    _generatedGroups.value = groups
+                }
         }
     }
 
@@ -468,7 +535,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun loadActivitiesForClass(classId: String) {
         viewModelScope.launch {
-            _activities.value = courseRepository.getActivitiesForClass(classId)
+            courseRepository.getActivitiesForClass(classId).collect { activitiesList ->
+                _activities.value = activitiesList
+            }
         }
     }
 

@@ -49,23 +49,26 @@ class MainActivity : ComponentActivity() {
     private fun signIn() {
         lifecycleScope.launch {
             try {
-                val googleIdOption =
-                    GetGoogleIdOption.Builder().setFilterByAuthorizedAccounts(false)
-                        .setServerClientId(getString(R.string.default_web_client_id)).build()
+                val googleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(getString(R.string.default_web_client_id))
+                    .build()
 
-                val request =
-                    GetCredentialRequest.Builder().addCredentialOption(googleIdOption).build()
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
 
                 val result = credentialManager.getCredential(this@MainActivity, request)
                 val credential = GoogleIdTokenCredential.createFrom(result.credential.data)
 
                 authViewModel.signInWithGoogle(credential.idToken)
 
-            } catch (exception: GetCredentialException) {
-                Log.e("MainActivity", "GetCredentialException", exception)
-                Toast.makeText(
-                    this@MainActivity, "Falha no login com Google.", Toast.LENGTH_SHORT
-                ).show()
+            } catch (e: GetCredentialException) {
+                Log.e("MainActivity", "Erro de credenciais", e)
+                Toast.makeText(this@MainActivity, "Login cancelado ou falhou.", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erro inesperado no login", e)
+                Toast.makeText(this@MainActivity, "Sem conexão ou erro de serviço Google.", Toast.LENGTH_SHORT).show()
             }
         }
     }

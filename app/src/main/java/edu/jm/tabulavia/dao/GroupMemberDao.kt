@@ -9,6 +9,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import edu.jm.tabulavia.model.GroupMember
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface GroupMemberDao {
@@ -28,9 +29,10 @@ interface GroupMemberDao {
 
     /**
      * Retrieves all group members associated with a specific activity.
+     * Returns a Flow to observe changes in group assignments in real-time.
      */
     @Query("SELECT * FROM group_members WHERE activityId = :activityId")
-    suspend fun getGroupMembersForActivity(activityId: String): List<GroupMember>
+    fun getGroupMembersForActivity(activityId: String): Flow<List<GroupMember>>
 
     /**
      * Deletes all group members associated with a specific activity.

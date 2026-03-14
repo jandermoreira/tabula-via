@@ -7,6 +7,7 @@ package edu.jm.tabulavia.repository
 import com.google.firebase.firestore.FirebaseFirestore
 import edu.jm.tabulavia.dao.StudentDao
 import edu.jm.tabulavia.model.Student
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 
 class StudentRepository(
@@ -31,16 +32,12 @@ class StudentRepository(
     /**
      * Inserts or updates a student locally and synchronizes with Firestore.
      * Uses the studentId (UUID) provided by the model.
-     * @param student The student entity with a pre-generated UUID.
-     * @param uid Firebase user identifier.
      */
     suspend fun insertStudent(student: Student, uid: String) {
         // Persistência Local (Room)
-        // O studentId já é um UUID gerado no ViewModel
         studentDao.insertStudent(student)
 
         // Sincronização Remota (Firestore)
-        // Usamos o studentId como o ID do documento para garantir consistência
         studentDocRef(uid, student.classId, student.studentId)
             .set(student)
             .await()
@@ -55,9 +52,10 @@ class StudentRepository(
     }
 
     /**
-     * Retrieves all students from a specific class locally using String ID.
+     * Observes all students from a specific class locally using String ID.
+     * Returns a Flow that emits updates whenever the local database changes.
      */
-    suspend fun getStudentsForClass(classId: String): List<Student> =
+    fun getStudentsForClass(classId: String): Flow<List<Student>> =
         studentDao.getStudentsForClass(classId)
 
     /**
@@ -67,7 +65,7 @@ class StudentRepository(
         studentDao.getStudentById(studentId)
 
     /**
-     * Retrieves all students across all courses locally.
+     * Observes all students across all courses locally.
      */
-    suspend fun getAllStudents(): List<Student> = studentDao.getAllStudents()
+    fun getAllStudents(): Flow<List<Student>> = studentDao.getAllStudents()
 }

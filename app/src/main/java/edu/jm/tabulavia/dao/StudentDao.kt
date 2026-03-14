@@ -10,6 +10,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import edu.jm.tabulavia.model.Student
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface StudentDao {
@@ -36,9 +37,10 @@ interface StudentDao {
 
     /**
      * Retrieves all students for a given class ordered by name.
+     * Returns a Flow to provide real-time updates when the table changes.
      */
     @Query("SELECT * FROM students WHERE classId = :classId ORDER BY name ASC")
-    suspend fun getStudentsForClass(classId: String): List<Student>
+    fun getStudentsForClass(classId: String): Flow<List<Student>>
 
     /**
      * Retrieves a specific student based on its unique identifier.
@@ -59,8 +61,8 @@ interface StudentDao {
     suspend fun getStudentNumbersForClass(classId: String): List<String>
 
     /**
-     * Retrieves all students from the database.
+     * Retrieves all students from the database as a flow.
      */
     @Query("SELECT * FROM students")
-    suspend fun getAllStudents(): List<Student>
+    fun getAllStudents(): Flow<List<Student>>
 }

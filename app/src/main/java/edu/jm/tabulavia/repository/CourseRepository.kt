@@ -13,25 +13,34 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import edu.jm.tabulavia.dao.ActivityDao
 import edu.jm.tabulavia.dao.CourseDao
 import edu.jm.tabulavia.dao.GroupMemberDao
+import edu.jm.tabulavia.dao.StudentDao
 import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.Course
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.worker.SyncActivityWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 class CourseRepository(
     private val context: Context,
     private val courseDao: CourseDao,
+    private val studentDao: StudentDao,
     private val activityDao: ActivityDao,
     private val groupMemberDao: GroupMemberDao,
     private val firestore: FirebaseFirestore
 ) {
+    private var coursesListener: ListenerRegistration? = null
+    private var studentsListener: ListenerRegistration? = null
+    private var activitiesListener: ListenerRegistration? = null
 
     /**
      * Helper to get the Firestore collection reference for a specific user's courses.
@@ -76,7 +85,7 @@ class CourseRepository(
     /**
      * Retrieves all activities associated with a specific course via String ID.
      */
-    suspend fun getActivitiesForClass(classId: String): List<Activity> =
+    fun getActivitiesForClass(classId: String): Flow<List<Activity>> =
         activityDao.getActivitiesForClass(classId)
 
     /**
@@ -121,7 +130,8 @@ class CourseRepository(
     /**
      * Retrieves a specific activity by its persistent String identifier.
      */
-    suspend fun getActivityById(activityId: String): Activity? = activityDao.getActivityById(activityId)
+    suspend fun getActivityById(activityId: String): Activity? =
+        activityDao.getActivityById(activityId)
 
     // Group Management Block
 
@@ -145,9 +155,9 @@ class CourseRepository(
     }
 
     /**
-     * Retrieves all members and their group assignments for a specific activity.
+     * Retrieves all members and their group assignments for a specific activity as a Flow.
      */
-    suspend fun getGroupMembers(activityId: String): List<GroupMember> =
+    fun getGroupMembers(activityId: String): Flow<List<GroupMember>> =
         groupMemberDao.getGroupMembersForActivity(activityId)
 
     /**
@@ -158,5 +168,108 @@ class CourseRepository(
     /**
      * Bulk inserts a list of group membership records.
      */
-    suspend fun insertAllGroupMembers(members: List<GroupMember>) = groupMemberDao.insertAll(members)
+    suspend fun insertAllGroupMembers(members: List<GroupMember>) =
+        groupMemberDao.insertAll(members)
+
+    // Synchronization Block
+
+    /**
+     * Fetches all courses from Firestore and updates the local database.
+     */
+    suspend fun syncCoursesFromCloud(uid: String) {
+        try {
+            val snapshot = userCoursesRef(uid).get().await()
+            val courses = snapshot.toObjects(Course::class.java)
+
+            if (courses.isNotEmpty()) {
+                courseDao.insertAll(courses)
+            }
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    /**
+     * Starts a real-time listener for the user's courses in Firestore.
+     */
+    fun startCoursesSync(uid: String) {
+        if (coursesListener != null) return
+
+        coursesListener = userCoursesRef(uid).addSnapshotListener { snapshot, error ->
+            if (error != null) return@addSnapshotListener
+
+            if (snapshot != null) {
+                val courses = snapshot.toObjects(Course::class.java).filterNotNull()
+                CoroutineScope(Dispatchers.IO).launch {
+                    courseDao.insertAll(courses)
+                }
+            }
+        }
+    }
+
+    /**
+     * Stops the real-time listener to release resources.
+     */
+    fun stopCoursesSync() {
+        coursesListener?.remove()
+        coursesListener = null
+    }
+
+    /**
+     * Starts a real-time listener for students within a specific course.
+     */
+    fun startStudentsSync(uid: String, classId: String) {
+        stopStudentsSync()
+
+        studentsListener = userCoursesRef(uid)
+            .document(classId)
+            .collection("students")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+
+                snapshot?.let {
+                    val students = it.toObjects(Student::class.java).filterNotNull()
+                    CoroutineScope(Dispatchers.IO).launch {
+                        studentDao.insertAll(students)
+                    }
+                }
+            }
+    }
+
+    /**
+     * Stops the real-time listener for students.
+     */
+    fun stopStudentsSync() {
+        studentsListener?.remove()
+        studentsListener = null
+    }
+
+    /**
+     * Starts a real-time listener for activities of a specific course.
+     */
+    fun startActivitiesSync(uid: String, classId: String) {
+        stopActivitiesSync()
+
+        activitiesListener = userCoursesRef(uid)
+            .document(classId)
+            .collection("activities")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+
+                snapshot?.let {
+                    val activities = it.toObjects(Activity::class.java).filterNotNull()
+                    CoroutineScope(Dispatchers.IO).launch {
+                        activityDao.insertAll(activities)
+                    }
+                }
+            }
+    }
+
+    /**
+     * Stops the active activities listener.
+     */
+    fun stopActivitiesSync() {
+        activitiesListener?.remove()
+        activitiesListener = null
+    }
 }

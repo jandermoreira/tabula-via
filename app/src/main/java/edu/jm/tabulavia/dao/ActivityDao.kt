@@ -11,6 +11,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.ActivityHighlightedSkill
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ActivityDao {
@@ -37,7 +38,7 @@ interface ActivityDao {
      * Retrieves all activities for a specific class ordered by timestamp.
      */
     @Query("SELECT * FROM activities WHERE classId = :classId ORDER BY timestamp DESC")
-    suspend fun getActivitiesForClass(classId: String): List<Activity>
+    fun getActivitiesForClass(classId: String): Flow<List<Activity>>
 
     /**
      * Retrieves all activities across all courses.
