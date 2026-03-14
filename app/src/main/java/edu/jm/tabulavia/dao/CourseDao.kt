@@ -10,6 +10,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import edu.jm.tabulavia.model.Course
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CourseDao {
@@ -33,7 +34,7 @@ interface CourseDao {
      * Results are ordered alphabetically by class name.
      */
     @Query("SELECT * FROM classes ORDER BY className ASC")
-    suspend fun getAllCourses(): List<Course>
+    fun getAllCourses(): Flow<List<Course>>
 
     /**
      * Retrieves a specific course based on its unique identifier.
@@ -47,4 +48,10 @@ interface CourseDao {
      */
     @Update
     suspend fun updateCourse(course: Course)
+
+    /**
+     * Retrieves all courses as a reactive flow.
+     */
+    @Query("SELECT * FROM classes ORDER BY className ASC")
+    fun getAllCoursesFlow(): Flow<List<Course>>
 }

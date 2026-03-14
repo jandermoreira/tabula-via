@@ -34,12 +34,15 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 
 class CourseViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = DatabaseProvider.getDatabase(application)
 
     private val courseRepository = CourseRepository(
+        context = application.applicationContext,
         courseDao = db.courseDao(),
         activityDao = db.activityDao(),
         groupMemberDao = db.groupMemberDao(),
@@ -64,9 +67,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     )
 
     // --- UI State Streams ---
-    private val _courses = MutableStateFlow<List<Course>>(emptyList())
-    val courses: StateFlow<List<Course>> = _courses.asStateFlow()
-
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse.asStateFlow()
 
@@ -142,14 +142,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     // --- Loading and Clearing Logic ---
 
-    /**
-     * Loads the full list of available courses.
-     */
-    fun loadAllCourses() {
-        viewModelScope.launch {
-            _courses.value = courseRepository.getAllCourses()
-        }
-    }
+    val courses: StateFlow<List<Course>> = courseRepository.getAllCoursesFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     /**
      * Fetches details for a specific class including students, sessions, and activities.
@@ -687,67 +685,66 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      * Uploads all local data to cloud storage.
      */
     suspend fun backup() {
-        val userId = Firebase.auth.currentUser?.uid ?: run {
-            _userMessage.value = "Usuário não logado."
-            return
-        }
-        _userMessage.value = "Iniciando backup..."
-        try {
-            val backupData = BackupData(
-                courses = courseRepository.getAllCourses(),
-                students = studentRepository.getAllStudents(),
-                classSessions = attendanceRepository.getAllSessions(),
-                attendanceRecords = attendanceRepository.getAllRecords(),
-                activities = courseRepository.getAllActivities(),
-                groupMembers = courseRepository.getAllGroupMembers(),
-                skillAssessments = skillRepository.getAllAssessments().first(),
-                courseSkills = skillRepository.getAllCourseSkills(),
-                activityHighlightedSkills = skillRepository.getAllHighlightedSkills(),
-                studentSkills = skillRepository.getAllStudentSkills()
-            )
-            val result = cloudStorageRepository.uploadBackupData(backupData)
-            _userMessage.value = result.message
-        } catch (e: Exception) {
-            _userMessage.value = "Erro no backup: ${e.message}"
-        }
+//        val userId = Firebase.auth.currentUser?.uid ?: run {
+//            _userMessage.value = "Usuário não logado."
+//            return
+//        }
+//        _userMessage.value = "Iniciando backup..."
+//        try {
+//            val backupData = BackupData(
+//                courses = courseRepository.getAllCourses(),
+//                students = studentRepository.getAllStudents(),
+//                classSessions = attendanceRepository.getAllSessions(),
+//                attendanceRecords = attendanceRepository.getAllRecords(),
+//                activities = courseRepository.getAllActivities(),
+//                groupMembers = courseRepository.getAllGroupMembers(),
+//                skillAssessments = skillRepository.getAllAssessments().first(),
+//                courseSkills = skillRepository.getAllCourseSkills(),
+//                activityHighlightedSkills = skillRepository.getAllHighlightedSkills(),
+//                studentSkills = skillRepository.getAllStudentSkills()
+//            )
+//            val result = cloudStorageRepository.uploadBackupData(backupData)
+//            _userMessage.value = result.message
+//        } catch (e: Exception) {
+//            _userMessage.value = "Erro no backup: ${e.message}"
+//        }
     }
 
     /**
      * Downloads and restores data from cloud storage.
      */
     suspend fun restore() {
-        val userId = Firebase.auth.currentUser?.uid ?: run {
-            _userMessage.value = "Usuário não logado."
-            return
-        }
-        _userMessage.value = "Iniciando restauração..."
-        try {
-            val result = cloudStorageRepository.downloadBackupData()
-            if (result.data == null) {
-                _userMessage.value = result.message
-                return
-            }
-            val backupData = result.data
-
-            withContext(Dispatchers.IO) {
-                db.clearAllTables()
-                courseRepository.insertAllCourses(backupData.courses)
-                studentRepository.insertAllStudents(backupData.students)
-                courseRepository.insertAllActivities(backupData.activities)
-                attendanceRepository.insertAllSessions(backupData.classSessions)
-                attendanceRepository.insertAllAttendanceRecords(backupData.attendanceRecords)
-                courseRepository.insertAllGroupMembers(backupData.groupMembers)
-                skillRepository.insertAllAssessments(backupData.skillAssessments)
-                skillRepository.insertCourseSkills(backupData.courseSkills)
-                skillRepository.insertAllHighlightedSkills(backupData.activityHighlightedSkills)
-                skillRepository.insertOrUpdateStudentSkills(backupData.studentSkills)
-            }
-
-            loadAllCourses()
-            _userMessage.value = "Restauração concluída com sucesso!"
-        } catch (e: Exception) {
-            _userMessage.value = "Erro na restauração: ${e.message}"
-        }
+//        val userId = Firebase.auth.currentUser?.uid ?: run {
+//            _userMessage.value = "Usuário não logado."
+//            return
+//        }
+//        _userMessage.value = "Iniciando restauração..."
+//        try {
+//            val result = cloudStorageRepository.downloadBackupData()
+//            if (result.data == null) {
+//                _userMessage.value = result.message
+//                return
+//            }
+//            val backupData = result.data
+//
+//            withContext(Dispatchers.IO) {
+//                db.clearAllTables()
+//                courseRepository.insertAllCourses(backupData.courses)
+//                studentRepository.insertAllStudents(backupData.students)
+//                courseRepository.insertAllActivities(backupData.activities)
+//                attendanceRepository.insertAllSessions(backupData.classSessions)
+//                attendanceRepository.insertAllAttendanceRecords(backupData.attendanceRecords)
+//                courseRepository.insertAllGroupMembers(backupData.groupMembers)
+//                skillRepository.insertAllAssessments(backupData.skillAssessments)
+//                skillRepository.insertCourseSkills(backupData.courseSkills)
+//                skillRepository.insertAllHighlightedSkills(backupData.activityHighlightedSkills)
+//                skillRepository.insertOrUpdateStudentSkills(backupData.studentSkills)
+//            }
+//
+//            _userMessage.value = "Restauração concluída com sucesso!"
+//        } catch (e: Exception) {
+//            _userMessage.value = "Erro na restauração: ${e.message}"
+//        }
     }
 
     /**
@@ -762,13 +759,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     db.clearAllTables()
                 }
 
-                _courses.value = emptyList()
                 _selectedCourse.value = null
                 _studentsForClass.value = emptyList()
                 _generatedGroups.value = emptyList()
 
                 _userMessage.value = "Base de dados limpa com sucesso."
-
             } catch (e: Exception) {
                 _userMessage.value = "Erro ao limpar a base: ${e.message}"
             }
@@ -857,8 +852,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     period = ""
                     numberOfClasses = 0
 
-                    loadAllCourses()
-
                     onCourseAdded()
 
                 } finally {
@@ -936,7 +929,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                             val fullName = lineParts[1]
 
                             // Split the name to extract first and last parts
-                            val nameSegments = fullName.split(Regex("\\s+")).filter { it.isNotBlank() }
+                            val nameSegments =
+                                fullName.split(Regex("\\s+")).filter { it.isNotBlank() }
 
                             val formattedDisplayName = when {
                                 nameSegments.size >= 2 -> "${nameSegments.first()} ${nameSegments.last()}"

@@ -67,9 +67,9 @@ fun CourseListScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        viewModel.loadAllCourses()
-    }
+//    LaunchedEffect(Unit) {
+//        viewModel.loadAllCourses()
+//    }
 
     /**
      * Shows user messages in a snackbar.
