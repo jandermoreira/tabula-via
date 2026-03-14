@@ -15,26 +15,25 @@ import java.util.UUID
 data class Course(
 
     /**
-     * Primary identifier. Should be initialized with a UUID or
-     * the Firestore document ID to prevent collisions during sync.
+     * Primary identifier. Initialized with a UUID to prevent collisions during sync.
      */
     @PrimaryKey
     val classId: String = UUID.randomUUID().toString(),
 
     /**
-     * Name of the class.
+     * Name of the class. Default empty string allows Firestore serialization.
      */
-    val className: String,
+    val className: String = "",
 
     /**
-     * Academic year associated with the class.
+     * Academic year associated with the class. Default empty string allows Firestore serialization.
      */
-    val academicYear: String,
+    val academicYear: String = "",
 
     /**
-     * Period or term of the class.
+     * Period or term of the class. Default empty string allows Firestore serialization.
      */
-    val period: String,
+    val period: String = "",
 
     /**
      * Number of class sessions planned.
