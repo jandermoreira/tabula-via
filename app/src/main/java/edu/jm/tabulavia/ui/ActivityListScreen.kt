@@ -1,3 +1,8 @@
+/**
+ * File: ActivityListScreen.kt
+ * Description: UI screen for listing activities and managing batch skill assessments.
+ */
+
 package edu.jm.tabulavia.ui
 
 import android.util.Log
@@ -47,6 +52,10 @@ private data class PeerAssessmentData(
     val timestamp: Long
 )
 
+/**
+ * Composable function for the Activity List Screen.
+ * Handles the display of course activities and assessment log dialogs.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityListScreen(
@@ -64,6 +73,7 @@ fun ActivityListScreen(
     val studentsInClass by viewModel.studentsForClass.collectAsState()
     val courseSkills by viewModel.courseSkills.collectAsState()
 
+    // Logic to reload assessment logs
     LaunchedEffect(showSkillLogDialog) {
         if (showSkillLogDialog) {
             viewModel.loadSkillAssessmentLog()
@@ -99,17 +109,14 @@ fun ActivityListScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // FAB para adicionar atividade (existente)
                 FloatingActionButton(onClick = { showAddActivityDialog = true }) {
                     Icon(Icons.Default.PostAdd, contentDescription = "Adicionar Atividade")
                 }
 
-                // FAB para o Log de Habilidades
                 FloatingActionButton(onClick = { showSkillLogDialog = true }) {
                     Icon(Icons.Default.Description, contentDescription = "Log de Habilidades")
                 }
 
-                // NOVO FAB para entrada de habilidades em lote
                 FloatingActionButton(onClick = { showBatchSkillEntryDialog = true }) {
                     Icon(
                         Icons.Default.Upload,
@@ -119,6 +126,7 @@ fun ActivityListScreen(
             }
         }
     ) { paddingValues ->
+        // Activity List Rendering logic
         if (activities.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -143,7 +151,6 @@ fun ActivityListScreen(
             }
         }
 
-        // Diálogo para exibir o log de habilidades (existente)
         if (showSkillLogDialog) {
             AlertDialog(
                 onDismissRequest = { showSkillLogDialog = false },
@@ -178,7 +185,9 @@ fun ActivityListScreen(
             )
         }
 
-        // NOVO: Diálogo para entrada de habilidades em lote
+        /**
+         * Logic block for processing batch skill entries.
+         */
         if (showBatchSkillEntryDialog) {
             BatchSkillEntryDialog(
                 viewModel = viewModel,
@@ -190,7 +199,7 @@ fun ActivityListScreen(
 
                     pastedText.lines().forEach { line ->
                         if (line.isNotBlank()) {
-                            val fields = line.split('	').map { it.trim() }
+                            val fields = line.split('\t').map { it.trim() }
                             if (fields.size >= 3 + courseSkills.size) { // Garante que há campos suficientes
                                 try {
                                     val format = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
@@ -263,11 +272,13 @@ fun ActivityListScreen(
                         }
                     }
 
-                    // Processar e agregar avaliações por pares após todas as linhas serem lidas
+                    /**
+                     * Logic block for aggregating peer assessments.
+                     */
                     val aggregatedPeerAssessments = peerAssessmentsToAggregate
-                        .groupBy { it.evaluatedStudentId } // Agrupar por evaluatedStudentId
+                        .groupBy { it.evaluatedStudentId }
                         .mapValues { (_, assessmentsByStudent) ->
-                            assessmentsByStudent.groupBy { it.skillName } // Agrupar por skillName
+                            assessmentsByStudent.groupBy { it.skillName }
                                 .mapValues { (_, assessmentsForSkill) ->
                                     Pair(
                                         assessmentsForSkill.map { it.skillValue },
@@ -295,7 +306,7 @@ fun ActivityListScreen(
                                         skillName = skillName,
                                         level = averagedSkillLevel,
                                         source = AssessmentSource.PEER_ASSESSMENT,
-                                        timestamp = latestTimestamp // O timestamp da agregação é o mais recente
+                                        timestamp = latestTimestamp
                                     )
                                     Log.d("BatchEntry", "Avaliação por pares agregada salva para ${evaluatedStudent.displayName} em $skillName -> $averagedSkillLevel (Média: $averageSkillValue, Timestamp Mais Recente: $latestTimestamp)")
                                 }
@@ -309,6 +320,9 @@ fun ActivityListScreen(
     }
 }
 
+/**
+ * Composable for a single activity item card.
+ */
 @Composable
 fun ActivityItem(activity: Activity, onActivityClicked: (Activity) -> Unit) {
     Card(
@@ -323,7 +337,9 @@ fun ActivityItem(activity: Activity, onActivityClicked: (Activity) -> Unit) {
     }
 }
 
-// --- NOVO: Composable para o diálogo de entrada de habilidades em lote SIMPLIFICADO ---
+/**
+ * Dialog for simplified batch skill entry.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BatchSkillEntryDialog(
