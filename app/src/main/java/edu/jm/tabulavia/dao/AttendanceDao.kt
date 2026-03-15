@@ -1,6 +1,8 @@
 /**
+ * AttendanceDao.kt
+ *
  * Data Access Object for attendance and class session entities.
- * Provides methods to interact with the 'class_sessions' and 'attendance_records' tables.
+ * Provides reactive methods to interact with the 'class_sessions' and 'attendance_records' tables.
  */
 package edu.jm.tabulavia.dao
 
@@ -12,6 +14,7 @@ import androidx.room.Query
 import edu.jm.tabulavia.model.AttendanceRecord
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassSession
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AttendanceDao {
@@ -27,6 +30,12 @@ interface AttendanceDao {
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAllSessions(sessions: List<ClassSession>)
+
+    /**
+     * Retrieves all sessions for a specific class as a reactive flow.
+     */
+    @Query("SELECT * FROM class_sessions WHERE classId = :classId ORDER BY timestamp DESC")
+    fun getClassSessionsFlow(classId: String): Flow<List<ClassSession>>
 
     /**
      * Retrieves all sessions for a specific class ordered by timestamp.
@@ -51,6 +60,12 @@ interface AttendanceDao {
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAttendanceRecords(records: List<AttendanceRecord>)
+
+    /**
+     * Retrieves attendance records for a specific session as a reactive flow.
+     */
+    @Query("SELECT * FROM attendance_records WHERE sessionId = :sessionId")
+    fun getAttendanceRecordsFlow(sessionId: String): Flow<List<AttendanceRecord>>
 
     /**
      * Retrieves attendance records for a specific session.
@@ -78,4 +93,9 @@ interface AttendanceDao {
      */
     @Query("DELETE FROM attendance_records WHERE sessionId = :sessionId")
     suspend fun deleteAttendanceRecordsForSession(sessionId: String)
-}
+
+    @Query("SELECT COUNT(*) FROM attendance_records WHERE studentId = :studentId AND status = :status")
+    fun countStudentAbsencesFlow(
+        studentId: String,
+        status: AttendanceStatus = AttendanceStatus.ABSENT
+    ): Flow<Int>}

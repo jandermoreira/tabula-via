@@ -24,7 +24,7 @@ import java.util.UUID
     ],
     indices = [Index(value = ["classId"])]
 )
-data class Activity(
+data class Activity @JvmOverloads constructor(
     /**
      * Unique identifier generated as a UUID string.
      */
@@ -34,17 +34,17 @@ data class Activity(
     /**
      * Identifier of the associated course (String UUID).
      */
-    val classId: String,
+    val classId: String = "",
 
     /**
      * Title of the activity.
      */
-    val title: String,
+    val title: String = "",
 
     /**
      * Detailed description or type of the activity.
      */
-    val description: String,
+    val description: String = "",
 
     /**
      * Creation or scheduled timestamp.

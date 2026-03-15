@@ -5,13 +5,17 @@
 package edu.jm.tabulavia.repository
 
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import edu.jm.tabulavia.dao.AttendanceDao
 import edu.jm.tabulavia.model.AttendanceRecord
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassSession
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.UUID
@@ -40,6 +44,14 @@ sealed class SaveAttendanceResult {
 class AttendanceRepository(private val attendanceDao: AttendanceDao) {
 
     private val firestore = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
+    private var attendanceListener: ListenerRegistration? = null
+
+    /**
+     * Gets the current authenticated user ID.
+     */
+    private val currentUserId: String?
+        get() = auth.currentUser?.uid
 
     /**
      * Saves attendance records locally and synchronizes with Firestore.
@@ -51,7 +63,6 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
         editingSession: ClassSession? = null
     ): SaveAttendanceResult = withContext(Dispatchers.IO) {
         try {
-            // Determine session identifier
             val sessionId = editingSession?.sessionId ?: UUID.randomUUID().toString()
 
             val session = ClassSession(
@@ -60,21 +71,19 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
                 timestamp = timestamp
             )
 
-            // Persist session locally
+            // Local database operations
             attendanceDao.insertClassSession(session)
 
-            // Clear previous records if editing an existing session
             if (editingSession != null) {
                 attendanceDao.deleteAttendanceRecordsForSession(sessionId)
             }
 
-            // Persist new attendance records locally
             val records = attendanceMap.map { (studentId, status) ->
                 AttendanceRecord(sessionId = sessionId, studentId = studentId, status = status)
             }
             attendanceDao.insertAttendanceRecords(records)
 
-            // Synchronize with remote storage
+            // Firestore synchronization
             syncSessionToFirestore(classId, sessionId, timestamp, attendanceMap)
 
             SaveAttendanceResult.Success(sessionId)
@@ -85,14 +94,19 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
     }
 
     /**
-     * Pushes session and attendance data to the Firestore course hierarchy.
+     * Pushes session and attendance data to the Firestore course hierarchy using the authenticated user ID.
      */
-    private suspend fun syncSessionToFirestore(
+    private fun syncSessionToFirestore(
         classId: String,
         sessionId: String,
         timestamp: Long,
         attendanceMap: Map<String, AttendanceStatus>
     ) {
+        val userId = currentUserId ?: run {
+            Log.e("AttendanceRepo", "User not authenticated for Firestore sync")
+            return
+        }
+
         val firestoreSession = FirestoreSession(
             sessionId = sessionId,
             classId = classId,
@@ -100,28 +114,90 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
             attendance = attendanceMap.mapValues { it.value.name }
         )
 
-        firestore.collection("courses")
+        // Maps data to users/{userId}/courses/{classId}/sessions/{sessionId}
+        firestore.collection("users")
+            .document(userId)
+            .collection("courses")
             .document(classId)
             .collection("sessions")
             .document(sessionId)
             .set(firestoreSession)
-            .await()
+    }
+
+    /**
+     * Starts a real-time listener for attendance of a specific course.
+     */
+    fun startAttendanceSync(classId: String) {
+        val userId = currentUserId ?: return
+        stopAttendanceSync()
+
+        // Listener for changes in the specific user's course sessions
+        attendanceListener = firestore.collection("users")
+            .document(userId)
+            .collection("courses")
+            .document(classId)
+            .collection("sessions")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("AttendanceRepo", "Sync error: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                snapshot?.let { querySnapshot ->
+                    val sessions = querySnapshot.toObjects(FirestoreSession::class.java)
+                    CoroutineScope(Dispatchers.IO).launch {
+                        processRemoteSessions(sessions)
+                    }
+                }
+            }
+    }
+
+    /**
+     * Processes sessions retrieved from remote storage and updates local database.
+     */
+    private suspend fun processRemoteSessions(sessions: List<FirestoreSession>) {
+        sessions.forEach { remote ->
+            val session = ClassSession(
+                sessionId = remote.sessionId,
+                classId = remote.classId,
+                timestamp = remote.timestamp
+            )
+            val records = remote.attendance.map { (studentId, statusName) ->
+                AttendanceRecord(
+                    sessionId = remote.sessionId,
+                    studentId = studentId,
+                    status = AttendanceStatus.valueOf(statusName)
+                )
+            }
+            attendanceDao.insertClassSession(session)
+            attendanceDao.insertAttendanceRecords(records)
+        }
+    }
+
+    /**
+     * Stops the active attendance listener.
+     */
+    fun stopAttendanceSync() {
+        attendanceListener?.remove()
+        attendanceListener = null
     }
 
     /**
      * Deletes a session locally and removes its remote document from Firestore.
      */
     suspend fun deleteSession(session: ClassSession) = withContext(Dispatchers.IO) {
+        val userId = currentUserId
+
         attendanceDao.deleteSession(session)
-        try {
-            firestore.collection("courses")
+
+        if (userId != null) {
+            firestore.collection("users")
+                .document(userId)
+                .collection("courses")
                 .document(session.classId)
                 .collection("sessions")
                 .document(session.sessionId)
                 .delete()
-                .await()
-        } catch (e: Exception) {
-            Log.e("AttendanceRepo", "Failed to delete remote session: ${e.message}")
         }
     }
 
@@ -185,4 +261,21 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
     suspend fun countStudentAbsences(studentId: String): Int = withContext(Dispatchers.IO) {
         attendanceDao.countStudentAbsences(studentId)
     }
+
+    /**
+     * Returns a flow that emits the total count of absences for a specific student.
+     */
+    fun countStudentAbsencesFlow(studentId: String): Flow<Int> {
+        return attendanceDao.countStudentAbsencesFlow(studentId)
+    }
+
+    /**
+     * Retrieves attendance records for a specific session as a reactive flow.
+     */
+    fun getAttendanceRecordsFlow(sessionId: String) = attendanceDao.getAttendanceRecordsFlow(sessionId)
+
+    /**
+     * Retrieves all sessions for a specific class as a reactive flow.
+     */
+    fun getClassSessionsFlow(classId: String) = attendanceDao.getClassSessionsFlow(classId)
 }

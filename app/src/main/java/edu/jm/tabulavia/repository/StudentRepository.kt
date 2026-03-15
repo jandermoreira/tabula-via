@@ -31,24 +31,28 @@ class StudentRepository(
 
     /**
      * Inserts or updates a student locally and synchronizes with Firestore.
-     * Uses the studentId (UUID) provided by the model.
+     * Removed await() to support offline-first behavior.
      */
     suspend fun insertStudent(student: Student, uid: String) {
-        // Persistência Local (Room)
         studentDao.insertStudent(student)
 
-        // Sincronização Remota (Firestore)
         studentDocRef(uid, student.classId, student.studentId)
             .set(student)
-            .await()
     }
 
     /**
-     * Bulk inserts or updates a list of students locally.
-     * Useful for restoration or bulk migrations.
+     * Bulk inserts students locally and synchronizes with Firestore using a batch write.
+     * Uses a single Room transaction and a Firestore batch without awaiting network.
      */
-    suspend fun insertAllStudents(students: List<Student>) {
+    suspend fun insertAllStudents(students: List<Student>, uid: String) {
         studentDao.insertAll(students)
+
+        val batch = firestore.batch()
+        for (student in students) {
+            val docRef = studentDocRef(uid, student.classId, student.studentId)
+            batch.set(docRef, student)
+        }
+        batch.commit()
     }
 
     /**

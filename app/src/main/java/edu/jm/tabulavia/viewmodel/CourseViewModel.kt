@@ -14,7 +14,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.toMutableStateList
-import com.google.firebase.storage.ktx.storage
 import edu.jm.tabulavia.db.DatabaseProvider
 import edu.jm.tabulavia.model.*
 import edu.jm.tabulavia.model.grouping.Group
@@ -36,6 +35,8 @@ import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 class CourseViewModel(application: Application) : AndroidViewModel(application) {
@@ -51,8 +52,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         firestore = Firebase.firestore
     )
     private val studentRepository = StudentRepository(
-        studentDao = db.studentDao(),
-        firestore = Firebase.firestore
+        studentDao = db.studentDao(), firestore = Firebase.firestore
     )
     private val attendanceRepository = AttendanceRepository(
         attendanceDao = db.attendanceDao()
@@ -64,8 +64,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         activityHighlightedSkillDao = db.activityHighlightedSkillDao()
     )
     private val cloudStorageRepository = CloudStorageRepository(
-        storage = Firebase.storage,
-        auth = Firebase.auth
+        storage = Firebase.storage, auth = Firebase.auth
     )
 
     // --- UI State Streams ---
@@ -78,8 +77,18 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _studentsForClass = MutableStateFlow<List<Student>>(emptyList())
     val studentsForClass: StateFlow<List<Student>> = _studentsForClass.asStateFlow()
 
-    private val _classSessions = MutableStateFlow<List<ClassSession>>(emptyList())
-    val classSessions: StateFlow<List<ClassSession>> = _classSessions.asStateFlow()
+    private val _classSessions = _selectedCourse.flatMapLatest { course ->
+        if (course != null) {
+            attendanceRepository.getClassSessionsFlow(course.classId)
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+    val classSessions: StateFlow<List<ClassSession>> = _classSessions
 
     private val _userMessage = MutableStateFlow<String?>(null)
     val userMessage: StateFlow<String?> = _userMessage.asStateFlow()
@@ -111,7 +120,20 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     val generatedGroups: StateFlow<List<List<Student>>> = _generatedGroups.asStateFlow()
 
     private val _todaysAttendance = MutableStateFlow<Map<String, AttendanceStatus>>(emptyMap())
-    val todaysAttendance: StateFlow<Map<String, AttendanceStatus>> = _todaysAttendance.asStateFlow()
+    val todaysAttendance: StateFlow<Map<String, AttendanceStatus>> = _classSessions
+        .flatMapLatest { sessions ->
+            val lastSessionToday = attendanceRepository.getLastSessionToday(sessions)
+            if (lastSessionToday != null) {
+                attendanceRepository.getAttendanceRecordsFlow(lastSessionToday.sessionId)
+                    .map { records -> records.associate { it.studentId to it.status } }
+            } else {
+                kotlinx.coroutines.flow.flowOf(emptyMap())
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyMap()
+        )
 
     private val _selectedGroupDetails = MutableStateFlow<List<Student>>(emptyList())
     val selectedGroupDetails: StateFlow<List<Student>> = _selectedGroupDetails.asStateFlow()
@@ -144,12 +166,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     // --- Loading and Clearing Logic ---
 
-    val courses: StateFlow<List<Course>> = courseRepository.getAllCoursesFlow()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val courses: StateFlow<List<Course>> = courseRepository.getAllCoursesFlow().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     init {
         // Starts real-time synchronization when the ViewModel is initialized
@@ -167,6 +188,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         courseRepository.stopCoursesSync()
         courseRepository.stopStudentsSync()
         courseRepository.stopActivitiesSync()
+        attendanceRepository.stopAttendanceSync()
     }
 
     /**
@@ -195,6 +217,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         Firebase.auth.currentUser?.uid?.let { uid ->
             courseRepository.startStudentsSync(uid, classId)
             courseRepository.startActivitiesSync(uid, classId)
+            attendanceRepository.startAttendanceSync(classId)
         }
 
         // Collect student updates and initial course data
@@ -215,24 +238,18 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
         // Load sessions and skills data
         viewModelScope.launch {
-            val allSessions = attendanceRepository.getClassSessions(classId)
-            _classSessions.value = allSessions
             _courseSkills.value = skillRepository.getSkillsForCourse(classId)
-
-            loadTodaysAttendance(allSessions)
         }
     }
 
     /**
-     * Resets the UI state related to the currently selected course.
+     * Resets the UI state for the current course.
      */
     fun clearCourseDetails() {
         _selectedCourse.value = null
         _studentsForClass.value = emptyList()
-        _classSessions.value = emptyList()
         _activities.value = emptyList()
         editingSession = null
-        _todaysAttendance.value = emptyMap()
         _courseSkills.value = emptyList()
         _studentSkillStatuses.value = emptyList()
     }
@@ -262,9 +279,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     fun updateStudent(onDismiss: () -> Unit) {
         val studentToUpdate = _selectedStudentDetails.value ?: return
         val updatedStudent = studentToUpdate.copy(
-            name = studentName,
-            displayName = studentDisplayName,
-            studentNumber = studentNumber
+            name = studentName, displayName = studentDisplayName, studentNumber = studentNumber
         )
         val uid = Firebase.auth.currentUser?.uid ?: return
         viewModelScope.launch {
@@ -288,13 +303,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val statuses = skillRepository.calculateStudentSkillStatuses(studentId, courseSkills)
             _studentSkillStatuses.value = statuses
 
-            val totalClasses = _selectedCourse.value?.numberOfClasses ?: 0
-            if (totalClasses > 0) {
-                val absences = attendanceRepository.countStudentAbsences(studentId)
-                _studentAttendancePercentage.value =
-                    ((totalClasses.toFloat() - absences.toFloat()) / totalClasses.toFloat()) * 100
-            } else {
-                _studentAttendancePercentage.value = null
+            attendanceRepository.countStudentAbsencesFlow(studentId).collect { absences ->
+                val totalClasses = _selectedCourse.value?.numberOfClasses ?: 0
+                if (totalClasses > 0) {
+                    _studentAttendancePercentage.value =
+                        ((totalClasses.toFloat() - absences.toFloat()) / totalClasses.toFloat()) * 100
+                } else {
+                    _studentAttendancePercentage.value = null
+                }
             }
         }
     }
@@ -403,8 +419,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      * Records multiple professor observations for a student.
      */
     fun addProfessorSkillAssessments(
-        studentId: String,
-        assessments: List<Pair<String, SkillLevel>>
+        studentId: String, assessments: List<Pair<String, SkillLevel>>
     ) {
         viewModelScope.launch {
             val newAssessments = assessments.map { (skillName, level) ->
@@ -458,12 +473,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     if (members.isNotEmpty()) {
                         val studentMap = students.associateBy { it.studentId }
 
-                        members.groupBy { it.groupNumber }
-                            .toSortedMap()
-                            .values
-                            .map { groupList ->
-                                groupList.mapNotNull { member -> studentMap[member.studentId] }
-                            }
+                        members.groupBy { it.groupNumber }.toSortedMap().values.map { groupList ->
+                            groupList.mapNotNull { member -> studentMap[member.studentId] }
+                        }
                     } else {
                         emptyList()
                     }
@@ -508,14 +520,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
                 courseRepository.insertActivity(newActivity, uid)
 
-                val highlightedSkills = activityHighlightedSkills
-                    .sorted()
-                    .map { skillName ->
-                        ActivityHighlightedSkill(
-                            activityId = newActivityId,
-                            skillName = skillName
-                        )
-                    }
+                val highlightedSkills = activityHighlightedSkills.sorted().map { skillName ->
+                    ActivityHighlightedSkill(
+                        activityId = newActivityId, skillName = skillName
+                    )
+                }
 
                 skillRepository.updateActivityHighlightedSkills(newActivityId, highlightedSkills)
 
@@ -553,9 +562,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 return@launch
             }
 
-            val presentStudents = _studentsForClass.value
-                .filter { _todaysAttendance.value[it.studentId] != AttendanceStatus.ABSENT }
-                .shuffled()
+            val presentStudents =
+                _studentsForClass.value.filter { _todaysAttendance.value[it.studentId] != AttendanceStatus.ABSENT }
+                    .shuffled()
 
             if (presentStudents.isEmpty()) {
                 _userMessage.value = "Nenhum aluno presente para formar grupos."
@@ -644,6 +653,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      */
     val attendanceMap = mutableStateMapOf<String, AttendanceStatus>()
 
+    private var isSavingAttendance by mutableStateOf(false)
+    private var attendanceErrorMessage by mutableStateOf<String?>(null)
+
     /**
      * Prepares the state for a new frequency session.
      * Resets the current session and initializes attendance for all students.
@@ -675,7 +687,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val statusMap = records.associate { it.studentId to it.status }
 
             attendanceMap.clear()
-            attendanceMap.putAll(statusMap)
+
+            studentsForClass.value.forEach { student ->
+                attendanceMap[student.studentId] = statusMap[student.studentId] ?: AttendanceStatus.PRESENT
+            }
         }
     }
 
@@ -691,10 +706,21 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun deleteSession(session: ClassSession, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
-            attendanceRepository.deleteSession(session)
-            loadCourseDetails(session.classId)
-            _userMessage.value = "Registro de frequência apagado."
-            onComplete()
+            try {
+                attendanceRepository.deleteSession(session)
+
+                // Clear editing state if the deleted session was being edited
+                if (editingSession?.sessionId == session.sessionId) {
+                    editingSession = null
+                    attendanceMap.clear()
+                }
+
+                loadCourseDetails(session.classId)
+                _userMessage.value = "Registro de frequência apagado."
+                onComplete()
+            } catch (e: Exception) {
+                _userMessage.value = "Erro ao apagar registro: ${e.message}"
+            }
         }
     }
 
@@ -717,26 +743,37 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Saves the current attendance state.
-     * Syncs data to the repository and resets the frequency UI state.
+     * Saves the current attendance and clears the state upon success.
+     * Persistence is performed locally first, with background cloud sync.
      */
-    fun saveFrequency(classId: String, onComplete: () -> Unit) {
-        val currentTimestamp = newSessionCalendar.timeInMillis
+    fun saveAttendance(classId: String, onSelectionConfirmed: () -> Unit) {
+        if (isSavingAttendance) return
+
+        isSavingAttendance = true
+        attendanceErrorMessage = null
 
         viewModelScope.launch {
+            // Use the date from the calendar and pass the editingSession to avoid duplication
             val result = attendanceRepository.saveAttendance(
                 classId = classId,
-                timestamp = currentTimestamp,
+                timestamp = newSessionCalendar.timeInMillis,
                 attendanceMap = attendanceMap.toMap(),
                 editingSession = editingSession
             )
 
-            if (result is SaveAttendanceResult.Success) {
-                resetFrequencyState()
-                onComplete()
-            } else if (result is SaveAttendanceResult.Error) {
-                _userMessage.value = "Erro ao salvar frequência: ${result.message}"
+            when (result) {
+                is SaveAttendanceResult.Success -> {
+                    // Clear state after successful save
+                    attendanceMap.clear()
+                    editingSession = null
+                    onSelectionConfirmed()
+                }
+
+                is SaveAttendanceResult.Error -> {
+                    attendanceErrorMessage = result.message
+                }
             }
+            isSavingAttendance = false
         }
     }
 
@@ -859,10 +896,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         val firestore = Firebase.firestore
 
         while (true) {
-            val snapshot = firestore.collection(collectionPath)
-                .limit(batchSize.toLong())
-                .get()
-                .await()
+            val snapshot =
+                firestore.collection(collectionPath).limit(batchSize.toLong()).get().await()
 
             if (snapshot.isEmpty) break
 
@@ -879,24 +914,18 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private var isAddingCourse = false
 
     /**
-     * Inserts a new course and initializes it with default skills.
-     */
-    /**
-     * Inserts a new course and initializes it with default skills.
+     * Creates a new course and populates it with default skills.
+     * This method ensures the UI state is updated immediately without waiting for network.
      */
     fun addCourse(onCourseAdded: () -> Unit) {
-
         if (isAddingCourse) return
 
         if (courseName.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
-
             val uid = Firebase.auth.currentUser?.uid ?: return
-
             isAddingCourse = true
 
             viewModelScope.launch {
                 try {
-
                     val newCourse = Course(
                         classId = java.util.UUID.randomUUID().toString(),
                         className = courseName,
@@ -905,29 +934,36 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                         numberOfClasses = numberOfClasses
                     )
 
+                    // The repository now returns immediately after local insertion
                     val courseId = courseRepository.insertCourse(newCourse, uid)
 
+                    // Initialize the course with standard academic skills
                     val skills = defaultComputerScienceSkills.map {
                         CourseSkill(
-                            courseId = courseId,
-                            skillName = it
+                            courseId = courseId, skillName = it
                         )
                     }
 
                     skillRepository.insertCourseSkills(skills)
 
-                    courseName = ""
-                    academicYear = ""
-                    period = ""
-                    numberOfClasses = 0
-
+                    // Clear form state and notify UI
+                    resetCourseForm()
                     onCourseAdded()
-
                 } finally {
                     isAddingCourse = false
                 }
             }
         }
+    }
+
+    /**
+     * Resets the input fields for course creation.
+     */
+    private fun resetCourseForm() {
+        courseName = ""
+        academicYear = ""
+        period = ""
+        numberOfClasses = 0
     }
 
     /**
@@ -971,7 +1007,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Processes and inserts multiple students from a bulk text input.
      * Expected format per line: "studentNumber Full Name"
-     * Sets displayName as "First Name + Last Name".
      */
     fun addStudentsInBulk(onStudentsAdded: () -> Unit) {
         val targetClassId = _selectedCourse.value?.classId ?: return
@@ -987,17 +1022,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             try {
-                val studentsToInsert = bulkStudentText.lineSequence()
-                    .filter { it.isNotBlank() }
-                    .mapNotNull { line ->
-                        // Splits by the first whitespace: [0] = Number, [1] = Full Name
+                val studentsToInsert =
+                    bulkStudentText.lineSequence().filter { it.isNotBlank() }.mapNotNull { line ->
                         val lineParts = line.trim().split(Regex("\\s+"), limit = 2)
-
                         if (lineParts.size == 2) {
                             val number = lineParts[0]
                             val fullName = lineParts[1]
-
-                            // Split the name to extract first and last parts
                             val nameSegments =
                                 fullName.split(Regex("\\s+")).filter { it.isNotBlank() }
 
@@ -1015,23 +1045,17 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                                 classId = targetClassId
                             )
                         } else null
-                    }
-                    .toList()
+                    }.toList()
 
                 if (studentsToInsert.isEmpty()) {
                     _userMessage.value = "Nenhum aluno válido encontrado. Use: Nº Nome"
                     return@launch
                 }
 
-                // Persist each student to the repository
-                for (student in studentsToInsert) {
-                    studentRepository.insertStudent(student, currentUserId)
-                }
+                studentRepository.insertAllStudents(studentsToInsert, currentUserId)
 
                 _userMessage.value = "${studentsToInsert.size} aluno(s) adicionado(s) com sucesso."
                 bulkStudentText = ""
-
-                loadCourseDetails(targetClassId)
                 onStudentsAdded()
 
             } catch (e: Exception) {
@@ -1066,16 +1090,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             if (groupStudents.isNotEmpty()) {
                 manualGroups.add(
                     Group(
-                        id = index + 1,
-                        students = groupStudents.toMutableStateList()
+                        id = index + 1, students = groupStudents.toMutableStateList()
                     )
                 )
                 groupStudents.forEach { assignedStudentIds.add(it.studentId) }
             }
         }
 
-        allStudents
-            .filterNot { it.studentId in assignedStudentIds }
+        allStudents.filterNot { it.studentId in assignedStudentIds }
             .forEach { unassignedStudents.add(it) }
 
         nextManualGroupId = (manualGroups.maxOfOrNull { it.id } ?: 0) + 1
@@ -1096,9 +1118,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      * Orchestrates student movement between pools and groups.
      */
     fun moveStudent(
-        student: Student,
-        from: Location,
-        to: DropTarget
+        student: Student, from: Location, to: DropTarget
     ) {
         if (from is Location.Group && to is DropTarget.ExistingGroup && from.groupId == to.groupId) {
             return
@@ -1152,8 +1172,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             courseRepository.persistGroups(
-                activityId = _loadedActivityId.value ?: return@launch,
-                groups = groups
+                activityId = _loadedActivityId.value ?: return@launch, groups = groups
             )
         }
     }

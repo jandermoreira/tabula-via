@@ -62,15 +62,17 @@ class CourseRepository(
     suspend fun getCourseById(classId: String): Course? = courseDao.getCourseById(classId)
 
     /**
-     * Saves a course locally and synchronizes it with Firestore.
+     * Saves a course locally and triggers a non-blocking cloud synchronization.
+     * By removing the await() call, the UI remains responsive even when offline.
      */
     suspend fun insertCourse(course: Course, uid: String): String {
+        // Immediate local persistence
         courseDao.insertCourse(course)
 
+        // Asynchronous Firestore update managed by the SDK's internal queue
         userCoursesRef(uid)
             .document(course.classId)
             .set(course)
-            .await()
 
         return course.classId
     }

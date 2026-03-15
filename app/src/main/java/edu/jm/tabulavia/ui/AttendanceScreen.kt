@@ -75,13 +75,16 @@ fun AttendanceScreen(
                 }
             )
         },
+
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                // Fetch courseId from students or ViewModel context
                 val courseId = students.firstOrNull()?.classId ?: ""
-                viewModel.saveFrequency(courseId, onNavigateBack)
+                viewModel.saveAttendance(courseId, onNavigateBack)
             }) {
-                Icon(Icons.Filled.Check, contentDescription = "Salvar Frequência")
+                Icon(
+                    imageVector = if (editingSession != null) Icons.Filled.CheckCircle else Icons.Filled.Check,
+                    contentDescription = "Salvar Frequência"
+                )
             }
         }
     ) { paddingValues ->

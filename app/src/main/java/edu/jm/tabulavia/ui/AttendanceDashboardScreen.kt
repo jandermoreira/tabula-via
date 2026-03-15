@@ -1,4 +1,7 @@
-// kotlin
+/**
+ * Dashboard screen for viewing and managing class attendance history.
+ * Provides functionality to view details, edit, or delete existing frequency sessions.
+ */
 package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -22,6 +25,9 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Main dashboard for displaying and interacting with a list of attendance sessions.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun FrequencyDashboardScreen(
@@ -106,7 +112,7 @@ fun FrequencyDashboardScreen(
         }
     }
 
-    // Dialog de detalhes (apenas leitura)
+    // Read-only details dialog
     sessionToView?.let { session ->
         val details by viewModel.frequencyDetails.collectAsState()
         FrequencyDetailsDialog(
@@ -119,7 +125,7 @@ fun FrequencyDashboardScreen(
         )
     }
 
-    // Dialog de opções (Editar/Apagar)
+    // Contextual options dialog (Edit/Delete)
     selectedSessionForOptions?.let { session ->
         AlertDialog(
             onDismissRequest = { selectedSessionForOptions = null },
@@ -144,17 +150,22 @@ fun FrequencyDashboardScreen(
         )
     }
 
-    // Dialog de Confirmação de Exclusão
+    // Delete confirmation dialog with effective execution
     sessionToDelete?.let { session ->
         AlertDialog(
             onDismissRequest = { sessionToDelete = null },
             title = { Text("Confirmar Exclusão") },
             text = { Text("Esta ação é definitiva e não pode ser desfeita. Deseja apagar este registro de frequência?") },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.clearFrequencyDetails()
-                    sessionToDelete = null
-                }) {
+                Button(
+                    onClick = {
+                        viewModel.deleteSession(session)
+                        sessionToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
                     Text("Confirmar")
                 }
             },
@@ -167,6 +178,9 @@ fun FrequencyDashboardScreen(
     }
 }
 
+/**
+ * Dialog displaying a list of students and their attendance status for a given session.
+ */
 @Composable
 private fun FrequencyDetailsDialog(
     session: ClassSession,
@@ -184,18 +198,26 @@ private fun FrequencyDetailsDialog(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 if (details.isEmpty()) {
-                    CircularProgressIndicator()
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 } else {
-                    LazyColumn {
+                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
                         items(details.entries.toList()) { (name, status) ->
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(name)
+                                Text(name, modifier = Modifier.weight(1f))
                                 Text(
                                     status.displayName,
-                                    color = if (status == AttendanceStatus.PRESENT) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                    color = if (status == AttendanceStatus.PRESENT)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -211,6 +233,9 @@ private fun FrequencyDetailsDialog(
     )
 }
 
+/**
+ * Extension function to format timestamp into human-readable date and time.
+ */
 fun Long.toFormattedDateString(): String {
     val date = Date(this)
     val format = SimpleDateFormat("dd/MM/yyyy '-' HH:mm", Locale.getDefault())

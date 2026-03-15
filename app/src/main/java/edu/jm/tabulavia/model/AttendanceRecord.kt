@@ -1,4 +1,3 @@
-
 /**
  * AttendanceRecord entity for the 'attendance_records' table.
  * Links students to class sessions using String identifiers for persistent synchronization.
@@ -39,17 +38,18 @@ data class AttendanceRecord(
     /**
      * Unique identifier of the session, referencing ClassSession.sessionId.
      */
-    val sessionId: String,
+    val sessionId: String = "",
 
     /**
      * Unique identifier of the student, referencing Student.studentId.
      */
-    val studentId: String,
+    val studentId: String = "",
 
     /**
      * Status of the student's attendance in the session.
+     * Defaults to ABSENT to prevent null pointer exceptions during deserialization.
      */
-    val status: AttendanceStatus
+    val status: AttendanceStatus = AttendanceStatus.ABSENT
 )
 
 /**
@@ -82,18 +82,19 @@ object SkillConsolidator {
             else -> peerScores.average()
         }
 
-        // Calculates weight adjustment based on evaluation density
+        // Apply reliability factor f(n) = min(1, n/N) to the peer weight
         val reliabilityFactor = min(1.0, peerCount.toDouble() / targetPeerCount)
         val adjustedPeerWeight = PEER_BASE_WEIGHT * reliabilityFactor
 
+        // Renormalize all weights so their sum equals 1.0
         val totalWeightRaw =
             OBSERVATION_BASE_WEIGHT + SELF_ASSESSMENT_BASE_WEIGHT + adjustedPeerWeight
 
-        // Normalizes weights to ensure the sum equals 1.0
         val finalObservationWeight = OBSERVATION_BASE_WEIGHT / totalWeightRaw
         val finalSelfWeight = SELF_ASSESSMENT_BASE_WEIGHT / totalWeightRaw
         val finalPeerWeight = adjustedPeerWeight / totalWeightRaw
 
+        // Calculate final weighted average
         return (observationScore * finalObservationWeight) +
                 (selfAssessmentScore * finalSelfWeight) +
                 (peerConsolidatedScore * finalPeerWeight)
