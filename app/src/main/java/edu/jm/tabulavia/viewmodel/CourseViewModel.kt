@@ -33,6 +33,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -77,6 +78,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _studentsForClass = MutableStateFlow<List<Student>>(emptyList())
     val studentsForClass: StateFlow<List<Student>> = _studentsForClass.asStateFlow()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val _classSessions = _selectedCourse.flatMapLatest { course ->
         if (course != null) {
             attendanceRepository.getClassSessionsFlow(course.classId)
@@ -120,6 +122,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     val generatedGroups: StateFlow<List<List<Student>>> = _generatedGroups.asStateFlow()
 
     private val _todaysAttendance = MutableStateFlow<Map<String, AttendanceStatus>>(emptyMap())
+    @OptIn(ExperimentalCoroutinesApi::class)
     val todaysAttendance: StateFlow<Map<String, AttendanceStatus>> = _classSessions
         .flatMapLatest { sessions ->
             val lastSessionToday = attendanceRepository.getLastSessionToday(sessions)
