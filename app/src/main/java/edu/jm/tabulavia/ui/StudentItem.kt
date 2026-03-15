@@ -82,8 +82,9 @@ fun StudentItem(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Student identification text
+        val localName = student.displayName.ifBlank { student.name }
         Text(
-            text = student.displayName,
+            text = localName,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center

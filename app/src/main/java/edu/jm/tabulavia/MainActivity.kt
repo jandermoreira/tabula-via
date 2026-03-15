@@ -165,7 +165,7 @@ class MainActivity : ComponentActivity() {
                             route = "frequencyDashboard/{classId}",
                             arguments = listOf(navArgument("classId") { type = NavType.StringType })
                         ) {
-                            FrequencyDashboardScreen(
+                            AttendanceDashboardScreen(
                                 viewModel = courseViewModel,
                                 onNavigateBack = { navController.popBackStack() },
                                 onStartNewAttendance = {

@@ -290,7 +290,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Loads comprehensive data for a student, including attendance percentage and skill status.
+     * Loads comprehensive data for a student, calculating attendance percentage.
+     * Truncates decimals by converting to Int before updating the Float StateFlow.
      */
     fun loadStudentDetails(studentId: String) {
         viewModelScope.launch {
@@ -305,9 +306,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
             attendanceRepository.countStudentAbsencesFlow(studentId).collect { absences ->
                 val totalClasses = _selectedCourse.value?.numberOfClasses ?: 0
+
                 if (totalClasses > 0) {
-                    _studentAttendancePercentage.value =
-                        ((totalClasses.toFloat() - absences.toFloat()) / totalClasses.toFloat()) * 100
+                    val presenceCount = (totalClasses - absences).toFloat()
+                    val exactPercentage = (presenceCount / totalClasses.toFloat()) * 100f
+
+                    _studentAttendancePercentage.value = exactPercentage.toInt().toFloat()
                 } else {
                     _studentAttendancePercentage.value = null
                 }
@@ -657,13 +661,36 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private var attendanceErrorMessage by mutableStateOf<String?>(null)
 
     /**
-     * Prepares the state for a new frequency session.
-     * Resets the current session and initializes attendance for all students.
+     * Helper: Sets the default session time based on specific hour windows.
+     */
+    private fun getRoundedSessionHour(currentHour: Int): Int {
+        return when {
+            currentHour in 0 until 10 -> 8
+            currentHour in 10 until 12 -> 10
+            currentHour in 12 until 16 -> 14
+            currentHour in 16 until 19 -> 16
+            currentHour in 19 until 21 -> 19
+            else -> 21
+        }
+    }
+
+    /**
+     * Prepares the state for a new frequency session with specialized time rounding.
      */
     fun prepareNewFrequencySession() {
         editingSession = null
-        newSessionCalendar = java.util.Calendar.getInstance()
         attendanceMap.clear()
+
+        val now = Calendar.getInstance()
+        val currentHour = now.get(Calendar.HOUR_OF_DAY)
+
+        // Apply the custom hour logic
+        now.set(Calendar.HOUR_OF_DAY, getRoundedSessionHour(currentHour))
+        now.set(Calendar.MINUTE, 0)
+        now.set(Calendar.SECOND, 0)
+        now.set(Calendar.MILLISECOND, 0)
+
+        newSessionCalendar = now
 
         // Initializes all students as present by default
         studentsForClass.value.forEach { student ->
@@ -981,7 +1008,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 val newStudent = Student(
                     studentId = java.util.UUID.randomUUID().toString(),
                     name = studentName,
-                    displayName = if (studentDisplayName.isBlank()) studentName else studentDisplayName,
+                    displayName = studentDisplayName,
                     studentNumber = studentNumber,
                     classId = classId
                 )
@@ -1032,8 +1059,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                                 fullName.split(Regex("\\s+")).filter { it.isNotBlank() }
 
                             val formattedDisplayName = when {
-                                nameSegments.size >= 2 -> "${nameSegments.first()} ${nameSegments.last()}"
-                                nameSegments.isNotEmpty() -> nameSegments.first()
+                                nameSegments.size <= 2 -> ""
+                                nameSegments.size > 2 -> "${nameSegments.first()} ${nameSegments.last()}"
                                 else -> fullName
                             }
 

@@ -30,7 +30,7 @@ import java.util.*
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun FrequencyDashboardScreen(
+fun AttendanceDashboardScreen(
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit,
     onStartNewAttendance: () -> Unit,
@@ -238,6 +238,6 @@ private fun FrequencyDetailsDialog(
  */
 fun Long.toFormattedDateString(): String {
     val date = Date(this)
-    val format = SimpleDateFormat("dd/MM/yyyy '-' HH:mm", Locale.getDefault())
+    val format = SimpleDateFormat("dd/MM/yyyy '-' HH'h'", Locale.getDefault())
     return format.format(date)
 }

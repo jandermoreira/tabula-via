@@ -3,6 +3,7 @@
  */
 package edu.jm.tabulavia.ui
 
+import androidx.collection.emptyLongSet
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +30,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.math.abs
 
 /**
  * Main screen for recording student attendance sessions.
@@ -97,11 +99,17 @@ fun AttendanceScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(calendar.toFormattedDateString())
                 }
                 Box(modifier = Modifier.weight(0.7f)) {
-                    OutlinedButton(onClick = { showTimePicker = true }, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { showTimePicker = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text("${calendar.get(Calendar.HOUR_OF_DAY)}h")
                         Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                     }
@@ -125,9 +133,19 @@ fun AttendanceScreen(
             // Attendance Statistics
             val presentCount = attendanceMap.values.count { it == AttendanceStatus.PRESENT }
             val absentCount = attendanceMap.values.count { it == AttendanceStatus.ABSENT }
+            val totalCount = presentCount + absentCount
+
+            // Calculate attendance percentage using double for precision
+            val attendancePercentage = if (totalCount > 0) {
+                (presentCount.toDouble() / totalCount.toDouble()) * 100.0
+            } else {
+                0.0
+            }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
@@ -139,6 +157,11 @@ fun AttendanceScreen(
                     text = "$absentCount Faltas",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.error
+                )
+                Text(
+                    text = "$attendancePercentage%",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -169,7 +192,8 @@ fun AttendanceScreen(
 
     // Date selection logic
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = calendar.timeInMillis)
+        val datePickerState =
+            rememberDatePickerState(initialSelectedDateMillis = calendar.timeInMillis)
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
@@ -260,10 +284,12 @@ fun AttendanceItem(
                     fontWeight = FontWeight.SemiBold,
                     color = if (isAbsent) Color.Gray else Color.Unspecified
                 )
+
+                val mutedGreen = Color(0xFF2E7D32)
                 Text(
                     text = student.studentNumber,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isAbsent) Color.Gray.copy(alpha = 0.7f) else Color.Gray
+                    color = if (isAbsent) Color.Gray.copy(alpha = 0.7f) else mutedGreen
                 )
             }
 

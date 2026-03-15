@@ -98,4 +98,14 @@ interface AttendanceDao {
     fun countStudentAbsencesFlow(
         studentId: String,
         status: AttendanceStatus = AttendanceStatus.ABSENT
-    ): Flow<Int>}
+    ): Flow<Int>
+
+    /**
+     * Deletes a class session and its associated attendance records in a single transaction.
+     */
+    @androidx.room.Transaction
+    suspend fun deleteSessionWithRecords(session: ClassSession) {
+        deleteAttendanceRecordsForSession(session.sessionId)
+        deleteSession(session)
+    }
+}

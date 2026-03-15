@@ -125,28 +125,53 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
     }
 
     /**
-     * Starts a real-time listener for attendance of a specific course.
+     * Starts a real-time listener for attendance of a specific course for the current user.
+     * Synchronizes remote changes (additions and deletions) with the local database.
      */
     fun startAttendanceSync(classId: String) {
         val userId = currentUserId ?: return
         stopAttendanceSync()
 
-        // Listener for changes in the specific user's course sessions
         attendanceListener = firestore.collection("users")
             .document(userId)
             .collection("courses")
             .document(classId)
             .collection("sessions")
             .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e("AttendanceRepo", "Sync error: ${error.message}")
-                    return@addSnapshotListener
-                }
+                if (error != null) return@addSnapshotListener
 
-                snapshot?.let { querySnapshot ->
-                    val sessions = querySnapshot.toObjects(FirestoreSession::class.java)
+                snapshot?.documentChanges?.forEach { change ->
+                    val remote = change.document.toObject(FirestoreSession::class.java)
+
                     CoroutineScope(Dispatchers.IO).launch {
-                        processRemoteSessions(sessions)
+                        when (change.type) {
+                            com.google.firebase.firestore.DocumentChange.Type.ADDED,
+                            com.google.firebase.firestore.DocumentChange.Type.MODIFIED -> {
+                                val session = ClassSession(
+                                    sessionId = remote.sessionId,
+                                    classId = remote.classId,
+                                    timestamp = remote.timestamp
+                                )
+                                val records = remote.attendance.map { (studentId, statusName) ->
+                                    AttendanceRecord(
+                                        sessionId = remote.sessionId,
+                                        studentId = studentId,
+                                        status = AttendanceStatus.valueOf(statusName)
+                                    )
+                                }
+                                attendanceDao.insertClassSession(session)
+                                attendanceDao.insertAttendanceRecords(records)
+                            }
+                            com.google.firebase.firestore.DocumentChange.Type.REMOVED -> {
+                                // Deletes locally when the document is removed from Firestore
+                                val sessionToDelete = ClassSession(
+                                    sessionId = remote.sessionId,
+                                    classId = remote.classId,
+                                    timestamp = remote.timestamp
+                                )
+                                attendanceDao.deleteSessionWithRecords(sessionToDelete)
+                            }
+                        }
                     }
                 }
             }
@@ -183,12 +208,12 @@ class AttendanceRepository(private val attendanceDao: AttendanceDao) {
     }
 
     /**
-     * Deletes a session locally and removes its remote document from Firestore.
+     * Deletes a session locally using a transaction and removes its remote document from Firestore.
      */
     suspend fun deleteSession(session: ClassSession) = withContext(Dispatchers.IO) {
         val userId = currentUserId
 
-        attendanceDao.deleteSession(session)
+        attendanceDao.deleteSessionWithRecords(session)
 
         if (userId != null) {
             firestore.collection("users")
