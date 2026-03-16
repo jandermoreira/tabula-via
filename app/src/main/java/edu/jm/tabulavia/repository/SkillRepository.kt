@@ -1,191 +1,167 @@
 /**
- * Repository for managing skills, course-specific competencies, and assessments.
- * Handles skill status calculations and historical evaluation data.
+ * Repository for managing course skills.
+ * Provides local data access via Room and real-time synchronization with Firestore.
  */
 package edu.jm.tabulavia.repository
 
+import com.google.firebase.firestore.FirebaseFirestore
 import edu.jm.tabulavia.dao.CourseSkillDao
-import edu.jm.tabulavia.dao.SkillAssessmentDao
-import edu.jm.tabulavia.dao.SkillDao
-import edu.jm.tabulavia.dao.ActivityHighlightedSkillDao
-import edu.jm.tabulavia.model.*
-import edu.jm.tabulavia.utils.SkillTrendCalculator
-import edu.jm.tabulavia.utils.TrendCalculationMethod
+import edu.jm.tabulavia.model.CourseSkill
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.util.UUID
 
+/**
+ * Repository responsible only for CourseSkill operations.
+ *
+ * Features:
+ * - Observe skills for a course via Flow (backed by Room)
+ * - Insert skills locally and sync to Firestore in background
+ * - Delete skills locally and from Firestore
+ * - Listen to Firestore changes to keep local data in sync across devices
+ */
 class SkillRepository(
     private val courseSkillDao: CourseSkillDao,
-    private val skillAssessmentDao: SkillAssessmentDao,
-    private val skillDao: SkillDao,
-    private val activityHighlightedSkillDao: ActivityHighlightedSkillDao
+    private val firestore: FirebaseFirestore,
+    private val scope: CoroutineScope
 ) {
+    // Active Firestore listeners per course ID
+    private val courseSkillsListeners = mutableMapOf<String, () -> Unit>()
+
+    // ---------- Observation ----------
 
     /**
-     * Retrieves all skills configured for a specific course.
-     * @param courseId The course identifier.
-     * @return List of CourseSkill objects.
+     * Returns a Flow that emits the list of skills for a given course.
+     * The Flow is updated automatically whenever the local database changes.
      */
-    suspend fun getSkillsForCourse(courseId: String): List<CourseSkill> {
-        return courseSkillDao.getSkillsForCourse(courseId)
+    fun getSkillsFlowForCourse(courseId: String): Flow<List<CourseSkill>> =
+        courseSkillDao.getSkillsForCourseFlow(courseId)
+
+    /**
+     * Returns the current list of skills for a course (one-shot).
+     */
+    suspend fun getSkillsForCourse(courseId: String): List<CourseSkill> =
+        courseSkillDao.getSkillsForCourse(courseId)
+
+    // ---------- Real-time sync from Firestore ----------
+
+    /**
+     * Starts listening to real-time changes for skills of a specific course.
+     * Any change in Firestore will be reflected in the local database.
+     */
+    fun startListeningToCourseSkills(uid: String, courseId: String) {
+        stopListeningToCourseSkills(courseId) // remove any existing listener
+
+        val listenerRegistration = firestore
+            .collection("users/$uid/courses/$courseId/skills")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    // Log error if needed (optional)
+                    return@addSnapshotListener
+                }
+                snapshot?.documentChanges?.forEach { change ->
+                    when (change.type) {
+                        com.google.firebase.firestore.DocumentChange.Type.ADDED,
+                        com.google.firebase.firestore.DocumentChange.Type.MODIFIED -> {
+                            val skill = change.document.toObject(CourseSkill::class.java)
+                            scope.launch {
+                                courseSkillDao.insertCourseSkills(listOf(skill))
+                            }
+                        }
+                        com.google.firebase.firestore.DocumentChange.Type.REMOVED -> {
+                            val skill = change.document.toObject(CourseSkill::class.java)
+                            scope.launch {
+                                courseSkillDao.deleteCourseSkill(skill)
+                            }
+                        }
+                    }
+                }
+            }
+
+        courseSkillsListeners[courseId] = { listenerRegistration.remove() }
     }
+
+    /**
+     * Stops listening to changes for a specific course.
+     */
+    fun stopListeningToCourseSkills(courseId: String) {
+        courseSkillsListeners.remove(courseId)?.invoke()
+    }
+
+    /**
+     * Stops all active Firestore listeners.
+     */
+    fun stopAllListeners() {
+        courseSkillsListeners.values.forEach { it.invoke() }
+        courseSkillsListeners.clear()
+    }
+
+    // ---------- Write operations (local + Firestore sync) ----------
 
     /**
      * Inserts a list of skills for a course.
-     * @param skills List of CourseSkill objects to insert.
+     *
+     * Steps:
+     * 1. Inserts skills into the local Room database (fast, suspending).
+     * 2. Launches a background coroutine to upsert each skill into Firestore.
+     *    If a skill lacks a firestoreId, one is generated and the local record is updated.
      */
-    suspend fun insertCourseSkills(skills: List<CourseSkill>) {
+    suspend fun insertCourseSkills(uid: String, courseId: String, skills: List<CourseSkill>) {
+        // 1. Local insert
         courseSkillDao.insertCourseSkills(skills)
-    }
 
-    /**
-     * Removes a specific skill from a course.
-     * @param skill The CourseSkill object to delete.
-     */
-    suspend fun deleteCourseSkill(skill: CourseSkill) {
-        courseSkillDao.deleteCourseSkill(skill)
-    }
-
-    /**
-     * Persists a single skill assessment record.
-     * @param assessment The SkillAssessment to insert.
-     */
-    suspend fun insertAssessment(assessment: SkillAssessment) {
-        skillAssessmentDao.insert(assessment)
-    }
-
-    /**
-     * Persists multiple skill assessments at once.
-     * @param assessments List of SkillAssessment objects to insert.
-     */
-    suspend fun insertAllAssessments(assessments: List<SkillAssessment>) {
-        skillAssessmentDao.insertAll(assessments)
-    }
-
-    /**
-     * Calculates the current status and trend for each skill of a student.
-     * @param studentId The student's identifier.
-     * @param courseSkills List of course skills to evaluate.
-     * @param historyCount Number of historical assessments to consider for trend calculation.
-     * @return List of SkillStatus objects with current level, trend, and metadata.
-     */
-    suspend fun calculateStudentSkillStatuses(
-        studentId: String,
-        courseSkills: List<CourseSkill>,
-        historyCount: Int = 3
-    ): List<SkillStatus> {
-        val allAssessments = skillAssessmentDao.getAllAssessmentsForStudent(studentId).first()
-
-        return courseSkills.map { courseSkill ->
-            val relevant = allAssessments
-                .filter { it.skillName == courseSkill.skillName }
-                .sortedByDescending { it.timestamp }
-                .distinctBy { it.timestamp }
-
-            if (relevant.isEmpty()) {
-                SkillStatus(
-                    skillName = courseSkill.skillName,
-                    currentLevel = SkillLevel.NOT_APPLICABLE,
-                    trend = SkillTrend.STABLE,
-                    assessmentCount = 0,
-                    lastAssessedTimestamp = 0L
-                )
-            } else {
-                val skillStatusesForTrend = relevant.map { assessment ->
-                    SkillStatus(
-                        skillName = assessment.skillName,
-                        currentLevel = assessment.level,
-                        trend = SkillTrend.STABLE,
-                        assessmentCount = relevant.size,
-                        lastAssessedTimestamp = assessment.timestamp
-                    )
-                }
-
-                val calculatedTrend = if (skillStatusesForTrend.size < 2) {
-                    SkillTrend.STABLE
-                } else {
-                    val distinctScores = skillStatusesForTrend.mapNotNull { it.currentLevel.score }.distinct()
-                    if (distinctScores.size < 2) {
-                        SkillTrend.STABLE
+        // 2. Background sync to Firestore
+        scope.launch {
+            try {
+                skills.forEach { skill ->
+                    val firestoreId = skill.firestoreId ?: UUID.randomUUID().toString()
+                    val skillWithId = if (skill.firestoreId == null) {
+                        skill.copy(firestoreId = firestoreId)
                     } else {
-                        SkillTrendCalculator.calculateTrend(
-                            assessments = skillStatusesForTrend,
-                            method = TrendCalculationMethod.LINEAR_REGRESSION,
-                            historyCount = historyCount
-                        )
+                        skill
+                    }
+                    val docRef = firestore
+                        .collection("users/$uid/courses/$courseId/skills")
+                        .document(firestoreId)
+                    docRef.set(skillWithId).await()
+
+                    // If we generated a new firestoreId, update the local record to have it
+                    if (skill.firestoreId == null) {
+                        courseSkillDao.insertCourseSkills(listOf(skillWithId))
                     }
                 }
-
-                SkillStatus(
-                    skillName = courseSkill.skillName,
-                    currentLevel = skillStatusesForTrend.first().currentLevel,
-                    trend = calculatedTrend,
-                    assessmentCount = relevant.size,
-                    lastAssessedTimestamp = skillStatusesForTrend.first().lastAssessedTimestamp
-                )
+            } catch (e: Exception) {
+                // Handle error (e.g., log, notify via a central error channel)
             }
         }
     }
 
     /**
-     * Updates highlighted skills for a specific activity.
-     * Replaces any existing highlighted skills for that activity with the new list.
-     * @param activityId The activity identifier.
-     * @param skills List of ActivityHighlightedSkill objects to associate with the activity.
+     * Deletes a single course skill.
+     *
+     * Steps:
+     * 1. Deletes locally from Room.
+     * 2. Launches a background coroutine to delete the corresponding Firestore document
+     *    (if it has a firestoreId).
      */
-    suspend fun updateActivityHighlightedSkills(activityId: String, skills: List<ActivityHighlightedSkill>) {
-        activityHighlightedSkillDao.clearForActivity(activityId)
-        activityHighlightedSkillDao.insertAll(skills)
-    }
+    suspend fun deleteCourseSkill(uid: String, courseId: String, skill: CourseSkill) {
+        // 1. Local delete
+        courseSkillDao.deleteCourseSkill(skill)
 
-    /**
-     * Inserts multiple highlighted skills without clearing any existing data.
-     * Used primarily during database restoration.
-     * @param skills List of ActivityHighlightedSkill objects to insert.
-     */
-    suspend fun insertAllHighlightedSkills(skills: List<ActivityHighlightedSkill>) {
-        activityHighlightedSkillDao.insertAll(skills)
-    }
-
-    // --- Backup and Restore Operations ---
-
-    /**
-     * Retrieves all skill assessments for backup purposes.
-     * @return Flow emitting the list of all SkillAssessment objects.
-     */
-    fun getAllAssessments(): Flow<List<SkillAssessment>> {
-        return skillAssessmentDao.getAllAssessments()
-    }
-
-    /**
-     * Retrieves all course skills for backup purposes.
-     * @return List of all CourseSkill objects.
-     */
-    suspend fun getAllCourseSkills(): List<CourseSkill> {
-        return courseSkillDao.getAllCourseSkills()
-    }
-
-    /**
-     * Retrieves all student skills for backup purposes.
-     * @return List of all StudentSkill objects.
-     */
-    suspend fun getAllStudentSkills(): List<StudentSkill> {
-        return skillDao.getAllSkills()
-    }
-
-    /**
-     * Restores student skills into the database.
-     * @param skills List of StudentSkill objects to insert or update.
-     */
-    suspend fun insertOrUpdateStudentSkills(skills: List<StudentSkill>) {
-        skillDao.insertOrUpdateSkills(skills)
-    }
-
-    /**
-     * Retrieves all activity highlighted skills for backup purposes.
-     * @return List of all ActivityHighlightedSkill objects.
-     */
-    suspend fun getAllHighlightedSkills(): List<ActivityHighlightedSkill> {
-        return activityHighlightedSkillDao.getAll()
+        // 2. Background Firestore delete
+        scope.launch {
+            try {
+                skill.firestoreId?.let { firestoreId ->
+                    firestore.collection("users/$uid/courses/$courseId/skills")
+                        .document(firestoreId)
+                        .delete()
+                        .await()
+                }
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
     }
 }

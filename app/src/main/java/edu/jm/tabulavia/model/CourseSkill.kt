@@ -32,12 +32,12 @@ data class CourseSkill(
     /**
      * Identifier of the associated course.
      */
-    val courseId: String,
+    val courseId: String = "",
 
     /**
      * Name of the skill associated with the course.
      */
-    val skillName: String,
+    val skillName: String = "",
 
     /**
      * Firestore document identifier.

@@ -1,6 +1,6 @@
 /**
- * Data Access Object for CourseSkill entity.
- * Provides methods to interact with the 'course_skills' table.
+ * Data Access Object for course-level skill definitions.
+ * Manages the blueprint of competencies required for each course.
  */
 package edu.jm.tabulavia.dao
 
@@ -10,6 +10,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import edu.jm.tabulavia.model.CourseSkill
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CourseSkillDao {
@@ -44,4 +45,10 @@ interface CourseSkillDao {
      */
     @Query("SELECT * FROM course_skills")
     suspend fun getAllCourseSkills(): List<CourseSkill>
+
+    /**
+     * Retrieves a reactive flow of all skills associated with a specific course.
+     */
+    @Query("SELECT * FROM course_skills WHERE courseId = :courseId")
+    fun getSkillsForCourseFlow(courseId: String): Flow<List<CourseSkill>>
 }
