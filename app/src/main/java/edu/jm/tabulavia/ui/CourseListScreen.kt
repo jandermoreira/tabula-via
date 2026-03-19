@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Course
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.AuthViewModel
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import kotlinx.coroutines.launch
@@ -53,13 +54,15 @@ fun CourseListScreen(
     onLoginClicked: () -> Unit,
     onLogoutClicked: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     val courseList by viewModel.courses.collectAsState()
     val groupedCourses = courseList
         .groupBy { it.academicYear }
         .toSortedMap(compareByDescending { it })
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val userMessage by viewModel.userMessage.collectAsState()
+//    val userMessage by viewModel.userMessage.collectAsState()
     val authenticatedUser by authViewModel.user.collectAsState()
 
     var showBackupDialog by remember { mutableStateOf(false) }
@@ -71,15 +74,15 @@ fun CourseListScreen(
 //        viewModel.loadAllCourses()
 //    }
 
-    /**
-     * Shows user messages in a snackbar.
-     */
-    LaunchedEffect(userMessage) {
-        userMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.onUserMessageShown()
-        }
-    }
+//    /**
+//     * Shows user messages in a snackbar.
+//     */
+//    LaunchedEffect(userMessage) {
+//        userMessage?.let {
+//            snackbarHostState.showSnackbar(it)
+//            viewModel.onUserMessageShown()
+//        }
+//    }
 
     Scaffold(
         topBar = {

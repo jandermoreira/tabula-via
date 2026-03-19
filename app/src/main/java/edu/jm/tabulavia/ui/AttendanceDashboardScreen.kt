@@ -4,11 +4,16 @@
  */
 package edu.jm.tabulavia.ui
 
+import android.R.attr.text
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddTask
@@ -16,12 +21,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassSession
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,9 +46,9 @@ fun AttendanceDashboardScreen(
     val classSessions by viewModel.classSessions.collectAsState()
     var selectedSessionForOptions by remember { mutableStateOf<ClassSession?>(null) }
     var sessionToDelete by remember { mutableStateOf<ClassSession?>(null) }
-    var sessionToView by remember { mutableStateOf<ClassSession?>(null) }
 
-    val scope = rememberCoroutineScope()
+    var showDialog by remember { mutableStateOf(false) }
+    var currentSession by remember { mutableStateOf<ClassSession?>(null) }
 
     Scaffold(
         topBar = {
@@ -94,10 +100,8 @@ fun AttendanceDashboardScreen(
                                 .combinedClickable(
                                     onLongClick = { selectedSessionForOptions = session },
                                     onClick = {
-                                        scope.launch {
-                                            viewModel.loadFrequencyDetails(session)
-                                            sessionToView = session
-                                        }
+                                        currentSession = session
+                                        showDialog = true
                                     }
                                 )
                         ) {
@@ -112,15 +116,24 @@ fun AttendanceDashboardScreen(
         }
     }
 
-    // Read-only details dialog
-    sessionToView?.let { session ->
+    // Load attendance details when a session is selected
+    LaunchedEffect(currentSession) {
+        Log.d("AttendanceFlow", "LaunchedEffect com currentSession = $currentSession")
+        currentSession?.let {
+            viewModel.loadFrequencyDetails(it)
+        }
+    }
+
+    // Display student list dialog with progress indicator while loading
+    if (showDialog && currentSession != null) {
         val details by viewModel.frequencyDetails.collectAsState()
-        FrequencyDetailsDialog(
-            session = session,
+        StudentsDialog(
+            session = currentSession!!,
             details = details,
             onDismiss = {
                 viewModel.clearFrequencyDetails()
-                sessionToView = null
+                showDialog = false
+                currentSession = null
             }
         )
     }
@@ -150,7 +163,7 @@ fun AttendanceDashboardScreen(
         )
     }
 
-    // Delete confirmation dialog with effective execution
+    // Delete confirmation dialog
     sessionToDelete?.let { session ->
         AlertDialog(
             onDismissRequest = { sessionToDelete = null },
@@ -179,47 +192,63 @@ fun AttendanceDashboardScreen(
 }
 
 /**
- * Dialog displaying a list of students and their attendance status for a given session.
+ * Dialog that displays a list of students extracted from attendance details.
+ * Shows a progress indicator while data is loading, then the list of names in alphabetical order.
+ *
+ * @param session Unused parameter (maintained for signature compatibility).
+ * @param details Map containing student names and their attendance status; only names are displayed.
+ * @param onDismiss Callback invoked when the dialog is dismissed.
+ */
+/**
+ * Dialog that displays a list of students extracted from attendance details.
+ * Temporary diagnostic version with high-visibility debugging.
+ *
+ * @param session Unused parameter (maintained for signature compatibility).
+ * @param details Map containing student names and their attendance status; only names are displayed.
+ * @param onDismiss Callback invoked when the dialog is dismissed.
  */
 @Composable
-private fun FrequencyDetailsDialog(
+fun StudentsDialog(
     session: ClassSession,
     details: Map<String, AttendanceStatus>,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Detalhes de Frequência") },
+        title = { Text("Alunos (Diagnóstico)") },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
+                // Linha de diagnóstico com o tamanho
                 Text(
-                    "Registro de: ${session.timestamp.toFormattedDateString()}",
-                    fontWeight = FontWeight.Bold
+                    text = "Total de alunos: ${details.size}",
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+
                 if (details.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Nenhum aluno")
                     }
                 } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                        items(details.entries.toList()) { (name, status) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(name, modifier = Modifier.weight(1f))
-                                Text(
-                                    status.displayName,
-                                    color = if (status == AttendanceStatus.PRESENT)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.error,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                    // Lista simples com fundo colorido para garantir visibilidade
+                    details.keys.sorted().forEach { name ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Yellow)
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "• $name",
+                                color = Color.Black,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
@@ -241,3 +270,83 @@ fun Long.toFormattedDateString(): String {
     val format = SimpleDateFormat("dd/MM/yyyy '-' HH'h'", Locale.getDefault())
     return format.format(date)
 }
+
+
+
+
+
+//
+///**
+// * Dialog that displays attendance details for a selected class session.
+// * Shows the session timestamp and a sorted list of students with their attendance status.
+// *
+// * @param session The class session whose details are being displayed.
+// * @param details A map associating student names with their attendance status.
+// * @param onDismiss Callback invoked when the dialog is dismissed.
+// */
+//@Composable
+//fun AttendanceDetailsDialog(
+//    session: ClassSession,
+//    details: Map<String, AttendanceStatus>,
+//    onDismiss: () -> Unit
+//) {
+//    AlertDialog(
+//        onDismissRequest = onDismiss,
+//        title = { Text("Detalhes de Frequência") },
+//        text = {
+//            Column(modifier = Modifier.fillMaxWidth()) {
+//                // Session timestamp line: date and hour (e.g., "18/03/2026 - 16h")
+//                Text(
+//                    text = session.timestamp.toFormattedDateString(),
+//                    fontWeight = FontWeight.Bold,
+//                    modifier = Modifier.padding(bottom = 16.dp)
+//                )
+//
+//                // Student list sorted alphabetically by name
+//                val sortedEntries = details.entries.sortedBy { it.key }
+//
+//                if (sortedEntries.isEmpty()) {
+//                    Box(
+//                        modifier = Modifier
+//                            .fillMaxWidth()
+//                            .heightIn(min = 100.dp),
+//                        contentAlignment = Alignment.Center
+//                    ) {
+//                        Text("Nenhum aluno encontrado para esta sessão.")
+//                    }
+//                } else {
+//                    LazyColumn(
+//                        modifier = Modifier.heightIn(max = 400.dp),
+//                        verticalArrangement = Arrangement.spacedBy(8.dp)
+//                    ) {
+//                        items(sortedEntries) { (studentName, status) ->
+//                            Row(
+//                                modifier = Modifier.fillMaxWidth(),
+//                                horizontalArrangement = Arrangement.SpaceBetween
+//                            ) {
+//                                Text(
+//                                    text = studentName,
+//                                    modifier = Modifier.weight(1f)
+//                                )
+//                                Text(
+//                                    text = status.displayName,
+//                                    color = when (status) {
+//                                        AttendanceStatus.PRESENT -> MaterialTheme.colorScheme.primary
+//                                        AttendanceStatus.ABSENT -> MaterialTheme.colorScheme.error
+//                                        AttendanceStatus.JUSTIFIED -> MaterialTheme.colorScheme.tertiary
+//                                    },
+//                                    fontWeight = FontWeight.Medium
+//                                )
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        },
+//        confirmButton = {
+//            TextButton(onClick = onDismiss) {
+//                Text("Fechar")
+//            }
+//        }
+//    )
+//}

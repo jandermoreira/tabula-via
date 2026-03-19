@@ -8,11 +8,13 @@ import com.google.firebase.firestore.FirebaseFirestore
 import edu.jm.tabulavia.dao.StudentDao
 import edu.jm.tabulavia.model.Student
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class StudentRepository(
     private val studentDao: StudentDao,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val attendanceRepository: AttendanceRepository
 ) {
 
     /**
@@ -72,4 +74,40 @@ class StudentRepository(
      * Observes all students across all courses locally.
      */
     fun getAllStudents(): Flow<List<Student>> = studentDao.getAllStudents()
+
+    // StudentRepository.kt
+
+    /**
+     * Deletes a student from both local and remote storage, ensuring that all
+     * associated attendance records are removed beforehand to avoid foreign key
+     * violations.
+     *
+     * @param student The student entity to delete.
+     * @param uid The authenticated user ID.
+     */
+    suspend fun deleteStudent(student: Student, uid: String) {
+        withContext(Dispatchers.IO) {
+            attendanceRepository.removeStudentFromAttendanceSessions(
+                studentId = student.studentId,
+                classId = student.classId,
+                uid = uid
+            )
+            studentDocRef(uid, student.classId, student.studentId).delete()
+            studentDao.deleteStudent(student)
+        }
+    }
+
+    /**
+     * Checks whether a student with a specific student number exists within a given class.
+     */
+    suspend fun studentExistsInClass(studentNumber: String, classId: String): Boolean {
+        return studentDao.getStudentByNumberInClass(studentNumber, classId) != null
+    }
+
+    /**
+     * Retrieves the list of student numbers associated with a specific class.
+     */
+    suspend fun getExistingStudentNumbersForClass(classId: String): List<String> {
+        return studentDao.getStudentNumbersForClass(classId)
+    }
 }

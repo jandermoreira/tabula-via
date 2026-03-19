@@ -5,6 +5,7 @@
 package edu.jm.tabulavia.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -65,4 +66,13 @@ interface StudentDao {
      */
     @Query("SELECT * FROM students")
     fun getAllStudents(): Flow<List<Student>>
+
+    /**
+     * Deletes a student record from the database.
+     *
+     * @param student The student entity to be deleted. This must represent an
+     * existing entry in the database for the operation to succeed.
+     */
+    @Delete
+    suspend fun deleteStudent(student: Student)
 }

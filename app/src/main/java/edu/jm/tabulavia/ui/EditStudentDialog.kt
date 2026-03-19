@@ -12,6 +12,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 @Composable
@@ -19,6 +20,8 @@ fun EditStudentDialog(
     viewModel: CourseViewModel,
     onDismiss: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Editar Aluno") },

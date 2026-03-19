@@ -108,4 +108,13 @@ interface AttendanceDao {
         deleteAttendanceRecordsForSession(session.sessionId)
         deleteSession(session)
     }
+
+    /**
+     * Deletes all attendance records associated with a specific student ID.
+     * Used when a student is removed from a course to maintain referential integrity.
+     *
+     * @param studentId The unique identifier of the student.
+     */
+    @Query("DELETE FROM attendance_records WHERE studentId = :studentId")
+    suspend fun deleteRecordsForStudent(studentId: String)
 }

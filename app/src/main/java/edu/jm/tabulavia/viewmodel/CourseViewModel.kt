@@ -39,8 +39,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import android.util.Log
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
-class CourseViewModel(application: Application) : AndroidViewModel(application) {
+class CourseViewModel(application: Application) : BaseAndroidViewModel(application) {
 
     private val db = DatabaseProvider.getDatabase(application)
 
@@ -52,16 +56,16 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         groupMemberDao = db.groupMemberDao(),
         firestore = Firebase.firestore
     )
-    private val studentRepository = StudentRepository(
-        studentDao = db.studentDao(), firestore = Firebase.firestore
-    )
     private val attendanceRepository = AttendanceRepository(
         attendanceDao = db.attendanceDao()
     )
-    private val skillRepository = SkillRepository(
-        courseSkillDao = db.courseSkillDao(),
+    private val studentRepository = StudentRepository(
+        studentDao = db.studentDao(),
         firestore = Firebase.firestore,
-        scope = viewModelScope
+        attendanceRepository = attendanceRepository
+    )
+    private val skillRepository = SkillRepository(
+        courseSkillDao = db.courseSkillDao(), firestore = Firebase.firestore, scope = viewModelScope
     )
 
     private val cloudStorageRepository = CloudStorageRepository(
@@ -92,8 +96,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     )
     val classSessions: StateFlow<List<ClassSession>> = _classSessions
 
-    private val _userMessage = MutableStateFlow<String?>(null)
-    val userMessage: StateFlow<String?> = _userMessage.asStateFlow()
+    private val _userMessage = MutableSharedFlow<String>()
+    val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
 
     private val _frequencyDetails = MutableStateFlow<Map<String, AttendanceStatus>>(emptyMap())
     val frequencyDetails: StateFlow<Map<String, AttendanceStatus>> = _frequencyDetails.asStateFlow()
@@ -124,8 +128,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _todaysAttendance = MutableStateFlow<Map<String, AttendanceStatus>>(emptyMap())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val todaysAttendance: StateFlow<Map<String, AttendanceStatus>> = _classSessions
-        .flatMapLatest { sessions ->
+    val todaysAttendance: StateFlow<Map<String, AttendanceStatus>> =
+        _classSessions.flatMapLatest { sessions ->
             val lastSessionToday = attendanceRepository.getLastSessionToday(sessions)
             if (lastSessionToday != null) {
                 attendanceRepository.getAttendanceRecordsFlow(lastSessionToday.sessionId)
@@ -203,7 +207,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 courseRepository.syncCoursesFromCloud(uid)
             } catch (e: Exception) {
-                _userMessage.value = "Sync failed: ${e.message}"
+                showMessage("Sync failed: ${e.message}")
             }
         }
     }
@@ -268,12 +272,12 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         _studentSkillStatuses.value = emptyList()
     }
 
-    /**
-     * Clears the user notification message state.
-     */
-    fun onUserMessageShown() {
-        _userMessage.value = null
-    }
+//    /**
+//     * Clears the user notification message state.
+//     */
+//    fun onUserMessageShown() {
+//        _userMessage.value = null
+//    }
 
     // --- Student Management Logic ---
 
@@ -449,8 +453,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      * Records multiple professor observations for a student.
      */
     fun addProfessorSkillAssessments(
-        studentId: String,
-        assessments: List<Pair<String, SkillLevel>>
+        studentId: String, assessments: List<Pair<String, SkillLevel>>
     ) {
 //        viewModelScope.launch {
 //            val newAssessments = assessments.map { (skillName, level) ->
@@ -565,7 +568,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
                 loadActivitiesForClass(classId)
                 onActivityAdded()
-                _userMessage.value = "Atividade '$savedTitle' adicionada."
+                showMessage("Atividade '$savedTitle' adicionada.")
             }
         }
     }
@@ -589,7 +592,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val activityId = _selectedActivity.value?.activityId ?: return@launch
             val value = groupFormationValue.toIntOrNull()
             if (value == null || value <= 0) {
-                _userMessage.value = "Por favor, insira um valor válido."
+                showMessage("Por favor, insira um valor válido.")
                 return@launch
             }
 
@@ -598,14 +601,13 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                     .shuffled()
 
             if (presentStudents.isEmpty()) {
-                _userMessage.value = "Nenhum aluno presente para formar grupos."
+                showMessage("Nenhum aluno presente para formar grupos.")
                 return@launch
             }
 
             val numGroups = if (groupFormationType == "Número de grupos") {
                 if (value > presentStudents.size) {
-                    _userMessage.value =
-                        "O número de grupos não pode ser maior que o de alunos presentes."
+                    showMessage("O número de grupos não pode ser maior que o de alunos presentes.")
                     return@launch
                 }
                 value
@@ -673,7 +675,6 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     suspend fun loadFrequencyDetails(session: ClassSession) {
         val records = attendanceRepository.getRecordsForSession(session.sessionId)
         val studentNameMap = studentsForClass.value.associate { it.studentId to it.displayName }
-
         _frequencyDetails.value = records.mapNotNull { record ->
             studentNameMap[record.studentId]?.let { name -> name to record.status }
         }.toMap()
@@ -776,10 +777,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 loadCourseDetails(session.classId)
-                _userMessage.value = "Registro de frequência apagado."
+                showMessage("Registro de frequência apagado.")
                 onComplete()
             } catch (e: Exception) {
-                _userMessage.value = "Erro ao apagar registro: ${e.message}"
+                showMessage("Erro ao apagar registro: ${e.message}")
             }
         }
     }
@@ -803,8 +804,11 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Saves the current attendance and clears the state upon success.
-     * Persistence is performed locally first, with background cloud sync.
+     * Persists the current attendance state to the repository.
+     *
+     * This function performs a defensive filtering of the [attendanceMap] to ensure
+     * only students currently assigned to the course are included, preventing
+     * foreign key constraint violations during database insertion.
      */
     fun saveAttendance(classId: String, onSelectionConfirmed: () -> Unit) {
         if (isSavingAttendance) return
@@ -813,24 +817,24 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
         attendanceErrorMessage = null
 
         viewModelScope.launch {
-            // Use the date from the calendar and pass the editingSession to avoid duplication
+            val validStudentIds = _studentsForClass.value.map { it.studentId }.toSet()
+            val filteredAttendanceMap = attendanceMap.filterKeys { it in validStudentIds }
+
             val result = attendanceRepository.saveAttendance(
                 classId = classId,
                 timestamp = newSessionCalendar.timeInMillis,
-                attendanceMap = attendanceMap.toMap(),
+                attendanceMap = filteredAttendanceMap,
                 editingSession = editingSession
             )
 
             when (result) {
                 is SaveAttendanceResult.Success -> {
-                    // Clear state after successful save
-                    attendanceMap.clear()
-                    editingSession = null
+                    resetFrequencyState()
                     onSelectionConfirmed()
                 }
 
                 is SaveAttendanceResult.Error -> {
-                    attendanceErrorMessage = result.message
+                    showMessage(result.message)
                 }
             }
             isSavingAttendance = false
@@ -852,10 +856,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      */
     suspend fun backup() {
 //        val userId = Firebase.auth.currentUser?.uid ?: run {
-//            _userMessage.value = "Usuário não logado."
+//            showMessage("Usuário não logado.")
 //            return
 //        }
-//        _userMessage.value = "Iniciando backup..."
+//        showMessage("Iniciando backup...")
 //        try {
 //            val backupData = BackupData(
 //                courses = courseRepository.getAllCourses(),
@@ -870,9 +874,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 //                studentSkills = skillRepository.getAllStudentSkills()
 //            )
 //            val result = cloudStorageRepository.uploadBackupData(backupData)
-//            _userMessage.value = result.message
+//            showMessage(result.message)
 //        } catch (e: Exception) {
-//            _userMessage.value = "Erro no backup: ${e.message}"
+//            showMessage("Erro no backup: ${e.message}")
 //        }
     }
 
@@ -881,14 +885,14 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
      */
     suspend fun restore() {
 //        val userId = Firebase.auth.currentUser?.uid ?: run {
-//            _userMessage.value = "Usuário não logado."
+//            showMessage("Usuário não logado.")
 //            return
 //        }
-//        _userMessage.value = "Iniciando restauração..."
+//        showMessage("Iniciando restauração...")
 //        try {
 //            val result = cloudStorageRepository.downloadBackupData()
 //            if (result.data == null) {
-//                _userMessage.value = result.message
+//                showMessage(result.message)
 //                return
 //            }
 //            val backupData = result.data
@@ -907,9 +911,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 //                skillRepository.insertOrUpdateStudentSkills(backupData.studentSkills)
 //            }
 //
-//            _userMessage.value = "Restauração concluída com sucesso!"
+//            showMessage("Restauração concluída com sucesso!")
 //        } catch (e: Exception) {
-//            _userMessage.value = "Erro na restauração: ${e.message}"
+//            showMessage("Erro na restauração: ${e.message}")
 //        }
     }
 
@@ -929,9 +933,9 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 _studentsForClass.value = emptyList()
                 _generatedGroups.value = emptyList()
 
-                _userMessage.value = "Base de dados limpa com sucesso."
+                showMessage("Base de dados limpa com sucesso.")
             } catch (e: Exception) {
-                _userMessage.value = "Erro ao limpar a base: ${e.message}"
+                showMessage("Erro ao limpar a base: ${e.message}")
             }
         }
     }
@@ -1030,35 +1034,41 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Adds a single student to the selected course.
+     * Adds a single student to the selected course, avoiding duplicates by studentNumber.
      */
     fun addStudent(onStudentsAdded: () -> Unit) {
         val classId = _selectedCourse.value?.classId ?: return
         val uid = Firebase.auth.currentUser?.uid ?: run {
-            _userMessage.value = "Usuário não logado."
+            showMessage("Usuário não logado.")
             return
         }
 
         if (studentName.isNotBlank() && studentNumber.isNotBlank()) {
             viewModelScope.launch {
+                val exists = studentRepository.studentExistsInClass(studentNumber, classId)
+                if (exists) {
+                    showMessage("Já existe um aluno com o número $studentNumber nesta turma.")
+                    return@launch
+                }
+
                 val newStudent = Student(
                     studentId = java.util.UUID.randomUUID().toString(),
-                    name = studentName,
-                    displayName = studentDisplayName,
-                    studentNumber = studentNumber,
+                    name = studentName.trim(),
+                    displayName = studentDisplayName.trim(),
+                    studentNumber = studentNumber.trim(),
                     classId = classId
                 )
 
                 try {
                     studentRepository.insertStudent(newStudent, uid)
 
-                    _userMessage.value = "Aluno adicionado com sucesso."
+                    showMessage("Aluno adicionado com sucesso.")
 
                     studentName = ""
                     studentDisplayName = ""
                     studentNumber = ""
                 } catch (e: Exception) {
-                    _userMessage.value = "Erro ao adicionar aluno: ${e.message}"
+                    showMessage("Erro ao adicionar aluno: ${e.message}")
                 }
 
                 loadCourseDetails(classId)
@@ -1068,61 +1078,120 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Processes and inserts multiple students from a bulk text input.
-     * Expected format per line: "studentNumber Full Name"
+     * Removes a student from the repository and updates the local UI state.
+     *
+     * This function handles the deletion process by calling the repository,
+     * removing the student from the local attendance map, and refreshing
+     * the course details to ensure the UI reflects the current database state.
+     */
+    fun deleteStudent(student: Student) {
+        val uid = Firebase.auth.currentUser?.uid ?: return
+
+        viewModelScope.launch {
+            try {
+                studentRepository.deleteStudent(student, uid)
+                attendanceMap.remove(student.studentId)
+
+                loadCourseDetails(student.classId)
+
+                showMessage("Student ${student.displayName} removed.")
+            } catch (e: Exception) {
+                showMessage("Error removing student: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Adds students in bulk to a specified class based on the provided input.
+     * Parses a list of student data from a bulk text input, validates and processes it,
+     * and adds it to the class if the data is valid and non-duplicate.
+     *
+     * @param onStudentsAdded A callback function that is invoked after students are successfully added.
      */
     fun addStudentsInBulk(onStudentsAdded: () -> Unit) {
         val targetClassId = _selectedCourse.value?.classId ?: return
         val currentUserId = Firebase.auth.currentUser?.uid ?: run {
-            _userMessage.value = "Usuário não logado."
+            showMessage("Usuário não logado.")
             return
         }
 
         if (bulkStudentText.isBlank()) {
-            _userMessage.value = "O texto de entrada está vazio."
+            showMessage("O texto de entrada está vazio.")
             return
         }
 
         viewModelScope.launch {
             try {
-                val studentsToInsert =
-                    bulkStudentText.lineSequence().filter { it.isNotBlank() }.mapNotNull { line ->
+                val existingNumbers =
+                    studentRepository.getExistingStudentNumbersForClass(targetClassId).toSet()
+
+                val processedNumbers = mutableSetOf<String>()
+                val studentsToInsert = mutableListOf<Student>()
+                var duplicateInBatchCount = 0
+
+                bulkStudentText.lineSequence()
+                    .filter { it.isNotBlank() }
+                    .forEach { line ->
                         val lineParts = line.trim().split(Regex("\\s+"), limit = 2)
                         if (lineParts.size == 2) {
                             val number = lineParts[0]
                             val fullName = lineParts[1]
-                            val nameSegments =
-                                fullName.split(Regex("\\s+")).filter { it.isNotBlank() }
 
-                            val formattedDisplayName = when {
-                                nameSegments.size <= 2 -> ""
-                                nameSegments.size > 2 -> "${nameSegments.first()} ${nameSegments.last()}"
-                                else -> fullName
+                            when {
+                                number in existingNumbers -> { /* ignores */
+                                }
+
+                                number in processedNumbers -> {
+                                    duplicateInBatchCount++
+                                }
+
+                                else -> {
+                                    val nameSegments =
+                                        fullName.split(Regex("\\s+")).filter { it.isNotBlank() }
+
+                                    val formattedDisplayName = when {
+                                        nameSegments.size <= 2 -> ""
+                                        nameSegments.size > 2 -> "${nameSegments.first()} ${nameSegments.last()}"
+                                        else -> fullName
+                                    }
+
+                                    studentsToInsert.add(
+                                        Student(
+                                            studentId = java.util.UUID.randomUUID().toString(),
+                                            name = fullName.trim(),
+                                            displayName = formattedDisplayName.trim(),
+                                            studentNumber = number.trim(),
+                                            classId = targetClassId
+                                        )
+                                    )
+                                    processedNumbers.add(number)
+                                }
                             }
-
-                            Student(
-                                studentId = java.util.UUID.randomUUID().toString(),
-                                name = fullName,
-                                displayName = formattedDisplayName,
-                                studentNumber = number,
-                                classId = targetClassId
-                            )
-                        } else null
-                    }.toList()
+                        }
+                    }
 
                 if (studentsToInsert.isEmpty()) {
-                    _userMessage.value = "Nenhum aluno válido encontrado. Use: Nº Nome"
+                    showMessage("Nenhuma inserção: todos já existem ou formato é inválido.")
                     return@launch
                 }
 
+                val totalIgnored = (bulkStudentText.lineSequence().filter { it.isNotBlank() }
+                    .count() - studentsToInsert.size)
+
                 studentRepository.insertAllStudents(studentsToInsert, currentUserId)
 
-                _userMessage.value = "${studentsToInsert.size} aluno(s) adicionado(s) com sucesso."
+                val message = if (totalIgnored > 0) {
+                    "${studentsToInsert.size} aluno(s) adicionado(s). $totalIgnored linha(s) ignorada(s) (duplicatas)."
+                } else {
+                    "${studentsToInsert.size} aluno(s) adicionado(s) com sucesso."
+                }
+                showMessage(message)
+
                 bulkStudentText = ""
                 onStudentsAdded()
 
             } catch (e: Exception) {
-                _userMessage.value = "Erro ao processar inserção: ${e.message}"
+                showMessage("Erro ao processar inserção: ${e.message}")
             }
         }
     }
@@ -1239,6 +1308,4 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             )
         }
     }
-
-
 }

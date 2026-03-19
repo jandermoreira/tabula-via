@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import kotlinx.coroutines.launch
 
@@ -33,6 +34,7 @@ fun CourseDashboardScreen(
     navController: NavController,
     onNavigateBack: () -> Unit
 ) {
+    MessageHandler(viewModel)
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -41,15 +43,15 @@ fun CourseDashboardScreen(
         viewModel.loadCourseDetails(classId)
     }
 
-    val userMessage by viewModel.userMessage.collectAsState()
-    LaunchedEffect(userMessage) {
-        userMessage?.let { message ->
-            scope.launch {
-                snackbarHostState.showSnackbar(message)
-                viewModel.onUserMessageShown()
-            }
-        }
-    }
+//    val userMessage by viewModel.userMessage.collectAsState()
+//    LaunchedEffect(userMessage) {
+//        userMessage?.let { message ->
+//            scope.launch {
+//                snackbarHostState.showSnackbar(message)
+////                viewModel.onUserMessageShown()
+//            }
+//        }
+//    }
 
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val students by viewModel.studentsForClass.collectAsState()

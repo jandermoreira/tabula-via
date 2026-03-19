@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.CourseSkill
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,6 +30,8 @@ fun CourseSkillsScreen(
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     val courseSkills by viewModel.courseSkills.collectAsState()
     var showAddSkillDialog by remember { mutableStateOf(false) }
 

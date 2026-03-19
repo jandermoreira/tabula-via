@@ -1,7 +1,6 @@
 /**
  * Data transfer object used for database backup and restoration.
- * Encapsulates all application entities into a single serializable structure
- * to facilitate Firestore synchronization and local data persistence.
+ * Encapsulates all application entities into a single serializable structure.
  */
 package edu.jm.tabulavia.model
 
@@ -36,6 +35,6 @@ data class BackupData(
     /** Specific skills targeted or highlighted for each activity. */
     val activityHighlightedSkills: List<ActivityHighlightedSkill> = emptyList(),
 
-    /** consolidated skill levels for each student. */
+    /** Consolidated skill levels for each student. */
     val studentSkills: List<StudentSkill> = emptyList()
 )
