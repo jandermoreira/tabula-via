@@ -137,10 +137,11 @@ fun AttendanceScreen(
             val totalCount = presentCount + absentCount
 
             // Calculate attendance percentage using double for precision
-            val attendancePercentage = if (totalCount > 0) {
-                (presentCount.toDouble() / totalCount.toDouble()) * 100.0
-            } else {
-                0.0
+            var formattedAttendance = "N/A"
+            if (totalCount > 0) {
+                val attendancePercentage =
+                    (presentCount.toDouble() / totalCount.toDouble()) * 100.0
+                formattedAttendance = String.format("%.1f%%", attendancePercentage)
             }
 
             Row(
@@ -160,7 +161,7 @@ fun AttendanceScreen(
                     color = MaterialTheme.colorScheme.error
                 )
                 Text(
-                    text = "$attendancePercentage%",
+                    text = formattedAttendance,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
