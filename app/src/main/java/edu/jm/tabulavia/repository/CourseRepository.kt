@@ -59,7 +59,7 @@ class CourseRepository(
     /**
      * Retrieves a single course by its persistent String identifier.
      */
-    suspend fun getCourseById(classId: String): Course? = courseDao.getCourseById(classId)
+    suspend fun getCourseById(courseId: String): Course? = courseDao.getCourseById(courseId)
 
     /**
      * Saves a course locally and triggers a non-blocking cloud synchronization.
@@ -87,8 +87,8 @@ class CourseRepository(
     /**
      * Retrieves all activities associated with a specific course via String ID.
      */
-    fun getActivitiesForClass(classId: String): Flow<List<Activity>> =
-        activityDao.getActivitiesForClass(classId)
+    fun getActivitiesForClass(courseId: String): Flow<List<Activity>> =
+        activityDao.getActivitiesForClass(courseId)
 
     /**
      * Fetches every activity stored in the local database.
@@ -220,11 +220,11 @@ class CourseRepository(
     /**
      * Starts a real-time listener for students within a specific course.
      */
-    fun startStudentsSync(uid: String, classId: String) {
+    fun startStudentsSync(uid: String, courseId: String) {
         stopStudentsSync()
 
         studentsListener = userCoursesRef(uid)
-            .document(classId)
+            .document(courseId)
             .collection("students")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
@@ -249,11 +249,11 @@ class CourseRepository(
     /**
      * Starts a real-time listener for activities of a specific course.
      */
-    fun startActivitiesSync(uid: String, classId: String) {
+    fun startActivitiesSync(uid: String, courseId: String) {
         stopActivitiesSync()
 
         activitiesListener = userCoursesRef(uid)
-            .document(classId)
+            .document(courseId)
             .collection("activities")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
