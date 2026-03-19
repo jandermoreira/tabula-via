@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import java.time.Year
 
@@ -26,8 +27,13 @@ import java.time.Year
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddCourseScreen(viewModel: CourseViewModel, onCourseAdded: () -> Unit, onNavigateBack: () -> Unit) {
-    // Get the current year for the input label hint
+fun AddCourseScreen(
+    viewModel: CourseViewModel,
+    onCourseAdded: () -> Unit,
+    onNavigateBack: () -> Unit
+) {
+    MessageHandler(viewModel)
+
     val currentYear = Year.now().value
 
     Scaffold(

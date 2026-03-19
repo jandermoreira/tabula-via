@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.AssessmentSource
 import edu.jm.tabulavia.model.SkillLevel
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -63,6 +64,8 @@ fun ActivityListScreen(
     onNavigateBack: () -> Unit,
     onActivityClicked: (Activity) -> Unit
 ) {
+    MessageHandler(viewModel)
+
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val activities by viewModel.activities.collectAsState()
     var showAddActivityDialog by remember { mutableStateOf(false) }

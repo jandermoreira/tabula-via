@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 @Composable
@@ -26,6 +27,8 @@ fun AddStudentDialog(
     viewModel: CourseViewModel,
     onDismiss: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Individual", "Em Massa")
 

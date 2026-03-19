@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 /**
@@ -32,6 +33,8 @@ fun AddActivityDialog(
     viewModel: CourseViewModel,
     onDismiss: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     val courseSkills by viewModel.courseSkills.collectAsState()
 
     // Ensure the activity type is always set to "Grupo" when the dialog opens
