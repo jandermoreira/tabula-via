@@ -28,8 +28,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.jm.tabulavia.model.Student
-import edu.jm.tabulavia.utils.StudentEmojiColorHelper.generateColorFromId
-import edu.jm.tabulavia.utils.StudentEmojiColorHelper.mapStudentIdToEmoji
+import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToColor
+import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToEmoji
 
 /**
  * Custom organic shape used as a background highlight for icons and emojis.
@@ -62,10 +62,10 @@ fun StudentItem(
     isAbsent: Boolean
 ) {
     // Determine visual state and color based on presence
-    val backgroundColor = if (isAbsent) Color.Gray else generateColorFromId(student.studentNumber)
+    val backgroundColor = if (isAbsent) Color.Gray else mapIdToColor(student.studentNumber)
     val emojiColor = if (isAbsent) Color.Gray else MaterialTheme.colorScheme.onSurface
 
-    val emoji = mapStudentIdToEmoji(student.studentNumber)
+    val emoji = mapIdToEmoji(student.studentNumber)
 
     Column(
         modifier = modifier.alpha(if (isAbsent) 0.5f else 1f),

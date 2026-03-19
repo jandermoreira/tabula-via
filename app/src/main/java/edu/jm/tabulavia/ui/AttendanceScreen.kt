@@ -3,7 +3,6 @@
  */
 package edu.jm.tabulavia.ui
 
-import androidx.collection.emptyLongSet
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,15 +22,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
-import edu.jm.tabulavia.utils.StudentEmojiColorHelper.generateColorFromId
-import edu.jm.tabulavia.utils.StudentEmojiColorHelper.mapStudentIdToEmoji
+import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToColor
+import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToEmoji
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
-import kotlin.math.abs
 
 /**
  * Main screen for recording student attendance sessions.
@@ -270,8 +268,8 @@ fun AttendanceItem(
         ) {
             Box(modifier = Modifier.scale(0.8f)) {
                 EmojiWithBlob(
-                    emoji = mapStudentIdToEmoji(student.studentNumber),
-                    backgroundColor = if (isAbsent) Color.Gray else generateColorFromId(student.studentNumber),
+                    emoji = mapIdToEmoji(student.studentNumber),
+                    backgroundColor = if (isAbsent) Color.Gray else mapIdToColor(student.studentNumber),
                     color = if (isAbsent) Color.Gray else MaterialTheme.colorScheme.onSurface
                 )
             }
