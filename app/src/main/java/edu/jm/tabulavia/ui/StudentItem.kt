@@ -35,20 +35,24 @@ import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToEmoji
  * Custom organic shape used as a background highlight for icons and emojis.
  */
 private val BlobShape = GenericShape { size, _ ->
-    moveTo(size.width * 0.2f, size.height * 0.1f)
+    moveTo(size.width * 0.1f, size.height * 0.4f)
     cubicTo(
-        size.width * 0.9f, size.height * -0.1f,
-        size.width * 1.1f, size.height * 0.7f,
-        size.width * 0.5f, size.height * 0.9f
+        size.width * 0.6f, size.height * -0.2f,
+        size.width * 1.4f, size.height * 0.2f,
+        size.width * 0.9f, size.height * 0.6f
     )
     cubicTo(
-        size.width * 0.1f, size.height * 1.1f,
-        size.width * -0.1f, size.height * 0.4f,
-        size.width * 0.2f, size.height * 0.1f
+        size.width * 1.2f, size.height * 1.0f,
+        size.width * 0.4f, size.height * 1.2f,
+        size.width * 0.2f, size.height * 0.8f
+    )
+    cubicTo(
+        size.width * -0.1f, size.height * 0.6f,
+        size.width * 0.0f, size.height * 0.3f,
+        size.width * 0.1f, size.height * 0.4f
     )
     close()
 }
-
 /**
  * Displays a student entry with an emoji avatar and their display name.
  * * @param student The student data model.
@@ -75,7 +79,8 @@ fun StudentItem(
         EmojiWithBlob(
             emoji = emoji,
             color = emojiColor,
-            backgroundColor = backgroundColor
+            backgroundColor = backgroundColor,
+            modifier = modifier.alpha(if (isAbsent) 0.7f else 1f)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -86,8 +91,9 @@ fun StudentItem(
             text = displayName,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
+            textAlign = TextAlign.Center,
+            modifier = modifier.alpha(if (isAbsent) 0.7f else 1f),
+            )
 
         Spacer(modifier = Modifier.height(24.dp))
     }
@@ -116,7 +122,7 @@ fun EmojiWithBlob(
                 .size(width = 64.dp, height = 52.dp)
                 .rotate(-10f)
                 .background(
-                    color = backgroundColor.copy(alpha = 0.4f),
+                    color = backgroundColor.copy(),
                     shape = BlobShape
                 )
         )
