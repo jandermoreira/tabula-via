@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -29,8 +28,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.jm.tabulavia.model.Student
-import edu.jm.tabulavia.ui.StudentEmojiColorHelper.generateColorFromId
-import edu.jm.tabulavia.ui.StudentEmojiColorHelper.mapStudentIdToEmoji
+import edu.jm.tabulavia.utils.StudentEmojiColorHelper.generateColorFromId
+import edu.jm.tabulavia.utils.StudentEmojiColorHelper.mapStudentIdToEmoji
 
 /**
  * Custom organic shape used as a background highlight for icons and emojis.
@@ -82,9 +81,9 @@ fun StudentItem(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Student identification text
-        val localName = student.displayName.ifBlank { student.name }
+        val displayName = student.displayName.ifBlank { student.name }
         Text(
-            text = localName,
+            text = displayName,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
