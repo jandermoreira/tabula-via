@@ -30,13 +30,6 @@ interface CourseDao {
     suspend fun insertAll(courses: List<Course>)
 
     /**
-     * Retrieves all courses from the database.
-     * Results are ordered alphabetically by class name.
-     */
-    @Query("SELECT * FROM classes ORDER BY className ASC")
-    fun getAllCourses(): Flow<List<Course>>
-
-    /**
      * Retrieves a specific course based on its unique identifier.
      * Returns null if no course is found with the given ID.
      */
@@ -50,8 +43,16 @@ interface CourseDao {
     suspend fun updateCourse(course: Course)
 
     /**
-     * Retrieves all courses as a reactive flow.
+     * Retrieves all courses from the database.
+     * Results are ordered alphabetically by class name.
      */
     @Query("SELECT * FROM classes ORDER BY className ASC")
     fun getAllCoursesFlow(): Flow<List<Course>>
+
+    /**
+     * Retrieves all courses from the database as a one-time list.
+     * Results are ordered alphabetically by class name.
+     */
+    @Query("SELECT * FROM classes ORDER BY className ASC")
+    suspend fun getAllCourses(): List<Course>
 }

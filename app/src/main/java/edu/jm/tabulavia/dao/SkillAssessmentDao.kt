@@ -43,5 +43,11 @@ interface SkillAssessmentDao {
      * Retrieves all skill assessments in the database.
      */
     @Query("SELECT * FROM skill_assessments")
-    fun getAllAssessments(): Flow<List<SkillAssessment>>
+    fun getAllAssessmentsFlow(): Flow<List<SkillAssessment>>
+
+    /**
+     * Retrieves all skill assessments in the database.
+     */
+    @Query("SELECT * FROM skill_assessments")
+    suspend fun getAllAssessments(): List<SkillAssessment>
 }

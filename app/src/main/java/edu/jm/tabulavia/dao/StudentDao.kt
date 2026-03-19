@@ -65,7 +65,13 @@ interface StudentDao {
      * Retrieves all students from the database as a flow.
      */
     @Query("SELECT * FROM students")
-    fun getAllStudents(): Flow<List<Student>>
+    fun getAllStudentsFlow(): Flow<List<Student>>
+
+    /**
+     * Retrieves all students from the database as a list.
+     */
+    @Query("SELECT * FROM students")
+    fun getAllStudents(): List<Student>
 
     /**
      * Deletes a student record from the database.

@@ -9,7 +9,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -39,7 +38,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import android.util.Log
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -855,6 +853,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      * Uploads all local data to cloud storage.
      */
     suspend fun backup() {
+        showMessage("Backup não implementado.")
 //        val userId = Firebase.auth.currentUser?.uid ?: run {
 //            showMessage("Usuário não logado.")
 //            return
@@ -868,10 +867,10 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
 //                attendanceRecords = attendanceRepository.getAllRecords(),
 //                activities = courseRepository.getAllActivities(),
 //                groupMembers = courseRepository.getAllGroupMembers(),
-//                skillAssessments = skillRepository.getAllAssessments().first(),
-//                courseSkills = skillRepository.getAllCourseSkills(),
-//                activityHighlightedSkills = skillRepository.getAllHighlightedSkills(),
-//                studentSkills = skillRepository.getAllStudentSkills()
+////                skillAssessments = skillRepository.getAllAssessments().first(),
+////                courseSkills = skillRepository.getAllCourseSkills(),
+////                activityHighlightedSkills = skillRepository.getAllHighlightedSkills(),
+////                studentSkills = skillRepository.getAllStudentSkills()
 //            )
 //            val result = cloudStorageRepository.uploadBackupData(backupData)
 //            showMessage(result.message)
@@ -884,6 +883,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      * Downloads and restores data from cloud storage.
      */
     suspend fun restore() {
+        showMessage("Restauração não implementada.")
 //        val userId = Firebase.auth.currentUser?.uid ?: run {
 //            showMessage("Usuário não logado.")
 //            return
@@ -900,15 +900,15 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
 //            withContext(Dispatchers.IO) {
 //                db.clearAllTables()
 //                courseRepository.insertAllCourses(backupData.courses)
-//                studentRepository.insertAllStudents(backupData.students)
+//                studentRepository.insertAllStudents(backupData.students, userId)
 //                courseRepository.insertAllActivities(backupData.activities)
 //                attendanceRepository.insertAllSessions(backupData.classSessions)
 //                attendanceRepository.insertAllAttendanceRecords(backupData.attendanceRecords)
 //                courseRepository.insertAllGroupMembers(backupData.groupMembers)
-//                skillRepository.insertAllAssessments(backupData.skillAssessments)
-//                skillRepository.insertCourseSkills(backupData.courseSkills)
-//                skillRepository.insertAllHighlightedSkills(backupData.activityHighlightedSkills)
-//                skillRepository.insertOrUpdateStudentSkills(backupData.studentSkills)
+////                skillRepository.insertAllAssessments(backupData.skillAssessments)
+////                skillRepository.insertCourseSkills(backupData.courseSkills)
+////                skillRepository.insertAllHighlightedSkills(backupData.activityHighlightedSkills)
+////                skillRepository.insertOrUpdateStudentSkills(backupData.studentSkills)
 //            }
 //
 //            showMessage("Restauração concluída com sucesso!")

@@ -102,11 +102,6 @@ class SkillRepository(
 
     /**
      * Inserts a list of skills for a course.
-     *
-     * Steps:
-     * 1. Inserts skills into the local Room database (fast, suspending).
-     * 2. Launches a background coroutine to upsert each skill into Firestore.
-     *    If a skill lacks a firestoreId, one is generated and the local record is updated.
      */
     suspend fun insertCourseSkills(uid: String, courseId: String, skills: List<CourseSkill>) {
         // 1. Local insert

@@ -73,9 +73,12 @@ class StudentRepository(
     /**
      * Observes all students across all courses locally.
      */
-    fun getAllStudents(): Flow<List<Student>> = studentDao.getAllStudents()
+    fun getAllStudentsFlow(): Flow<List<Student>> = studentDao.getAllStudentsFlow()
 
-    // StudentRepository.kt
+    /**
+     * Retrieves all students as a list.
+     */
+    fun getAllStudents(): List<Student> = studentDao.getAllStudents()
 
     /**
      * Deletes a student from both local and remote storage, ensuring that all

@@ -274,4 +274,10 @@ class CourseRepository(
         activitiesListener?.remove()
         activitiesListener = null
     }
+
+    /**
+     * Retrieves all courses from the local database as a one-time list.
+     * Used for backup operations.
+     */
+    suspend fun getAllCourses(): List<Course> = courseDao.getAllCourses()
 }
