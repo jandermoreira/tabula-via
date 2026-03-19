@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.utils.MessageHandler
+import edu.jm.tabulavia.utils.StudentEmojiColorHelper
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -31,6 +33,8 @@ fun ActivityStudentListScreen(
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     val students by viewModel.studentsForClass.collectAsState()
     val activity by viewModel.selectedActivity.collectAsState()
 

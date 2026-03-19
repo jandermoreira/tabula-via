@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AssessmentSource
 import edu.jm.tabulavia.model.SkillAssessmentsSummary
 import edu.jm.tabulavia.model.SkillLevel
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -22,6 +23,8 @@ fun StudentSkillsScreen(
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     val student by viewModel.selectedStudentDetails.collectAsState()
     val skillSummaries by viewModel.studentSkillSummaries.collectAsState()
     val courseSkills by viewModel.courseSkills.collectAsState() // Still useful for displaying all skills

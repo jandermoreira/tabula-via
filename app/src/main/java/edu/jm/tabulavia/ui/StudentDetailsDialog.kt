@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.model.SkillTrend
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 
 @Composable
@@ -44,6 +45,8 @@ fun StudentDetailsDialog(
     viewModel: CourseViewModel,
     onDismiss: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     val skillSummaries by viewModel.studentSkillStatuses.collectAsState()
 
     AlertDialog(

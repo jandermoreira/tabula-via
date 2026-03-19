@@ -23,8 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
-import edu.jm.tabulavia.ui.StudentEmojiColorHelper.generateColorFromId
-import edu.jm.tabulavia.ui.StudentEmojiColorHelper.mapStudentIdToEmoji
+import edu.jm.tabulavia.utils.StudentEmojiColorHelper.generateColorFromId
+import edu.jm.tabulavia.utils.StudentEmojiColorHelper.mapStudentIdToEmoji
+import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -41,6 +42,8 @@ fun AttendanceScreen(
     viewModel: CourseViewModel,
     onNavigateBack: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     val students by viewModel.studentsForClass.collectAsState()
     val calendar = viewModel.newSessionCalendar
     val editingSession = viewModel.editingSession
@@ -273,13 +276,14 @@ fun AttendanceItem(
                 )
             }
 
+            val displayName = student.displayName.ifBlank { student.name }
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 12.dp)
             ) {
                 Text(
-                    text = student.displayName,
+                    text = displayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isAbsent) Color.Gray else Color.Unspecified

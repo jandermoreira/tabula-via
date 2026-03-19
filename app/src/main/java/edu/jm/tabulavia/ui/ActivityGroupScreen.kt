@@ -60,6 +60,7 @@ import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.grouping.Location
 import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.utils.MessageHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -83,6 +84,8 @@ private data class DraggedStudent(
 fun ActivityGroupScreen(
     activityId: String, viewModel: CourseViewModel, onNavigateBack: () -> Unit
 ) {
+    MessageHandler(viewModel)
+
     val activity by viewModel.selectedActivity.collectAsState()
     val groups by viewModel.generatedGroups.collectAsState()
     val groupsLoaded by viewModel.groupsLoaded.collectAsState()
