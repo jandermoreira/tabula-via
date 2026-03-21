@@ -1,9 +1,12 @@
+/**
+ * File: CourseDashboardScreen.kt
+ * Description: UI components for the course dashboard, displaying students, activities, skills, and reports.
+ */
+
 package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
@@ -13,7 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Assessment // Ícone para Relatórios
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,8 +27,14 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.CourseViewModel
-import kotlinx.coroutines.launch
 
+/**
+ * Main screen for the course dashboard.
+ * * @param classId The unique identifier of the class.
+ * @param viewModel The ViewModel handling course logic.
+ * @param navController Controller for app navigation.
+ * @param onNavigateBack Callback for the back navigation action.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseDashboardScreen(
@@ -34,24 +43,15 @@ fun CourseDashboardScreen(
     navController: NavController,
     onNavigateBack: () -> Unit
 ) {
+    // Handle specific view model messages
     MessageHandler(viewModel)
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
+    // Trigger data loading when the class ID changes
     LaunchedEffect(key1 = classId) {
         viewModel.loadCourseDetails(classId)
     }
-
-//    val userMessage by viewModel.userMessage.collectAsState()
-//    LaunchedEffect(userMessage) {
-//        userMessage?.let { message ->
-//            scope.launch {
-//                snackbarHostState.showSnackbar(message)
-////                viewModel.onUserMessageShown()
-//            }
-//        }
-//    }
 
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val students by viewModel.studentsForClass.collectAsState()
@@ -83,19 +83,18 @@ fun CourseDashboardScreen(
             )
         }
     ) { paddingValues ->
-        // Coluna principal que contém todos os elementos, com scroll
+        // Main layout container with vertical spacing
         Column(
             modifier = Modifier
                 .padding(paddingValues)
                 .padding(16.dp)
-                .fillMaxSize(), // Garante que a coluna ocupe o espaço disponível
-            verticalArrangement = Arrangement.spacedBy(16.dp) // Espaçamento entre os itens da coluna
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- Cards Existentes (Alunos, Frequência, Atividades) ---
-            // Estes cards continuam na ordem original dentro da coluna principal
+            // Primary management cards (Students, Attendance, Activities)
             Column(
-                modifier = Modifier.fillMaxWidth(), // Ocupa a largura disponível
-                verticalArrangement = Arrangement.spacedBy(16.dp) // Espaçamento entre estes cards
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 DashboardCard(
                     title = "Alunos",
@@ -118,19 +117,19 @@ fun CourseDashboardScreen(
                     onClick = { navController.navigate("activityList/$classId") }
                 )
             }
-            
-            // --- Novo Grid Independente para Habilidades e Relatórios ---
-            Spacer(modifier = Modifier.height(16.dp)) // Espaço entre os cards existentes e o novo grid
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Secondary grid for Skills and Reports
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2), // Define 2 colunas fixas para este grid
+                columns = GridCells.Fixed(2),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 300.dp), // Define uma altura máxima para que o scroll interno funcione se necessário
-                horizontalArrangement = Arrangement.spacedBy(16.dp), // Espaço entre colunas
-                verticalArrangement = Arrangement.spacedBy(16.dp)  // Espaço entre linhas
+                    .heightIn(max = 300.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Card de Habilidades (Movido para cá)
-                item { 
+                item {
                     DashboardCard(
                         title = "Habilidades",
                         subtitle = "${courseSkills.size} habilidades definidas",
@@ -139,12 +138,11 @@ fun CourseDashboardScreen(
                     )
                 }
 
-                // Card de Relatórios
-                item { 
+                item {
                     DashboardCard(
                         title = "Relatórios",
                         subtitle = "Análise e desempenho",
-                        icon = Icons.Default.Assessment, // Usando o ícone de Assessment
+                        icon = Icons.Default.Assessment,
                         onClick = { /* TODO: Implementar navegação para a tela de Relatórios */ }
                     )
                 }
@@ -153,6 +151,13 @@ fun CourseDashboardScreen(
     }
 }
 
+/**
+ * A reusable card component for dashboard navigation.
+ * * @param title The text label of the card.
+ * @param subtitle Descriptive text below the title.
+ * @param icon The vector icon to display.
+ * @param onClick Action to perform when the card is clicked.
+ */
 @Composable
 fun DashboardCard(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
     Card(
