@@ -7,41 +7,63 @@ package edu.jm.tabulavia.viewmodel
 import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
-import edu.jm.tabulavia.db.DatabaseProvider
-import edu.jm.tabulavia.model.*
-import edu.jm.tabulavia.model.grouping.Group
-import edu.jm.tabulavia.model.grouping.Location
-import edu.jm.tabulavia.model.grouping.DropTarget
-import edu.jm.tabulavia.repository.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
-import java.util.Calendar
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
+import edu.jm.tabulavia.db.DatabaseProvider
+import edu.jm.tabulavia.model.*
+import edu.jm.tabulavia.model.AttendanceRecord
+import edu.jm.tabulavia.model.AttendanceStatus
+import edu.jm.tabulavia.model.ClassSession
+import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.model.grouping.DropTarget
+import edu.jm.tabulavia.model.grouping.Group
+import edu.jm.tabulavia.model.grouping.Location
+import edu.jm.tabulavia.repository.*
+import edu.jm.tabulavia.repository.AttendanceRepository
+import java.util.Calendar
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
+/**
+ * Represents a student's attendance status for display.
+ */
+data class AttendanceDetail(
+    val studentName: String,
+    val status: AttendanceStatus
+)
+
+/**
+ * ViewModel for handling course-related data and operations.
+ *
+ * This class manages the state and logic for courses, students, skills, activities,
+ * attendance, and other course-related functionalities. It interacts with repositories
+ * to fetch and persist data, coordinates UI state updates, and maintains observable states
+ * for real-time synchronization and data changes.
+ */
 class CourseViewModel(application: Application) : BaseAndroidViewModel(application) {
 
     private val db = DatabaseProvider.getDatabase(application)
@@ -97,8 +119,8 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     private val _userMessage = MutableSharedFlow<String>()
     val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
 
-    private val _frequencyDetails = MutableStateFlow<Map<String, AttendanceStatus>>(emptyMap())
-    val frequencyDetails: StateFlow<Map<String, AttendanceStatus>> = _frequencyDetails.asStateFlow()
+    private val _frequencyDetails = MutableStateFlow<List<AttendanceDetail>>(emptyList())
+    val frequencyDetails: StateFlow<List<AttendanceDetail>> = _frequencyDetails.asStateFlow()
 
     private val _selectedStudentDetails = MutableStateFlow<Student?>(null)
     val selectedStudentDetails: StateFlow<Student?> = _selectedStudentDetails.asStateFlow()
@@ -670,12 +692,33 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     /**
      * Carrega detalhes de frequência para uma sessão específica.
      */
-    suspend fun loadFrequencyDetails(session: ClassSession) {
-        val records = attendanceRepository.getRecordsForSession(session.sessionId)
-        val studentNameMap = studentsForClass.value.associate { it.studentId to it.displayName }
-        _frequencyDetails.value = records.mapNotNull { record ->
-            studentNameMap[record.studentId]?.let { name -> name to record.status }
-        }.toMap()
+    /**
+     * Loads the attendance records for a given session and maps them to student names.
+     * * @param session The class session to load details for.
+     */
+    fun loadFrequencyDetails(session: ClassSession) {
+        viewModelScope.launch {
+            val records = attendanceRepository.getRecordsForSession(session.sessionId)
+
+            val currentStudents = studentsForClass.value
+            val studentMap = currentStudents.associateBy { it.studentId }
+
+            _frequencyDetails.value = records.mapNotNull { record ->
+                studentMap[record.studentId]?.let { student ->
+                    AttendanceDetail(
+                        studentName = student.effectiveName,
+                        status = record.status
+                    )
+                }
+            }.sortedBy { it.studentName }
+        }
+    }
+
+    /**
+     * Resets the current attendance details state.
+     */
+    fun clearFrequencyDetails() {
+        _frequencyDetails.value = emptyList()
     }
 
     /**
@@ -751,13 +794,6 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
                     statusMap[student.studentId] ?: AttendanceStatus.PRESENT
             }
         }
-    }
-
-    /**
-     * Resets frequency detail state.
-     */
-    fun clearFrequencyDetails() {
-        _frequencyDetails.value = emptyMap()
     }
 
     /**

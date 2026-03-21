@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassSession
 import edu.jm.tabulavia.utils.MessageHandler
+import edu.jm.tabulavia.viewmodel.AttendanceDetail
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -127,6 +128,7 @@ fun AttendanceDashboardScreen(
     // Display student list dialog with progress indicator while loading
     if (showDialog && currentSession != null) {
         val details by viewModel.frequencyDetails.collectAsState()
+
         StudentsDialog(
             session = currentSession!!,
             details = details,
@@ -210,45 +212,73 @@ fun AttendanceDashboardScreen(
 @Composable
 fun StudentsDialog(
     session: ClassSession,
-    details: Map<String, AttendanceStatus>,
+    details: List<AttendanceDetail>,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Alunos (Diagnóstico)") },
+        title = { Text("Lista de Frequência") },
         text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Linha de diagnóstico com o tamanho
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 450.dp) // Limita a altura para permitir scroll
+            ) {
                 Text(
-                    text = "Total de alunos: ${details.size}",
+                    text = "${details.size} aluno(s)",
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 12.dp),
+                    style = MaterialTheme.typography.titleMedium
                 )
 
                 if (details.isEmpty()) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
+                        modifier = Modifier.fillMaxWidth().height(100.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Nenhum aluno")
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
                     }
                 } else {
-                    // Lista simples com fundo colorido para garantir visibilidade
-                    details.keys.sorted().forEach { name ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.Yellow)
-                                .padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "• $name",
-                                color = Color.Black,
-                                modifier = Modifier.weight(1f)
-                            )
+                    /* Scrollable container for the student list */
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        details.forEach { detail ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${detail.studentName}",
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+
+                                // Opcional: Badge de status
+                                Surface(
+                                    color = when(detail.status) {
+                                        AttendanceStatus.PRESENT -> Color(0xFF4CAF50).copy(alpha = 0.1f)
+                                        AttendanceStatus.ABSENT -> Color(0xFFF44336).copy(alpha = 0.1f)
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    shape = MaterialTheme.shapes.small
+                                ) {
+                                    Text(
+                                        text = detail.status.displayName,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = when(detail.status) {
+                                            AttendanceStatus.PRESENT -> Color(0xFF2E7D32)
+                                            AttendanceStatus.ABSENT -> Color(0xFFC62828)
+                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
