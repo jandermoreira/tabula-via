@@ -4,9 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,13 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.CourseSkill
 import edu.jm.tabulavia.utils.MessageHandler
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseSkillsScreen(
     courseId: String,
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onNavigateBack: () -> Unit
 ) {
     MessageHandler(viewModel)
@@ -93,7 +91,7 @@ private fun CourseSkillItem(skill: CourseSkill, onDelete: () -> Unit) {
 }
 
 @Composable
-private fun AddSkillDialog(viewModel: CourseViewModel, onDismiss: () -> Unit) {
+private fun AddSkillDialog(viewModel: ClassViewModel, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Adicionar Habilidade") },

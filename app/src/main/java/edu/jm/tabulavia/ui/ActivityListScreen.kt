@@ -40,7 +40,7 @@ import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.AssessmentSource
 import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.utils.MessageHandler
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -60,13 +60,13 @@ private data class PeerAssessmentData(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityListScreen(
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onNavigateBack: () -> Unit,
     onActivityClicked: (Activity) -> Unit
 ) {
     MessageHandler(viewModel)
 
-    val selectedCourse by viewModel.selectedCourse.collectAsState()
+    val selectedCourse by viewModel.selectedClass.collectAsState()
     val activities by viewModel.activities.collectAsState()
     var showAddActivityDialog by remember { mutableStateOf(false) }
     var showSkillLogDialog by remember { mutableStateOf(false) }
@@ -346,7 +346,7 @@ fun ActivityItem(activity: Activity, onActivityClicked: (Activity) -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BatchSkillEntryDialog(
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onDismiss: () -> Unit,
     onSaveBatch: (String) -> Unit // Agora só recebe o texto colado
 ) {

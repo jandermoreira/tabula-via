@@ -19,7 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.utils.MessageHandler
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 
 /**
  * Dialog for adding a new activity to a course.
@@ -30,7 +30,7 @@ import edu.jm.tabulavia.viewmodel.CourseViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddActivityDialog(
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onDismiss: () -> Unit
 ) {
     MessageHandler(viewModel)

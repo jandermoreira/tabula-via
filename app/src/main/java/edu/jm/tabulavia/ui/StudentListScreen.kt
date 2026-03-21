@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.utils.MessageHandler
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 
 /**
  * Composable function that represents the student list screen.
@@ -36,7 +36,7 @@ import edu.jm.tabulavia.viewmodel.CourseViewModel
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun StudentListScreen(
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onNavigateBack: () -> Unit
 ) {
     MessageHandler(viewModel)
@@ -53,7 +53,7 @@ fun StudentListScreen(
 
     // Data observation
     val students by viewModel.studentsForClass.collectAsState()
-    val selectedCourse by viewModel.selectedCourse.collectAsState()
+    val selectedCourse by viewModel.selectedClass.collectAsState()
     val todaysAttendance by viewModel.todaysAttendance.collectAsState()
     val selectedStudentDetails by viewModel.selectedStudentDetails.collectAsState()
     val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()

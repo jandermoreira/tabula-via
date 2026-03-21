@@ -14,13 +14,13 @@ import edu.jm.tabulavia.model.AssessmentSource
 import edu.jm.tabulavia.model.SkillAssessmentsSummary
 import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.utils.MessageHandler
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentSkillsScreen(
     studentId: String,
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onNavigateBack: () -> Unit
 ) {
     MessageHandler(viewModel)

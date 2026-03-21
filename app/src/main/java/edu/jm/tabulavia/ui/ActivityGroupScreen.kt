@@ -59,7 +59,7 @@ import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.grouping.Location
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 import edu.jm.tabulavia.utils.MessageHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -82,7 +82,7 @@ private data class DraggedStudent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityGroupScreen(
-    activityId: String, viewModel: CourseViewModel, onNavigateBack: () -> Unit
+    activityId: String, viewModel: ClassViewModel, onNavigateBack: () -> Unit
 ) {
     MessageHandler(viewModel)
 
@@ -285,7 +285,7 @@ private fun GroupsExpandedView(
     lazyListState: LazyListState,
     onStudentClick: (Student) -> Unit,
     onGroupActionClick: (List<Student>) -> Unit,
-    viewModel: CourseViewModel
+    viewModel: ClassViewModel
 ) {
     val todaysAttendance: Map<String, AttendanceStatus> by viewModel.todaysAttendance.collectAsState(
         initial = emptyMap()
@@ -366,7 +366,7 @@ private fun ManualGroupEditorView(
     groups: List<Group>,
     unassignedStudents: List<Student>,
     onMoveStudent: (Student, Location, DropTarget) -> Unit,
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     isLandscape: Boolean
 ) {
     var draggedStudent by remember { mutableStateOf<DraggedStudent?>(null) }
@@ -693,7 +693,7 @@ private fun DraggableStudentWrapper(
     onStart: (Offset, LayoutCoordinates) -> Unit,
     onMove: (Offset) -> Unit,
     onEnd: () -> Unit,
-    viewModel: CourseViewModel
+    viewModel: ClassViewModel
 ) {
     var itemCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
@@ -733,7 +733,7 @@ private fun DraggableStudentWrapper(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConfigurationView(
-    viewModel: CourseViewModel, onCancel: () -> Unit, onGroupsCreated: () -> Unit
+    viewModel: ClassViewModel, onCancel: () -> Unit, onGroupsCreated: () -> Unit
 ) {
     val groupingCriteria = listOf("Aleatório", "Manual")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
@@ -807,7 +807,7 @@ private fun ConfigurationView(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CriterionSelector(
-    viewModel: CourseViewModel, isFullWidth: Boolean
+    viewModel: ClassViewModel, isFullWidth: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
     val criteria = listOf("Aleatório", "Manual")
@@ -849,7 +849,7 @@ private fun CriterionSelector(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AssignGroupSkillsForAllDialog(
-    students: List<Student>, viewModel: CourseViewModel, activityId: String?, onDismiss: () -> Unit
+    students: List<Student>, viewModel: ClassViewModel, activityId: String?, onDismiss: () -> Unit
 ) {
     val courseSkills by viewModel.courseSkills.collectAsState()
     val context = LocalContext.current
@@ -916,7 +916,7 @@ private fun AssignGroupSkillsForAllDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AssignGroupSkillsDialog(
-    student: Student, viewModel: CourseViewModel, activityId: String?, onDismiss: () -> Unit
+    student: Student, viewModel: ClassViewModel, activityId: String?, onDismiss: () -> Unit
 ) {
     val courseSkills by viewModel.courseSkills.collectAsState()
     val context = LocalContext.current

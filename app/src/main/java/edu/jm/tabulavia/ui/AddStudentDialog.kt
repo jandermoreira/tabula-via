@@ -20,11 +20,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.utils.MessageHandler
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 
 @Composable
 fun AddStudentDialog(
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onDismiss: () -> Unit
 ) {
     MessageHandler(viewModel)
@@ -77,7 +77,7 @@ fun AddStudentDialog(
 }
 
 @Composable
-fun IndividualStudentForm(viewModel: CourseViewModel) {
+fun IndividualStudentForm(viewModel: ClassViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = viewModel.studentNumber,
@@ -101,7 +101,7 @@ fun IndividualStudentForm(viewModel: CourseViewModel) {
 }
 
 @Composable
-fun BulkStudentForm(viewModel: CourseViewModel) {
+fun BulkStudentForm(viewModel: ClassViewModel) {
     OutlinedTextField(
         value = viewModel.rawStudentListData,
         onValueChange = { viewModel.rawStudentListData = it },

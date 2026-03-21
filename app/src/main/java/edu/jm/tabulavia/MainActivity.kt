@@ -33,13 +33,13 @@ import com.google.firebase.ktx.Firebase
 import edu.jm.tabulavia.ui.*
 import edu.jm.tabulavia.ui.theme.TabulaViaTheme
 import edu.jm.tabulavia.viewmodel.AuthViewModel
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private val courseViewModel: CourseViewModel by viewModels()
+    private val courseViewModel: ClassViewModel by viewModels()
     private val authViewModel: AuthViewModel by viewModels()
     private lateinit var credentialManager: CredentialManager
 

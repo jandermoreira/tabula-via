@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Course
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.AuthViewModel
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -47,7 +47,7 @@ import kotlinx.coroutines.launch
          * @param onLogoutClicked Callback triggered when logout is requested.
          */
 fun CourseListScreen(
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     authViewModel: AuthViewModel,
     onAddCourseClicked: () -> Unit,
     onCourseClicked: (Course) -> Unit,

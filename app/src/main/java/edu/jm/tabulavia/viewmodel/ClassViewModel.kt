@@ -1,6 +1,6 @@
 /**
- * ViewModel for the Course management.
- * Orchestrates UI state and business logic for courses, students, attendance, and skills.
+ * ViewModel for the Class management.
+ * Orchestrates UI state and business logic for classes, students, attendance, and skills.
  */
 
 package edu.jm.tabulavia.viewmodel
@@ -55,14 +55,15 @@ data class AttendanceDetail(
 )
 
 /**
- * ViewModel for handling course-related data and operations.
+ * ViewModel for handling class-related operations and state management.
  *
- * This class manages the state and logic for courses, students, skills, activities,
- * attendance, and other course-related functionalities. It interacts with repositories
- * to fetch and persist data, coordinates UI state updates, and maintains observable states
- * for real-time synchronization and data changes.
+ * The ClassViewModel class is responsible for managing the logic and data flow for classes,
+ * including classes, students, activities, attendance, skill assessments, and associated repositories.
+ * It provides a reactive data layer to the UI and ensures synchronization with local and remote data sources.
+ * This ViewModel includes CRUD operations, state resets, synchronization, and utility methods
+ * tailored to class and class session management.
  */
-class CourseViewModel(application: Application) : BaseAndroidViewModel(application) {
+class ClassViewModel(application: Application) : BaseAndroidViewModel(application) {
 
     private val db = DatabaseProvider.getDatabase(application)
 
@@ -91,8 +92,8 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     )
 
     // --- UI State Streams ---
-    private val _selectedCourse = MutableStateFlow<Course?>(null)
-    val selectedCourse: StateFlow<Course?> = _selectedCourse.asStateFlow()
+    private val _selectedClass = MutableStateFlow<Course?>(null)
+    val selectedClass: StateFlow<Course?> = _selectedClass.asStateFlow()
 
     private val _selectedActivity = MutableStateFlow<Activity?>(null)
     val selectedActivity: StateFlow<Activity?> = _selectedActivity.asStateFlow()
@@ -101,7 +102,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     val studentsForClass: StateFlow<List<Student>> = _studentsForClass.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val _classSessions = _selectedCourse.flatMapLatest { course ->
+    private val _classSessions = _selectedClass.flatMapLatest { course ->
         if (course != null) {
             attendanceRepository.getClassSessionsFlow(course.classId)
         } else {
@@ -253,7 +254,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
         // Launch coroutines to collect Flows from Room (they will emit initial data and updates)
         viewModelScope.launch {
             // Get the selected course (one-shot)
-            _selectedCourse.value = courseRepository.getCourseById(classId)
+            _selectedClass.value = courseRepository.getCourseById(classId)
 
             // Collect students (real-time)
             studentRepository.getStudentsForClass(classId).collect { studentsList ->
@@ -283,7 +284,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
         currentClassId?.let { skillRepository.stopListeningToCourseSkills(it) }
         currentClassId = null
 
-        _selectedCourse.value = null
+        _selectedClass.value = null
         _studentsForClass.value = emptyList()
         _activities.value = emptyList()
         editingSession = null
@@ -327,7 +328,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
         viewModelScope.launch {
             _selectedStudentDetails.value = studentRepository.getStudentById(studentId)
 
-            val classId = _selectedCourse.value?.classId ?: return@launch
+            val classId = _selectedClass.value?.classId ?: return@launch
             val courseSkills = skillRepository.getSkillsForCourse(classId)
             _courseSkills.value = courseSkills
 
@@ -335,7 +336,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
 //            _studentSkillStatuses.value = statuses
 
             attendanceRepository.countStudentAbsencesFlow(studentId).collect { absences ->
-                val totalClasses = _selectedCourse.value?.numberOfClasses ?: 0
+                val totalClasses = _selectedClass.value?.numberOfClasses ?: 0
 
                 if (totalClasses > 0) {
                     val presenceCount = (totalClasses - absences).toFloat()
@@ -404,7 +405,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      */
     fun addCourseSkill(onSkillAdded: () -> Unit) {
         val uid = com.google.firebase.Firebase.auth.currentUser?.uid ?: return
-        val courseId = _selectedCourse.value?.classId ?: return
+        val courseId = _selectedClass.value?.classId ?: return
 
         if (skillName.isNotBlank()) {
             viewModelScope.launch {
@@ -428,7 +429,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      */
     fun deleteCourseSkill(skill: CourseSkill) {
         val uid = Firebase.auth.currentUser?.uid ?: return
-        val classId = _selectedCourse.value?.classId ?: return
+        val classId = _selectedClass.value?.classId ?: return
 
         viewModelScope.launch {
             skillRepository.deleteCourseSkill(uid, classId, skill)
@@ -549,7 +550,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      * Generates a persistent UUID and synchronizes with Firestore using the user's UID.
      */
     fun addActivity(onActivityAdded: () -> Unit) {
-        val classId = _selectedCourse.value?.classId ?: return
+        val classId = _selectedClass.value?.classId ?: return
         val uid = com.google.firebase.Firebase.auth.currentUser?.uid ?: return
 
         if (activityName.isNotBlank()) {
@@ -958,7 +959,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
                     db.clearAllTables()
                 }
 
-                _selectedCourse.value = null
+                _selectedClass.value = null
                 _studentsForClass.value = emptyList()
                 _generatedGroups.value = emptyList()
 
@@ -1066,7 +1067,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      * Adds a single student to the selected course, avoiding duplicates by studentNumber.
      */
     fun addStudent(onStudentsAdded: () -> Unit) {
-        val classId = _selectedCourse.value?.classId ?: return
+        val classId = _selectedClass.value?.classId ?: return
         val uid = Firebase.auth.currentUser?.uid ?: run {
             showMessage("Usuário não logado.")
             return
@@ -1138,7 +1139,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      * @param onStudentsAdded A callback function that is invoked after students are successfully added.
      */
     fun addStudentsInBulk(onStudentsAdded: () -> Unit) {
-        val targetClassId = _selectedCourse.value?.classId ?: return
+        val targetClassId = _selectedClass.value?.classId ?: return
         val currentUserId = Firebase.auth.currentUser?.uid ?: run {
             showMessage("Usuário não logado.")
             return

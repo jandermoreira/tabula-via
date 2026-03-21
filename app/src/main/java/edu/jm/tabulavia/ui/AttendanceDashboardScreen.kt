@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassSession
 import edu.jm.tabulavia.viewmodel.AttendanceDetail
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,12 +35,12 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AttendanceDashboardScreen(
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onNavigateBack: () -> Unit,
     onStartNewAttendance: () -> Unit,
     onEditAttendance: (ClassSession) -> Unit
 ) {
-    val selectedCourse by viewModel.selectedCourse.collectAsState()
+    val selectedCourse by viewModel.selectedClass.collectAsState()
     val classSessions by viewModel.classSessions.collectAsState()
     var selectedSessionForOptions by remember { mutableStateOf<ClassSession?>(null) }
     var sessionToDelete by remember { mutableStateOf<ClassSession?>(null) }

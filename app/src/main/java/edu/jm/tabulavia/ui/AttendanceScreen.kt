@@ -25,7 +25,7 @@ import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToColor
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToEmoji
 import edu.jm.tabulavia.utils.MessageHandler
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -37,7 +37,7 @@ import java.util.TimeZone
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttendanceScreen(
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onNavigateBack: () -> Unit
 ) {
     MessageHandler(viewModel)

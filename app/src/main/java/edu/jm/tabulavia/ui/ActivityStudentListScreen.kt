@@ -24,13 +24,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.utils.EmojiColorHelper
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ActivityStudentListScreen(
     activityId: String,
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onNavigateBack: () -> Unit
 ) {
     MessageHandler(viewModel)

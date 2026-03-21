@@ -26,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import edu.jm.tabulavia.utils.MessageHandler
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 
 /**
  * Main screen for the course dashboard.
@@ -39,7 +39,7 @@ import edu.jm.tabulavia.viewmodel.CourseViewModel
 @Composable
 fun CourseDashboardScreen(
     classId: String,
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     navController: NavController,
     onNavigateBack: () -> Unit
 ) {
@@ -53,7 +53,7 @@ fun CourseDashboardScreen(
         viewModel.loadCourseDetails(classId)
     }
 
-    val selectedCourse by viewModel.selectedCourse.collectAsState()
+    val selectedCourse by viewModel.selectedClass.collectAsState()
     val students by viewModel.studentsForClass.collectAsState()
     val activities by viewModel.activities.collectAsState()
     val courseSkills by viewModel.courseSkills.collectAsState()

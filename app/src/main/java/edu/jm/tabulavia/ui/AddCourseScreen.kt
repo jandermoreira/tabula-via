@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.utils.MessageHandler
-import edu.jm.tabulavia.viewmodel.CourseViewModel
+import edu.jm.tabulavia.viewmodel.ClassViewModel
 import java.time.Year
 
 /**
@@ -28,7 +28,7 @@ import java.time.Year
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCourseScreen(
-    viewModel: CourseViewModel,
+    viewModel: ClassViewModel,
     onCourseAdded: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
