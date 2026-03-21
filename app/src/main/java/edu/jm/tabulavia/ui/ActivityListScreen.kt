@@ -74,7 +74,7 @@ fun ActivityListScreen(
 
     val skillAssessmentLog by viewModel.skillAssessmentLog.collectAsState()
     val studentsInClass by viewModel.studentsForClass.collectAsState()
-    val courseSkills by viewModel.courseSkills.collectAsState()
+    val courseSkills by viewModel.classSkills.collectAsState()
 
     // Logic to reload assessment logs
     LaunchedEffect(showSkillLogDialog) {
@@ -351,7 +351,7 @@ fun BatchSkillEntryDialog(
     onSaveBatch: (String) -> Unit // Agora só recebe o texto colado
 ) {
     var pastedStudentData by remember { mutableStateOf("") }
-    val courseSkills by viewModel.courseSkills.collectAsState()
+    val courseSkills by viewModel.classSkills.collectAsState()
     val labelText = "- Horário\n- Nº do avaliador\n- Nº do avaliado\n- " + courseSkills.joinToString("\n- ") { it.skillName.replace(" ", "-") }
 
 

@@ -56,7 +56,7 @@ fun CourseListScreen(
 ) {
     MessageHandler(viewModel)
 
-    val courseList by viewModel.courses.collectAsState()
+    val courseList by viewModel.classes.collectAsState()
     val groupedCourses = courseList
         .groupBy { it.academicYear }
         .toSortedMap(compareByDescending { it })

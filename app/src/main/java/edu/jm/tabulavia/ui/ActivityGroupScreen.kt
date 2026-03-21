@@ -287,7 +287,7 @@ private fun GroupsExpandedView(
     onGroupActionClick: (List<Student>) -> Unit,
     viewModel: ClassViewModel
 ) {
-    val todaysAttendance: Map<String, AttendanceStatus> by viewModel.todaysAttendance.collectAsState(
+    val todaysAttendance: Map<String, AttendanceStatus> by viewModel.currentSessionAttendance.collectAsState(
         initial = emptyMap()
     )
 
@@ -663,7 +663,7 @@ private fun ManualGroupEditorView(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                 ) {
                     val isStudentAbsent =
-                        viewModel.todaysAttendance.collectAsState().value[draggedStudent!!.student.studentId] == AttendanceStatus.ABSENT
+                        viewModel.currentSessionAttendance.collectAsState().value[draggedStudent!!.student.studentId] == AttendanceStatus.ABSENT
                     StudentItem(
                         student = draggedStudent!!.student,
                         isAbsent = isStudentAbsent,
@@ -697,7 +697,7 @@ private fun DraggableStudentWrapper(
 ) {
     var itemCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
-    val todaysAttendance by viewModel.todaysAttendance.collectAsState()
+    val todaysAttendance by viewModel.currentSessionAttendance.collectAsState()
     val isStudentAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
 
     Box(
@@ -851,7 +851,7 @@ private fun CriterionSelector(
 private fun AssignGroupSkillsForAllDialog(
     students: List<Student>, viewModel: ClassViewModel, activityId: String?, onDismiss: () -> Unit
 ) {
-    val courseSkills by viewModel.courseSkills.collectAsState()
+    val courseSkills by viewModel.classSkills.collectAsState()
     val context = LocalContext.current
     var highlightedSkillNames by remember(activityId) { mutableStateOf<Set<String>>(emptySet()) }
 
@@ -918,7 +918,7 @@ private fun AssignGroupSkillsForAllDialog(
 private fun AssignGroupSkillsDialog(
     student: Student, viewModel: ClassViewModel, activityId: String?, onDismiss: () -> Unit
 ) {
-    val courseSkills by viewModel.courseSkills.collectAsState()
+    val courseSkills by viewModel.classSkills.collectAsState()
     val context = LocalContext.current
     var highlightedSkillNames by remember(activityId) { mutableStateOf<Set<String>>(emptySet()) }
 

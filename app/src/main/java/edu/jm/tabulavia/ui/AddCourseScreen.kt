@@ -99,7 +99,7 @@ fun AddCourseScreen(
 
             // Action button to save the course
             Button(
-                onClick = { viewModel.addCourse(onCourseAdded) },
+                onClick = { viewModel.addClass(onCourseAdded) },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Salvar Turma")

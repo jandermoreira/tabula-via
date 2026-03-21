@@ -30,11 +30,11 @@ fun CourseSkillsScreen(
 ) {
     MessageHandler(viewModel)
 
-    val courseSkills by viewModel.courseSkills.collectAsState()
+    val courseSkills by viewModel.classSkills.collectAsState()
     var showAddSkillDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(courseId) {
-        viewModel.loadSkillsForCourse(courseId)
+        viewModel.loadSkillsForClass(courseId)
     }
 
     Scaffold(
@@ -61,7 +61,7 @@ fun CourseSkillsScreen(
         ) {
             items(courseSkills) { skill ->
                 CourseSkillItem(skill, onDelete = {
-                    viewModel.deleteCourseSkill(skill)
+                    viewModel.deleteCclassSkill(skill)
                 })
             }
         }
@@ -108,7 +108,7 @@ private fun AddSkillDialog(viewModel: ClassViewModel, onDismiss: () -> Unit) {
         },
         confirmButton = {
             Button(onClick = { 
-                viewModel.addCourseSkill(onDismiss)
+                viewModel.addClassSkill(onDismiss)
             }) {
                 Text("Salvar")
             }

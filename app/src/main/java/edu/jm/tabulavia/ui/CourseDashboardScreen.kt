@@ -50,13 +50,13 @@ fun CourseDashboardScreen(
 
     // Trigger data loading when the class ID changes
     LaunchedEffect(key1 = classId) {
-        viewModel.loadCourseDetails(classId)
+        viewModel.loadClassDetails(classId)
     }
 
     val selectedCourse by viewModel.selectedClass.collectAsState()
     val students by viewModel.studentsForClass.collectAsState()
     val activities by viewModel.activities.collectAsState()
-    val courseSkills by viewModel.courseSkills.collectAsState()
+    val courseSkills by viewModel.classSkills.collectAsState()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

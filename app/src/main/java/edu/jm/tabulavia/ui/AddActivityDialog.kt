@@ -35,7 +35,7 @@ fun AddActivityDialog(
 ) {
     MessageHandler(viewModel)
 
-    val courseSkills by viewModel.courseSkills.collectAsState()
+    val courseSkills by viewModel.classSkills.collectAsState()
 
     // Ensure the activity type is always set to "Grupo" when the dialog opens
     LaunchedEffect(Unit) {

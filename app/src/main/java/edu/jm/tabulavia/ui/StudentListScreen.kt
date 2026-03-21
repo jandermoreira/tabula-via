@@ -54,7 +54,7 @@ fun StudentListScreen(
     // Data observation
     val students by viewModel.studentsForClass.collectAsState()
     val selectedCourse by viewModel.selectedClass.collectAsState()
-    val todaysAttendance by viewModel.todaysAttendance.collectAsState()
+    val todaysAttendance by viewModel.currentSessionAttendance.collectAsState()
     val selectedStudentDetails by viewModel.selectedStudentDetails.collectAsState()
     val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()
 

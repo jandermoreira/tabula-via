@@ -138,8 +138,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     val studentSkillSummaries: StateFlow<Map<String, SkillAssessmentsSummary>> =
         _studentSkillSummaries.asStateFlow()
 
-    private val _courseSkills = MutableStateFlow<List<CourseSkill>>(emptyList())
-    val courseSkills: StateFlow<List<CourseSkill>> = _courseSkills.asStateFlow()
+    private val _classSkills = MutableStateFlow<List<CourseSkill>>(emptyList())
+    val classSkills: StateFlow<List<CourseSkill>> = _classSkills.asStateFlow()
 
     private val _generatedGroups = MutableStateFlow<List<List<Student>>>(emptyList())
     val generatedGroups: StateFlow<List<List<Student>>> = _generatedGroups.asStateFlow()
@@ -148,7 +148,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         MutableStateFlow<Map<String, AttendanceStatus>>(emptyMap())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val todaysAttendance: StateFlow<Map<String, AttendanceStatus>> =
+    val currentSessionAttendance: StateFlow<Map<String, AttendanceStatus>> =
         _classSessions.flatMapLatest { sessions ->
             val lastSessionToday = attendanceRepository.getLastSessionToday(sessions)
             if (lastSessionToday != null) {
@@ -194,14 +194,13 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     // --- Loading and Clearing Logic ---
 
-    val courses: StateFlow<List<Course>> = courseRepository.getAllCoursesFlow().stateIn(
+    val classes: StateFlow<List<Course>> = courseRepository.getAllCoursesFlow().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
 
     init {
-        // Starts real-time synchronization when the ViewModel is initialized
         Firebase.auth.currentUser?.uid?.let { uid ->
             courseRepository.startCoursesSync(uid)
         }
@@ -236,8 +235,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Fetches details for a specific class including students, sessions, and activities.
      * Initiates real-time synchronization and observes database changes via Flow.
      */
-    fun loadCourseDetails(classId: String) {
-        // Clear previous course details and stop any active listeners
+    fun loadClassDetails(classId: String) {
         resetCourseState()
 
         // Store the current class ID to manage listener cleanup later
@@ -253,7 +251,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
         // Launch coroutines to collect Flows from Room (they will emit initial data and updates)
         viewModelScope.launch {
-            // Get the selected course (one-shot)
+            // Get the selected class (one-shot)
             _selectedClass.value = courseRepository.getCourseById(classId)
 
             // Collect students (real-time)
@@ -270,9 +268,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         }
 
         viewModelScope.launch {
-            // Collect course skills (real-time via the new Flow from SkillRepository)
+            // Collect class skills (real-time via the new Flow from SkillRepository)
             skillRepository.getSkillsFlowForCourse(classId).collect { skillsList ->
-                _courseSkills.value = skillsList
+                _classSkills.value = skillsList
             }
         }
     }
@@ -288,7 +286,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         _studentsForClass.value = emptyList()
         _activities.value = emptyList()
         editingSession = null
-        _courseSkills.value = emptyList()
+        _classSkills.value = emptyList()
         _studentSkillStatuses.value = emptyList()
     }
 
@@ -315,7 +313,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         val uid = Firebase.auth.currentUser?.uid ?: return
         viewModelScope.launch {
             studentRepository.insertStudent(updatedStudent, uid)
-            loadCourseDetails(studentToUpdate.classId)
+            loadClassDetails(studentToUpdate.classId)
             onDismiss()
         }
     }
@@ -329,11 +327,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             _selectedStudentDetails.value = studentRepository.getStudentById(studentId)
 
             val classId = _selectedClass.value?.classId ?: return@launch
-            val courseSkills = skillRepository.getSkillsForCourse(classId)
-            _courseSkills.value = courseSkills
-
-//            val statuses = skillRepository.calculateStudentSkillStatuses(studentId, courseSkills)
-//            _studentSkillStatuses.value = statuses
+            val classSkills = skillRepository.getSkillsForCourse(classId)
+            _classSkills.value = classSkills
 
             attendanceRepository.countStudentAbsencesFlow(studentId).collect { absences ->
                 val totalClasses = _selectedClass.value?.numberOfClasses ?: 0
@@ -382,11 +377,11 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     )
 
     /**
-     * Fetches skills associated with a course.
+     * Fetches skills associated with a class.
      */
-    fun loadSkillsForCourse(courseId: String) {
+    fun loadSkillsForClass(classId: String) {
         viewModelScope.launch {
-            _courseSkills.value = skillRepository.getSkillsForCourse(courseId)
+            _classSkills.value = skillRepository.getSkillsForCourse(classId)
         }
     }
 
@@ -401,39 +396,39 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     }
 
     /**
-     * Adds a new skill to the current course.
+     * Adds a new skill to the current class.
      */
-    fun addCourseSkill(onSkillAdded: () -> Unit) {
+    fun addClassSkill(onSkillAdded: () -> Unit) {
         val uid = com.google.firebase.Firebase.auth.currentUser?.uid ?: return
-        val courseId = _selectedClass.value?.classId ?: return
+        val classId = _selectedClass.value?.classId ?: return
 
         if (skillName.isNotBlank()) {
             viewModelScope.launch {
                 val newSkill = CourseSkill(
-                    courseId = courseId,
+                    courseId = classId,
                     skillName = skillName,
                     firestoreId = java.util.UUID.randomUUID().toString()
                 )
 
-                skillRepository.insertCourseSkills(uid, courseId, listOf(newSkill))
+                skillRepository.insertCourseSkills(uid, classId, listOf(newSkill))
 
                 skillName = ""
-                loadSkillsForCourse(courseId)
+                loadSkillsForClass(classId)
                 onSkillAdded()
             }
         }
     }
 
     /**
-     * Removes a skill from the course.
+     * Removes a skill from the class.
      */
-    fun deleteCourseSkill(skill: CourseSkill) {
+    fun deleteCclassSkill(skill: CourseSkill) {
         val uid = Firebase.auth.currentUser?.uid ?: return
         val classId = _selectedClass.value?.classId ?: return
 
         viewModelScope.launch {
             skillRepository.deleteCourseSkill(uid, classId, skill)
-            loadSkillsForCourse(classId)
+            loadSkillsForClass(classId)
         }
     }
 
@@ -546,7 +541,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     }
 
     /**
-     * Creates a new activity for the current course.
+     * Creates a new activity for the current class.
      * Generates a persistent UUID and synchronizes with Firestore using the user's UID.
      */
     fun addActivity(onActivityAdded: () -> Unit) {
@@ -722,9 +717,6 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     private var isSavingAttendance by mutableStateOf(false)
     private var attendanceErrorMessage by mutableStateOf<String?>(null)
 
-    /**
-     * The identifier for the currently loaded class within the `CourseViewModel`.
-     */
     private var currentClassId: String? = null
 
     /**
@@ -804,7 +796,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     attendanceMap.clear()
                 }
 
-                loadCourseDetails(session.classId)
+                loadClassDetails(session.classId)
                 showMessage("Registro de frequência apagado.")
                 onComplete()
             } catch (e: Exception) {
@@ -835,7 +827,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Persists the current attendance state to the repository.
      *
      * This function performs a defensive filtering of the [attendanceMap] to ensure
-     * only students currently assigned to the course are included, preventing
+     * only students currently assigned to the class are included, preventing
      * foreign key constraint violations during database insertion.
      */
     fun saveAttendance(classId: String, onSelectionConfirmed: () -> Unit) {
@@ -1005,58 +997,58 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     // --- Course and Student Creation Logic ---
 
-    private var isAddingCourse = false
+    private var isAddingClass = false
 
     /**
-     * Creates a new course and populates it with default skills.
-     * Generates unique identifiers for both the course and its skills to ensure offline stability.
+     * Creates a new class and populates it with default skills.
+     * Generates unique identifiers for both the class and its skills to ensure offline stability.
      */
-    fun addCourse(onCourseAdded: () -> Unit) {
-        if (isAddingCourse) return
+    fun addClass(onClassAdded: () -> Unit) {
+        if (isAddingClass) return
 
         if (courseName.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
             val uid = Firebase.auth.currentUser?.uid ?: return
-            isAddingCourse = true
+            isAddingClass = true
 
             viewModelScope.launch {
                 try {
-                    val generatedCourseId = java.util.UUID.randomUUID().toString()
+                    val generatedClassId = java.util.UUID.randomUUID().toString()
 
-                    val newCourse = Course(
-                        classId = generatedCourseId,
+                    val newClass = Course(
+                        classId = generatedClassId,
                         className = courseName,
                         academicYear = academicYear,
                         period = period,
                         numberOfClasses = numberOfClasses
                     )
 
-                    courseRepository.insertCourse(newCourse, uid)
+                    courseRepository.insertCourse(newClass, uid)
 
                     val skills = defaultComputerScienceSkills.map { skillName ->
                         CourseSkill(
-                            courseId = generatedCourseId,
+                            courseId = generatedClassId,
                             skillName = skillName,
                             firestoreId = java.util.UUID.randomUUID().toString()
                         )
                     }
 
-                    skillRepository.insertCourseSkills(uid, generatedCourseId, skills)
+                    skillRepository.insertCourseSkills(uid, generatedClassId, skills)
 
-                    loadCourseDetails(generatedCourseId)
+                    loadClassDetails(generatedClassId)
 
-                    resetCourseForm()
-                    onCourseAdded()
+                    resetClassForm()
+                    onClassAdded()
                 } finally {
-                    isAddingCourse = false
+                    isAddingClass = false
                 }
             }
         }
     }
 
     /**
-     * Resets the input fields for course creation.
+     * Resets the input fields for class creation.
      */
-    private fun resetCourseForm() {
+    private fun resetClassForm() {
         courseName = ""
         academicYear = ""
         period = ""
@@ -1064,7 +1056,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     }
 
     /**
-     * Adds a single student to the selected course, avoiding duplicates by studentNumber.
+     * Adds a single student to the selected class, avoiding duplicates by studentNumber.
      */
     fun addStudent(onStudentsAdded: () -> Unit) {
         val classId = _selectedClass.value?.classId ?: return
@@ -1101,7 +1093,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     showMessage("Erro ao adicionar aluno: ${e.message}")
                 }
 
-                loadCourseDetails(classId)
+                loadClassDetails(classId)
                 onStudentsAdded()
             }
         }
@@ -1112,7 +1104,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      *
      * This function handles the deletion process by calling the repository,
      * removing the student from the local attendance map, and refreshing
-     * the course details to ensure the UI reflects the current database state.
+     * the class details to ensure the UI reflects the current database state.
      */
     fun deleteStudent(student: Student) {
         val uid = Firebase.auth.currentUser?.uid ?: return
@@ -1122,7 +1114,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 studentRepository.deleteStudent(student, uid)
                 attendanceMap.remove(student.studentId)
 
-                loadCourseDetails(student.classId)
+                loadClassDetails(student.classId)
 
                 showMessage("Student ${student.displayName} removed.")
             } catch (e: Exception) {
