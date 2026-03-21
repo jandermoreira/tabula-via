@@ -331,7 +331,7 @@ private fun GroupsExpandedView(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        groupStudents.sortedBy { it.displayName }.forEach { student ->
+                        groupStudents.sortedBy { it.effectiveName }.forEach { student ->
                             val isStudentAbsent =
                                 todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
                             StudentItem(
@@ -936,7 +936,7 @@ private fun AssignGroupSkillsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Avaliar ${student.displayName.split(" ").first()}") },
+        title = { Text("Avaliar ${student.effectiveName.split(" ").first()}") },
         text = {
             Column {
                 LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {

@@ -165,7 +165,7 @@ fun ActivityListScreen(
                         LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
                             items(skillAssessmentLog) { assessment ->
                                 val studentName =
-                                    studentsInClass.find { it.studentId == assessment.studentId }?.displayName
+                                    studentsInClass.find { it.studentId == assessment.studentId }?.effectiveName
                                         ?: "Aluno Desconhecido"
                                 val formattedDate = SimpleDateFormat(
                                     "dd/MM/yyyy HH:mm",
@@ -235,11 +235,8 @@ fun ActivityListScreen(
                                                             source = AssessmentSource.SELF_ASSESSMENT,
                                                             timestamp = timestamp
                                                         )
-                                                        Log.d("BatchEntry", "Autoavaliação salva para ${student.displayName}: ${skill.skillName} -> $skillLevel")
                                                     }
                                                 }
-                                            } else {
-                                                Log.d("StudentCheck", "Aluno com evaluatedId (studentNumber provável) $evaluatedId não encontrado na lista de alunos da turma.")
                                             }
                                         } else {
                                             // É uma avaliação entre pares, coletar para agregação

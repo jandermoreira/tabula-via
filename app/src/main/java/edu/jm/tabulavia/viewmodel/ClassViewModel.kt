@@ -1304,7 +1304,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         if (to is DropTarget.Unassigned) unassignedStudents.add(student)
 
         unassignedStudents.sortBy { it.displayName.lowercase() }
-        manualGroups.forEach { it.students.sortBy { s -> s.displayName.lowercase() } }
+        manualGroups.forEach { it.students.sortBy { s -> s.effectiveName.lowercase() } }
 
         manualGroups.removeAll { it.students.isEmpty() }
         commitManualGroups()
