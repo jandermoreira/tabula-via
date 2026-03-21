@@ -65,7 +65,6 @@ fun StudentItem(
     modifier: Modifier = Modifier,
     isAbsent: Boolean
 ) {
-    // Determine visual state and color based on presence
     val backgroundColor = if (isAbsent) Color.Gray else mapIdToColor(student.studentNumber)
     val emojiColor = if (isAbsent) Color.Gray else MaterialTheme.colorScheme.onSurface
 
@@ -80,7 +79,7 @@ fun StudentItem(
             emoji = emoji,
             color = emojiColor,
             backgroundColor = backgroundColor,
-            modifier = modifier.alpha(if (isAbsent) 0.7f else 1f)
+            modifier = modifier.alpha(0.9f)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
