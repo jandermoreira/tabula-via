@@ -53,4 +53,12 @@ data class Student(
      * Ensures the student belongs exclusively to one course instance.
      */
     val classId: String = ""
-)
+) {
+    /**
+     * Returns the name to be displayed in the UI.
+     * Uses displayName if it is not blank; otherwise, falls back to the full name.
+     */
+    val effectiveName: String
+        get() = displayName.ifBlank { name }
+
+}
