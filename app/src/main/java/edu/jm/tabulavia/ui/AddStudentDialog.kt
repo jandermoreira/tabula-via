@@ -103,8 +103,8 @@ fun IndividualStudentForm(viewModel: CourseViewModel) {
 @Composable
 fun BulkStudentForm(viewModel: CourseViewModel) {
     OutlinedTextField(
-        value = viewModel.bulkStudentText,
-        onValueChange = { viewModel.bulkStudentText = it },
+        value = viewModel.rawStudentListData,
+        onValueChange = { viewModel.rawStudentListData = it },
         label = { Text("Cole a lista aqui (Nº Nome)") },
         placeholder = { Text("123456 João da Silva\\n789012 Maria Oliveira") },
         modifier = Modifier

@@ -2,6 +2,7 @@
  * ViewModel for the Course management.
  * Orchestrates UI state and business logic for courses, students, attendance, and skills.
  */
+
 package edu.jm.tabulavia.viewmodel
 
 import android.app.Application
@@ -12,8 +13,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -21,7 +20,6 @@ import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
 import edu.jm.tabulavia.db.DatabaseProvider
 import edu.jm.tabulavia.model.*
-import edu.jm.tabulavia.model.AttendanceRecord
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassSession
 import edu.jm.tabulavia.model.Student
@@ -119,8 +117,8 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     private val _userMessage = MutableSharedFlow<String>()
     val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
 
-    private val _frequencyDetails = MutableStateFlow<List<AttendanceDetail>>(emptyList())
-    val frequencyDetails: StateFlow<List<AttendanceDetail>> = _frequencyDetails.asStateFlow()
+    private val _attendanceDetails = MutableStateFlow<List<AttendanceDetail>>(emptyList())
+    val attendanceDetails: StateFlow<List<AttendanceDetail>> = _attendanceDetails.asStateFlow()
 
     private val _selectedStudentDetails = MutableStateFlow<Student?>(null)
     val selectedStudentDetails: StateFlow<Student?> = _selectedStudentDetails.asStateFlow()
@@ -145,7 +143,8 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     private val _generatedGroups = MutableStateFlow<List<List<Student>>>(emptyList())
     val generatedGroups: StateFlow<List<List<Student>>> = _generatedGroups.asStateFlow()
 
-    private val _todaysAttendance = MutableStateFlow<Map<String, AttendanceStatus>>(emptyMap())
+    private val _currentSessionAttendance =
+        MutableStateFlow<Map<String, AttendanceStatus>>(emptyMap())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val todaysAttendance: StateFlow<Map<String, AttendanceStatus>> =
@@ -180,7 +179,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     var studentName by mutableStateOf("")
     var studentDisplayName by mutableStateOf("")
     var studentNumber by mutableStateOf("")
-    var bulkStudentText by mutableStateOf("")
+    var rawStudentListData by mutableStateOf("")
     var newSessionCalendar by mutableStateOf(Calendar.getInstance())
     var editingSession by mutableStateOf<ClassSession?>(null)
     var activityName by mutableStateOf("")
@@ -238,7 +237,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      */
     fun loadCourseDetails(classId: String) {
         // Clear previous course details and stop any active listeners
-        clearCourseDetails()
+        resetCourseState()
 
         // Store the current class ID to manage listener cleanup later
         currentClassId = classId
@@ -280,7 +279,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     /**
      * Resets the UI state for the current course and stops all active Firestore listeners.
      */
-    fun clearCourseDetails() {
+    fun resetCourseState() {
         currentClassId?.let { skillRepository.stopListeningToCourseSkills(it) }
         currentClassId = null
 
@@ -291,13 +290,6 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
         _courseSkills.value = emptyList()
         _studentSkillStatuses.value = emptyList()
     }
-
-//    /**
-//     * Clears the user notification message state.
-//     */
-//    fun onUserMessageShown() {
-//        _userMessage.value = null
-//    }
 
     // --- Student Management Logic ---
 
@@ -472,7 +464,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     /**
      * Records multiple professor observations for a student.
      */
-    fun addProfessorSkillAssessments(
+    fun recordProfessorObservations(
         studentId: String, assessments: List<Pair<String, SkillLevel>>
     ) {
 //        viewModelScope.launch {
@@ -617,7 +609,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
             }
 
             val presentStudents =
-                _studentsForClass.value.filter { _todaysAttendance.value[it.studentId] != AttendanceStatus.ABSENT }
+                _studentsForClass.value.filter { _currentSessionAttendance.value[it.studentId] != AttendanceStatus.ABSENT }
                     .shuffled()
 
             if (presentStudents.isEmpty()) {
@@ -680,7 +672,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
         viewModelScope.launch {
             val lastSessionToday = attendanceRepository.getLastSessionToday(sessions)
 
-            _todaysAttendance.value = if (lastSessionToday != null) {
+            _currentSessionAttendance.value = if (lastSessionToday != null) {
                 val records = attendanceRepository.getRecordsForSession(lastSessionToday.sessionId)
                 records.associate { it.studentId to it.status }
             } else {
@@ -696,14 +688,14 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      * Loads the attendance records for a given session and maps them to student names.
      * * @param session The class session to load details for.
      */
-    fun loadFrequencyDetails(session: ClassSession) {
+    fun loadAttendanceDetails(session: ClassSession) {
         viewModelScope.launch {
             val records = attendanceRepository.getRecordsForSession(session.sessionId)
 
             val currentStudents = studentsForClass.value
             val studentMap = currentStudents.associateBy { it.studentId }
 
-            _frequencyDetails.value = records.mapNotNull { record ->
+            _attendanceDetails.value = records.mapNotNull { record ->
                 studentMap[record.studentId]?.let { student ->
                     AttendanceDetail(
                         studentName = student.effectiveName,
@@ -718,7 +710,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      * Resets the current attendance details state.
      */
     fun clearFrequencyDetails() {
-        _frequencyDetails.value = emptyList()
+        _attendanceDetails.value = emptyList()
     }
 
     /**
@@ -749,9 +741,10 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     }
 
     /**
-     * Prepares the state for a new frequency session with specialized time rounding.
+     * Prepares a new session by resetting the session state, clearing attendance records,
+     * initializing the session timestamp, and marking all students as present by default.
      */
-    fun prepareNewFrequencySession() {
+    fun prepareNewSession() {
         editingSession = null
         attendanceMap.clear()
 
@@ -1151,7 +1144,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
             return
         }
 
-        if (bulkStudentText.isBlank()) {
+        if (rawStudentListData.isBlank()) {
             showMessage("O texto de entrada está vazio.")
             return
         }
@@ -1165,7 +1158,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
                 val studentsToInsert = mutableListOf<Student>()
                 var duplicateInBatchCount = 0
 
-                bulkStudentText.lineSequence()
+                rawStudentListData.lineSequence()
                     .filter { it.isNotBlank() }
                     .forEach { line ->
                         val lineParts = line.trim().split(Regex("\\s+"), limit = 2)
@@ -1211,7 +1204,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
                     return@launch
                 }
 
-                val totalIgnored = (bulkStudentText.lineSequence().filter { it.isNotBlank() }
+                val totalIgnored = (rawStudentListData.lineSequence().filter { it.isNotBlank() }
                     .count() - studentsToInsert.size)
 
                 studentRepository.insertAllStudents(studentsToInsert, currentUserId)
@@ -1223,7 +1216,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
                 }
                 showMessage(message)
 
-                bulkStudentText = ""
+                rawStudentListData = ""
                 onStudentsAdded()
 
             } catch (e: Exception) {
@@ -1239,7 +1232,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
     var manualGroups = mutableStateListOf<Group>()
     var unassignedStudents = mutableStateListOf<Student>()
 
-    private var nextManualGroupId = 1
+    private var groupCounter = 1
 
     /**
      * Synchronizes the manual editor state with the currently generated groups.
@@ -1268,7 +1261,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
         allStudents.filterNot { it.studentId in assignedStudentIds }
             .forEach { unassignedStudents.add(it) }
 
-        nextManualGroupId = (manualGroups.maxOfOrNull { it.id } ?: 0) + 1
+        groupCounter = (manualGroups.maxOfOrNull { it.id } ?: 0) + 1
 
         isManualMode = true
     }
@@ -1328,7 +1321,7 @@ class CourseViewModel(application: Application) : BaseAndroidViewModel(applicati
      * Generates a unique identifier for manual groups.
      */
     private fun generateManualGroupId(): Int {
-        return nextManualGroupId++
+        return groupCounter++
     }
 
     /**

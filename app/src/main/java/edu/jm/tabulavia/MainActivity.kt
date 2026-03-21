@@ -136,7 +136,7 @@ class MainActivity : ComponentActivity() {
                                 viewModel = courseViewModel,
                                 navController = navController,
                                 onNavigateBack = {
-                                    courseViewModel.clearCourseDetails()
+                                    courseViewModel.resetCourseState()
                                     navController.popBackStack()
                                 })
                         }
@@ -169,7 +169,7 @@ class MainActivity : ComponentActivity() {
                                 viewModel = courseViewModel,
                                 onNavigateBack = { navController.popBackStack() },
                                 onStartNewAttendance = {
-                                    courseViewModel.prepareNewFrequencySession()
+                                    courseViewModel.prepareNewSession()
                                     navController.navigate("attendanceScreen")
                                 },
                                 onEditAttendance = { session ->

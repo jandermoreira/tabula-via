@@ -4,10 +4,8 @@
  */
 package edu.jm.tabulavia.ui
 
-import android.R.attr.text
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,7 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassSession
-import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.AttendanceDetail
 import edu.jm.tabulavia.viewmodel.CourseViewModel
 import java.text.SimpleDateFormat
@@ -121,13 +118,13 @@ fun AttendanceDashboardScreen(
     LaunchedEffect(currentSession) {
         Log.d("AttendanceFlow", "LaunchedEffect com currentSession = $currentSession")
         currentSession?.let {
-            viewModel.loadFrequencyDetails(it)
+            viewModel.loadAttendanceDetails(it)
         }
     }
 
     // Display student list dialog with progress indicator while loading
     if (showDialog && currentSession != null) {
-        val details by viewModel.frequencyDetails.collectAsState()
+        val details by viewModel.attendanceDetails.collectAsState()
 
         StudentsDialog(
             session = currentSession!!,
