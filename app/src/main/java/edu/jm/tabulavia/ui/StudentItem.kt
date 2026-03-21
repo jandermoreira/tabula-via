@@ -85,9 +85,8 @@ fun StudentItem(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Student identification text
-        val displayName = student.displayName.ifBlank { student.name }
         Text(
-            text = displayName,
+            text = student.effectiveName,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
