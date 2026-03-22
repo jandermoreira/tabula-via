@@ -68,7 +68,6 @@ class CourseRepository(
 
     /**
      * Saves a course locally and triggers a non-blocking cloud synchronization.
-     * By removing the await() call, the UI remains responsive even when offline.
      */
     suspend fun insertCourse(course: Course, uid: String): String {
         // Immediate local persistence
