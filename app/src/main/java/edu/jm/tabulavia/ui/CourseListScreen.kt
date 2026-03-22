@@ -33,6 +33,8 @@ import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.AuthViewModel
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 import kotlinx.coroutines.launch
+import edu.jm.tabulavia.BuildConfig
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -87,7 +89,12 @@ fun CourseListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tabula Via") },
+                title = {
+                    if (BuildConfig.FLAVOR == "dev")
+                        Text("Tabula Via (DEV)")
+                    else
+                        Text("Tabual Via")
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.primary

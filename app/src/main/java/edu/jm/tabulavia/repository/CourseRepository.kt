@@ -5,6 +5,7 @@
 package edu.jm.tabulavia.repository
 
 import android.content.Context
+import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
@@ -12,8 +13,12 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import edu.jm.tabulavia.dao.ActivityDao
 import edu.jm.tabulavia.dao.CourseDao
 import edu.jm.tabulavia.dao.GroupMemberDao
@@ -140,9 +145,15 @@ class CourseRepository(
     /**
      * Records group assignments for an activity.
      */
-    suspend fun persistGroups(activityId: String, groups: List<List<Student>>) {
+    /**
+     * Records group assignments for an activity.
+     */
+    suspend fun persistGroups(
+        activityId: String,
+        groups: List<List<Student>>
+    ) {
+        // Persist group members to the local Room database
         groupMemberDao.clearGroupMembersForActivity(activityId)
-
         val groupMembers = groups.flatMapIndexed { groupIndex, studentList ->
             studentList.map { student ->
                 GroupMember(
@@ -152,8 +163,40 @@ class CourseRepository(
                 )
             }
         }
-
         groupMemberDao.insertGroupMembers(groupMembers)
+
+        // Synchronize group data with Firestore in the background
+        val currentUser = Firebase.auth.currentUser
+        val uid = currentUser?.uid ?: throw IllegalStateException("User not logged in. Cannot persist groups.")
+
+        try {
+            val groupDocumentRef = Firebase.firestore.collection("users")
+                .document(uid)
+                .collection("activities")
+                .document(activityId)
+                .collection("groups")
+                .document("groupData")
+
+            val groupsMap = groups.mapIndexed { index, studentList ->
+                "group_${index + 1}" to studentList.map { it.studentId }
+            }.toMap()
+
+            val documentData = mapOf(
+                "groups" to groupsMap,
+                "lastUpdated" to Timestamp.now()
+            )
+
+            groupDocumentRef.set(documentData)
+                .addOnSuccessListener {
+                    Log.d("CourseRepository", "Groups queued for Firestore sync for activity: $activityId")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("CourseRepository", "Failed to queue groups for Firestore sync (will retry): ${e.message}", e)
+                }
+        } catch (e: Exception) {
+            Log.e("CourseRepository", "Error preparing groups for Firestore sync: ${e.message}", e)
+            throw e
+        }
     }
 
     /**
