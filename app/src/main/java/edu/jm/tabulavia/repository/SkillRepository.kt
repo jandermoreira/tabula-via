@@ -51,11 +51,11 @@ class SkillRepository(
      * Starts listening to real-time changes for skills of a specific course.
      * Any change in Firestore will be reflected in the local database.
      */
-    fun startListeningToCourseSkills(uid: String, courseId: String) {
-        stopListeningToCourseSkills(courseId) // remove any existing listener
+    fun startListeningToCourseSkills(uid: String, classId: String) {
+        stopListeningToCourseSkills(classId)
 
         val listenerRegistration = firestore
-            .collection("users/$uid/courses/$courseId/skills")
+            .collection("users/$uid/courses/$classId/skills")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     // Log error if needed (optional)
@@ -80,7 +80,7 @@ class SkillRepository(
                 }
             }
 
-        courseSkillsListeners[courseId] = { listenerRegistration.remove() }
+        courseSkillsListeners[classId] = { listenerRegistration.remove() }
     }
 
     /**
