@@ -62,30 +62,15 @@ fun CourseListScreen(
     val courseList by viewModel.classes.collectAsState()
     val groupedCourses = courseList
         .groupBy { it.academicYear }
-        .toSortedMap(compareByDescending { it })
+        .toSortedMap(compareByDescending { it.toIntOrNull() ?: 0 })
 
     val snackbarHostState = remember { SnackbarHostState() }
-//    val userMessage by viewModel.userMessage.collectAsState()
     val authenticatedUser by authViewModel.user.collectAsState()
 
     var showBackupDialog by remember { mutableStateOf(false) }
     var isBackupLoading by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
-
-//    LaunchedEffect(Unit) {
-//        viewModel.loadAllCourses()
-//    }
-
-//    /**
-//     * Shows user messages in a snackbar.
-//     */
-//    LaunchedEffect(userMessage) {
-//        userMessage?.let {
-//            snackbarHostState.showSnackbar(it)
-//            viewModel.onUserMessageShown()
-//        }
-//    }
 
     Scaffold(
         topBar = {
