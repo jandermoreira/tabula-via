@@ -195,6 +195,9 @@ fun ActivityGroupScreen(
                         }
                     }
                 }
+                else -> {
+                    Text("Não implementado")
+                }
             }
         }
     }) { padding ->
