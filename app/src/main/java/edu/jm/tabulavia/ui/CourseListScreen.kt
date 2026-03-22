@@ -225,29 +225,32 @@ fun CourseListScreen(
                             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                             Text("RESTAURAR CÓPIA")
                         }
-                        /**
-                         * Clears the entire local database.
-                         */
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    isBackupLoading = true
-                                    viewModel.clearDatabase()
-                                    isBackupLoading = false
-                                    showBackupDialog = false
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Icon(
-                                Icons.Filled.Delete,
-                                contentDescription = "Limpar base de dados"
-                            )
-                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("LIMPAR BASE")
+
+                        if (BuildConfig.FLAVOR == "dev") {
+                            /**
+                             * Clears the entire local database.
+                             */
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        isBackupLoading = true
+                                        viewModel.clearDatabase()
+                                        isBackupLoading = false
+                                        showBackupDialog = false
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Filled.Delete,
+                                    contentDescription = "Limpar base de dados"
+                                )
+                                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                                Text("LIMPAR BASE")
+                            }
                         }
                     }
                 }
