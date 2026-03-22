@@ -27,6 +27,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Course
 import edu.jm.tabulavia.utils.MessageHandler
@@ -91,9 +92,9 @@ fun CourseListScreen(
             TopAppBar(
                 title = {
                     if (BuildConfig.FLAVOR == "dev")
-                        Text("Tabula Via (DEV)")
+                        Text("Tabula Via (beta)", color = Color.Red)
                     else
-                        Text("Tabual Via")
+                        Text("Tabula Via")
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
