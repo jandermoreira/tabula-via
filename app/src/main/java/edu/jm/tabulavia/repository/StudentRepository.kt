@@ -4,9 +4,13 @@
  */
 package edu.jm.tabulavia.repository
 
+import android.content.Context
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.firebase.firestore.FirebaseFirestore
 import edu.jm.tabulavia.dao.StudentDao
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.worker.SyncStudentWorker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,7 +18,8 @@ import kotlinx.coroutines.withContext
 class StudentRepository(
     private val studentDao: StudentDao,
     private val firestore: FirebaseFirestore,
-    private val attendanceRepository: AttendanceRepository
+    private val attendanceRepository: AttendanceRepository,
+    private val applicationContext: Context
 ) {
 
     /**
@@ -32,14 +37,20 @@ class StudentRepository(
     // ----------------- STUDENT -----------------
 
     /**
-     * Inserts or updates a student locally and synchronizes with Firestore.
+     * Inserts or updates a student locally and enqueues a synchronization job with Firestore.
      * Removed await() to support offline-first behavior.
+     *
+     * @param student The student to insert or update.
+     * @param uid The authenticated user ID.
      */
     suspend fun insertStudent(student: Student, uid: String) {
         studentDao.insertStudent(student)
 
-        studentDocRef(uid, student.classId, student.studentId)
-            .set(student)
+        // Enqueue a WorkManager job to synchronize the student with Firestore
+        val syncRequest = OneTimeWorkRequestBuilder<SyncStudentWorker>()
+            .setInputData(SyncStudentWorker.buildInputData(uid, student.classId, student.studentId))
+            .build()
+        WorkManager.getInstance(applicationContext).enqueue(syncRequest)
     }
 
     /**

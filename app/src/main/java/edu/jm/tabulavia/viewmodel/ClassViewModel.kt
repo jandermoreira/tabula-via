@@ -81,10 +81,13 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     private val studentRepository = StudentRepository(
         studentDao = db.studentDao(),
         firestore = Firebase.firestore,
-        attendanceRepository = attendanceRepository
+        attendanceRepository = attendanceRepository,
+        applicationContext = application.applicationContext
     )
     private val skillRepository = SkillRepository(
-        courseSkillDao = db.courseSkillDao(), firestore = Firebase.firestore, scope = viewModelScope
+        courseSkillDao = db.courseSkillDao(),
+        firestore = Firebase.firestore,
+        scope = viewModelScope
     )
 
     private val cloudStorageRepository = CloudStorageRepository(
