@@ -5,6 +5,7 @@
 package edu.jm.tabulavia.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -55,4 +56,13 @@ interface CourseDao {
      */
     @Query("SELECT * FROM classes ORDER BY className ASC")
     suspend fun getAllCourses(): List<Course>
+
+    /**
+     * Deletes a course record from the database.
+     *
+     * @param clazz The course entity to be deleted. The entity must represent an existing
+     * entry in the database for the deletion to succeed.
+     */
+    @Delete
+    suspend fun deleteCourse(clazz: Course)
 }

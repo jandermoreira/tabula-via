@@ -136,7 +136,7 @@ class MainActivity : ComponentActivity() {
                                 viewModel = courseViewModel,
                                 navController = navController,
                                 onNavigateBack = {
-                                    courseViewModel.resetCourseState()
+                                    courseViewModel.resetClassState()
                                     navController.popBackStack()
                                 })
                         }

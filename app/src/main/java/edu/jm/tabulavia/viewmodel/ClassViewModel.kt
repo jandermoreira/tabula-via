@@ -67,10 +67,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     private val db = DatabaseProvider.getDatabase(application)
 
-    private val courseRepository = CourseRepository(
+    private val courseRepository = ClassRepository(
         context = application.applicationContext,
         courseDao = db.courseDao(),
-        studentDao = db.studentDao(),
         activityDao = db.activityDao(),
         groupMemberDao = db.groupMemberDao(),
         firestore = Firebase.firestore
@@ -215,7 +214,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     override fun onCleared() {
         super.onCleared()
         courseRepository.stopCoursesSync()
-        courseRepository.stopStudentsSync()
+        studentRepository.stopStudentsSync()
         courseRepository.stopActivitiesSync()
         attendanceRepository.stopAttendanceSync()
         skillRepository.stopAllListeners()
@@ -239,17 +238,17 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Initiates real-time synchronization and observes database changes via Flow.
      */
     fun loadClassDetails(classId: String) {
-        resetCourseState()
+        resetClassState()
 
         // Store the current class ID to manage listener cleanup later
         currentClassId = classId
 
         // Start real-time sync for all related data
         Firebase.auth.currentUser?.uid?.let { uid ->
-            courseRepository.startStudentsSync(uid, classId)
+            studentRepository.startStudentsSync(uid, classId)
             courseRepository.startActivitiesSync(uid, classId)
             attendanceRepository.startAttendanceSync(classId)
-            skillRepository.startListeningToCourseSkills(uid, classId) // <- new
+            skillRepository.startListeningToCourseSkills(uid, classId)
         }
 
         // Launch coroutines to collect Flows from Room (they will emit initial data and updates)
@@ -281,7 +280,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     /**
      * Resets the UI state for the current course and stops all active Firestore listeners.
      */
-    fun resetCourseState() {
+    fun resetClassState() {
+        // Stop listeners
+        studentRepository.stopStudentsSync()
         currentClassId?.let { skillRepository.stopListeningToCourseSkills(it) }
         currentClassId = null
 

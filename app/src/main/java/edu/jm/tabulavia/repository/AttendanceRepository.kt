@@ -308,18 +308,27 @@
          */
         fun getClassSessionsFlow(classId: String) = attendanceDao.getClassSessionsFlow(classId)
 
+        /**
+         * Removes a student's attendance records locally and updates remote sessions.
+         * @param studentId The unique identifier of the student.
+         * @param classId The course unique identifier.
+         * @param uid The authenticated user ID.
+         */
         suspend fun removeStudentFromAttendanceSessions(
             studentId: String,
             classId: String,
             uid: String
         ) {
             withContext(Dispatchers.IO) {
-                // Get all sessions for this class from local DB (or Firestore if preferred)
+                // Step 1: Delete local records first to ensure UI consistency
+                attendanceDao.deleteRecordsForStudent(studentId)
+
+                // Step 2: Update remote sessions
                 val sessions = attendanceDao.getClassSessionsForClass(classId)
                 if (sessions.isEmpty()) return@withContext
 
                 val firestore = FirebaseFirestore.getInstance()
-                val batch = firestore.batch()
+                var batch = firestore.batch()
                 var operationCount = 0
                 val BATCH_LIMIT = 500
 
@@ -331,12 +340,14 @@
                         .collection("sessions")
                         .document(session.sessionId)
 
-                    // Remove the student from the attendance map using FieldValue.delete()
+                    // Use the map dot notation to remove the specific student ID key
                     batch.update(sessionRef, "attendance.$studentId", FieldValue.delete())
                     operationCount++
 
+                    // Commit and reset batch if limit is reached
                     if (operationCount >= BATCH_LIMIT) {
                         batch.commit().await()
+                        batch = firestore.batch()
                         operationCount = 0
                     }
                 }
@@ -344,9 +355,6 @@
                 if (operationCount > 0) {
                     batch.commit().await()
                 }
-
-                // Delete local records
-                attendanceDao.deleteRecordsForStudent(studentId)
             }
         }
     }

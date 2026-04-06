@@ -15,6 +15,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.firestore
@@ -22,7 +23,6 @@ import com.google.firebase.ktx.Firebase
 import edu.jm.tabulavia.dao.ActivityDao
 import edu.jm.tabulavia.dao.CourseDao
 import edu.jm.tabulavia.dao.GroupMemberDao
-import edu.jm.tabulavia.dao.StudentDao
 import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.Course
 import edu.jm.tabulavia.model.GroupMember
@@ -35,10 +35,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-class CourseRepository(
+class ClassRepository(
     private val context: Context,
     private val courseDao: CourseDao,
-    private val studentDao: StudentDao,
     private val activityDao: ActivityDao,
     private val groupMemberDao: GroupMemberDao,
     private val firestore: FirebaseFirestore
@@ -235,17 +234,36 @@ class CourseRepository(
 
     /**
      * Starts a real-time listener for the user's courses in Firestore.
+     * Uses documentChanges to synchronize additions, updates, and deletions with Room.
+     *
+     * @param uid The authenticated user ID.
      */
     fun startCoursesSync(uid: String) {
-        if (coursesListener != null) return
+        stopCoursesSync()
 
         coursesListener = userCoursesRef(uid).addSnapshotListener { snapshot, error ->
-            if (error != null) return@addSnapshotListener
+            if (error != null) {
+                Log.e("ClassRepository", "Firestore listener error: ${error.message}")
+                return@addSnapshotListener
+            }
 
-            if (snapshot != null) {
-                val courses = snapshot.toObjects(Course::class.java).filterNotNull()
+            snapshot?.documentChanges?.forEach { change ->
+                val clazz = change.document.toObject(Course::class.java)
+
                 CoroutineScope(Dispatchers.IO).launch {
-                    courseDao.insertAll(courses)
+                    try {
+                        when (change.type) {
+                            DocumentChange.Type.ADDED,
+                            DocumentChange.Type.MODIFIED -> {
+                                courseDao.insertCourse(clazz)
+                            }
+                            DocumentChange.Type.REMOVED -> {
+                                courseDao.deleteCourse(clazz)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ClassRepository", "Local database sync failed: ${e.message}")
+                    }
                 }
             }
         }
@@ -259,34 +277,34 @@ class CourseRepository(
         coursesListener = null
     }
 
-    /**
-     * Starts a real-time listener for students within a specific course.
-     */
-    fun startStudentsSync(uid: String, courseId: String) {
-        stopStudentsSync()
-
-        studentsListener = userCoursesRef(uid)
-            .document(courseId)
-            .collection("students")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-
-                snapshot?.let {
-                    val students = it.toObjects(Student::class.java).filterNotNull()
-                    CoroutineScope(Dispatchers.IO).launch {
-                        studentDao.insertAll(students)
-                    }
-                }
-            }
-    }
-
-    /**
-     * Stops the real-time listener for students.
-     */
-    fun stopStudentsSync() {
-        studentsListener?.remove()
-        studentsListener = null
-    }
+//    /**
+//     * Starts a real-time listener for students within a specific course.
+//     */
+//    fun startStudentsSync(uid: String, courseId: String) {
+//        stopStudentsSync()
+//
+//        studentsListener = userCoursesRef(uid)
+//            .document(courseId)
+//            .collection("students")
+//            .addSnapshotListener { snapshot, error ->
+//                if (error != null) return@addSnapshotListener
+//
+//                snapshot?.let {
+//                    val students = it.toObjects(Student::class.java).filterNotNull()
+//                    CoroutineScope(Dispatchers.IO).launch {
+//                        studentDao.insertAll(students)
+//                    }
+//                }
+//            }
+//    }
+//
+//    /**
+//     * Stops the real-time listener for students.
+//     */
+//    fun stopStudentsSync() {
+//        studentsListener?.remove()
+//        studentsListener = null
+//    }
 
     /**
      * Starts a real-time listener for activities of a specific course.
