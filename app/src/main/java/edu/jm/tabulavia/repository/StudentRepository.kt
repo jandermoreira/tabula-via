@@ -155,44 +155,54 @@ class StudentRepository(
     private var studentsListener: ListenerRegistration? = null
 
     /**
-     * Starts a real-time listener for a specific course's students.
-     * Uses documentChanges to specifically handle ADDED, MODIFIED, and REMOVED events,
-     * ensuring the local Room database stays perfectly in sync with Firestore.
-     */
-    fun startStudentsSync(uid: String, classId: String) {
-        stopStudentsSync()
+         * Starts a Firestore snapshot listener for a specific course's students.
+         * Uses documentChanges to specifically handle ADDED, MODIFIED, and REMOVED events,
+         * ensuring the local Room database stays perfectly in sync with Firestore.
+         *
+         * @param uid The authenticated user ID.
+         * @param classId The unique identifier of the course.
+         */
+        fun startStudentsSync(uid: String, classId: String) {
+            stopStudentsSync()
 
-        studentsListener = firestore.collection("users")
-            .document(uid)
-            .collection("courses")
-            .document(classId)
-            .collection("students")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
+            studentsListener = firestore.collection("users")
+                .document(uid)
+                .collection("courses")
+                .document(classId)
+                .collection("students")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e("StudentRepository", "Firestore listener error: ${error.message}")
+                        return@addSnapshotListener
+                    }
 
-                snapshot?.documentChanges?.forEach { change ->
-                    val student = change.document.toObject(Student::class.java)
+                    snapshot?.documentChanges?.forEach { change ->
+                        // The document ID is the primary key (studentId)
+                        val docId = change.document.id
 
-                    CoroutineScope(Dispatchers.IO).launch {
-                        when (change.type) {
-                            DocumentChange.Type.ADDED,
-                            DocumentChange.Type.MODIFIED -> {
-                                studentDao.insertStudent(student)
-                            }
-                            DocumentChange.Type.REMOVED -> {
-                                studentDao.deleteStudent(student)
+                        CoroutineScope(Dispatchers.IO).launch {
+                            when (change.type) {
+                                DocumentChange.Type.ADDED,
+                                DocumentChange.Type.MODIFIED -> {
+                                    val student = change.document.toObject(Student::class.java)
+                                    val studentToSync = student.copy(studentId = docId)
+                                    studentDao.insertStudent(studentToSync)
+                                }
+                                DocumentChange.Type.REMOVED -> {
+                                    val studentToDelete = Student(studentId = docId)
+                                    studentDao.deleteStudent(studentToDelete)
+                                }
                             }
                         }
                     }
                 }
-            }
-    }
+        }
 
-    /**
-     * Stops the active Firestore listener to prevent memory leaks.
-     */
-    fun stopStudentsSync() {
-        studentsListener?.remove()
-        studentsListener = null
-    }
+        /**
+         * Stops the active Firestore listener to prevent memory leaks.
+         */
+        fun stopStudentsSync() {
+            studentsListener?.remove()
+            studentsListener = null
+        }
 }
