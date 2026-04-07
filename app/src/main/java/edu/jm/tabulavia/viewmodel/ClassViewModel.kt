@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkManager
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
@@ -50,8 +51,7 @@ import kotlinx.coroutines.withContext
  * Represents a student's attendance status for display.
  */
 data class AttendanceDetail(
-    val studentName: String,
-    val status: AttendanceStatus
+    val studentName: String, val status: AttendanceStatus
 )
 
 /**
@@ -84,9 +84,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         applicationContext = application.applicationContext
     )
     private val skillRepository = SkillRepository(
-        courseSkillDao = db.courseSkillDao(),
-        firestore = Firebase.firestore,
-        scope = viewModelScope
+        courseSkillDao = db.courseSkillDao(), firestore = Firebase.firestore, scope = viewModelScope
     )
 
     private val cloudStorageRepository = CloudStorageRepository(
@@ -698,8 +696,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             _attendanceDetails.value = records.mapNotNull { record ->
                 studentMap[record.studentId]?.let { student ->
                     AttendanceDetail(
-                        studentName = student.effectiveName,
-                        status = record.status
+                        studentName = student.effectiveName, status = record.status
                     )
                 }
             }.sortedBy { it.studentName }
@@ -945,19 +942,33 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     /**
      * Clears all local data and Firestore documents of the current user.
+     * This is a destructive operation intended for development and total reset.
      */
     fun clearDatabase() {
         viewModelScope.launch {
             try {
+                // Step 1: Silence repositories to prevent reactive re-insertion during cleanup
+                studentRepository.stopStudentsSync()
+                // attendanceRepository.stopAttendanceSync() // Ensure this is implemented in your repository
+
+                // Step 2: Cancel all background sync operations
+                WorkManager.getInstance(getApplication()).cancelAllWork()
+
+                // Step 3: Comprehensive remote cleanup
                 clearFirestoreDatabaseForCurrentUser()
 
+                // Step 4: Atomic local cleanup
                 withContext(Dispatchers.IO) {
                     db.clearAllTables()
                 }
 
+                // Step 5: Reset UI and memory state
                 _selectedClass.value = null
                 _studentsForClass.value = emptyList()
                 _generatedGroups.value = emptyList()
+
+                // Clear additional state flows if necessary
+                _loadedActivityId.value = null
 
                 showMessage("Base de dados limpa com sucesso.")
             } catch (e: Exception) {
@@ -967,36 +978,50 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     }
 
     /**
-     * Deletes Firestore collections only for the current user.
+     * Deletes Firestore collections only for the current user, including nested subcollections.
+     * Iterates through courses to ensure orphans are not left behind.
      */
     private suspend fun clearFirestoreDatabaseForCurrentUser() {
         val uid = Firebase.auth.currentUser?.uid ?: return
+        val firestore = Firebase.firestore
 
-        deleteCollection("users/$uid/courses")
-        deleteCollection("users/$uid/students")
-        deleteCollection("users/$uid/attendance")
-        deleteCollection("users/$uid/skills")
-        deleteCollection("users/$uid/activities")
+        // Delete independent top-level collections
+        val userCollections = listOf("attendance", "skills", "activities")
+        userCollections.forEach { collection ->
+            deleteCollection("users/$uid/$collection")
+        }
+
+        // Process courses and their nested subcollections (students, sessions, etc.)
+        val coursesRef = firestore.collection("users/$uid/courses")
+        val coursesSnapshot = coursesRef.get().await()
+
+        for (courseDoc in coursesSnapshot.documents) {
+            val courseId = courseDoc.id
+            // Explicitly clear subcollections that Firestore won't delete automatically
+            deleteCollection("users/$uid/courses/$courseId/students")
+            // deleteCollection("users/$uid/courses/$courseId/sessions")
+
+            // Delete the course document itself
+            courseDoc.reference.delete().await()
+        }
     }
 
     /**
-     * Deletes a collection in batches.
+     * Deletes all documents within a given collection path using a WriteBatch.
+     *
+     * @param collectionPath The full path to the Firestore collection.
      */
-    private suspend fun deleteCollection(collectionPath: String, batchSize: Int = 100) {
+    private suspend fun deleteCollection(collectionPath: String) {
         val firestore = Firebase.firestore
+        val snapshot = firestore.collection(collectionPath).get().await()
 
-        while (true) {
-            val snapshot =
-                firestore.collection(collectionPath).limit(batchSize.toLong()).get().await()
+        if (snapshot.isEmpty) return
 
-            if (snapshot.isEmpty) break
-
-            val batch = firestore.batch()
-            for (doc in snapshot.documents) {
-                batch.delete(doc.reference)
-            }
-            batch.commit().await()
+        val batch = firestore.batch()
+        snapshot.documents.forEach { doc ->
+            batch.delete(doc.reference)
         }
+        batch.commit().await()
     }
 
     // --- Course and Student Creation Logic ---
@@ -1155,46 +1180,44 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 val studentsToInsert = mutableListOf<Student>()
                 var duplicateInBatchCount = 0
 
-                rawStudentListData.lineSequence()
-                    .filter { it.isNotBlank() }
-                    .forEach { line ->
-                        val lineParts = line.trim().split(Regex("\\s+"), limit = 2)
-                        if (lineParts.size == 2) {
-                            val number = lineParts[0]
-                            val fullName = lineParts[1]
+                rawStudentListData.lineSequence().filter { it.isNotBlank() }.forEach { line ->
+                    val lineParts = line.trim().split(Regex("\\s+"), limit = 2)
+                    if (lineParts.size == 2) {
+                        val number = lineParts[0]
+                        val fullName = lineParts[1]
 
-                            when {
-                                number in existingNumbers -> { /* ignores */
+                        when {
+                            number in existingNumbers -> { /* ignores */
+                            }
+
+                            number in processedNumbers -> {
+                                duplicateInBatchCount++
+                            }
+
+                            else -> {
+                                val nameSegments =
+                                    fullName.split(Regex("\\s+")).filter { it.isNotBlank() }
+
+                                val formattedDisplayName = when {
+                                    nameSegments.size <= 2 -> ""
+                                    nameSegments.size > 2 -> "${nameSegments.first()} ${nameSegments.last()}"
+                                    else -> fullName
                                 }
 
-                                number in processedNumbers -> {
-                                    duplicateInBatchCount++
-                                }
-
-                                else -> {
-                                    val nameSegments =
-                                        fullName.split(Regex("\\s+")).filter { it.isNotBlank() }
-
-                                    val formattedDisplayName = when {
-                                        nameSegments.size <= 2 -> ""
-                                        nameSegments.size > 2 -> "${nameSegments.first()} ${nameSegments.last()}"
-                                        else -> fullName
-                                    }
-
-                                    studentsToInsert.add(
-                                        Student(
-                                            studentId = java.util.UUID.randomUUID().toString(),
-                                            name = fullName.trim(),
-                                            displayName = formattedDisplayName.trim(),
-                                            studentNumber = number.trim(),
-                                            classId = targetClassId
-                                        )
+                                studentsToInsert.add(
+                                    Student(
+                                        studentId = java.util.UUID.randomUUID().toString(),
+                                        name = fullName.trim(),
+                                        displayName = formattedDisplayName.trim(),
+                                        studentNumber = number.trim(),
+                                        classId = targetClassId
                                     )
-                                    processedNumbers.add(number)
-                                }
+                                )
+                                processedNumbers.add(number)
                             }
                         }
                     }
+                }
 
                 if (studentsToInsert.isEmpty()) {
                     showMessage("Nenhuma inserção: todos já existem ou formato é inválido.")
