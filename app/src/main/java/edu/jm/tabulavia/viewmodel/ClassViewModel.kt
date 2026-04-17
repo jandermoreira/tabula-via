@@ -30,6 +30,7 @@ import edu.jm.tabulavia.model.grouping.Location
 import edu.jm.tabulavia.repository.*
 import edu.jm.tabulavia.repository.AttendanceRepository
 import java.util.Calendar
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -1419,6 +1420,116 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     showMessage("Erro ao gerar backup: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Restores a course and all its related data from a JSON backup string.
+     */
+    fun importCourseBackup(jsonString: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val json = kotlinx.serialization.json.Json {
+                    ignoreUnknownKeys = true
+                }
+                val backup = json.decodeFromString(CourseBackup.serializer(), jsonString)
+
+                // 1. Generate new ID for the course to avoid collisions
+                val newCourseId = UUID.randomUUID().toString()
+                val restoredCourse = backup.course.copy(
+                    classId = newCourseId,
+                    className = "${backup.course.className} (Restaurado)"
+                )
+
+                val uid = com.google.firebase.Firebase.auth.currentUser?.uid ?: ""
+                courseRepository.insertCourse(restoredCourse, uid)
+
+                // 2. Map old student IDs to new ones
+                val studentIdMap = mutableMapOf<String, String>()
+                backup.students.forEach { student ->
+                    val newStudentId = UUID.randomUUID().toString()
+                    studentIdMap[student.studentId] = newStudentId
+                    val restoredStudent = student.copy(
+                        studentId = newStudentId,
+                        classId = newCourseId
+                    )
+                    studentRepository.insertStudent(restoredStudent, uid)
+                }
+
+                // 3. Map old session IDs to new ones and restore records
+                val sessionIdMap = mutableMapOf<String, String>()
+                backup.sessions.forEach { session ->
+                    val newSessionId = UUID.randomUUID().toString()
+                    sessionIdMap[session.sessionId] = newSessionId
+
+                    val restoredSession = session.copy(
+                        sessionId = newSessionId,
+                        classId = newCourseId
+                    )
+                    db.attendanceDao().insertClassSession(restoredSession)
+                }
+
+                // Restore attendance records with new IDs
+                val restoredAttendance = backup.attendance.mapNotNull { record ->
+                    val newSessionId = sessionIdMap[record.sessionId]
+                    val newStudentId = studentIdMap[record.studentId]
+                    if (newSessionId != null && newStudentId != null) {
+                        record.copy(sessionId = newSessionId, studentId = newStudentId)
+                    } else null
+                }
+                attendanceRepository.insertAllAttendanceRecords(restoredAttendance)
+
+                // 4. Map old activity IDs to new ones
+                val activityIdMap = mutableMapOf<String, String>()
+                backup.activities.forEach { activity ->
+                    val newActivityId = UUID.randomUUID().toString()
+                    activityIdMap[activity.activityId] = newActivityId
+                    val restoredActivity = activity.copy(
+                        activityId = newActivityId,
+                        classId = newCourseId
+                    )
+                    courseRepository.insertActivity(restoredActivity, uid)
+                }
+
+                // Restore group members
+                val restoredGroupMembers = backup.groupMembers.mapNotNull { member ->
+                    val newActivityId = activityIdMap[member.activityId]
+                    val newStudentId = studentIdMap[member.studentId]
+                    if (newActivityId != null && newStudentId != null) {
+                        member.copy(activityId = newActivityId, studentId = newStudentId)
+                    } else null
+                }
+                courseRepository.insertAllGroupMembers(restoredGroupMembers)
+
+                // 5. Restore skills and assessments
+                backup.skills.forEach { skill ->
+                    val restoredSkill = skill.copy(
+                        courseId = newCourseId,
+                        firestoreId = null // Let sync generate new one
+                    )
+                    skillRepository.insertCourseSkills(uid, newCourseId, listOf(restoredSkill))
+                }
+
+                val restoredAssessments = backup.assessments.mapNotNull { assessment ->
+                    val newStudentId = studentIdMap[assessment.studentId]
+                    if (newStudentId != null) {
+                        assessment.copy(
+                            id = 0, // Auto-increment will handle it
+                            studentId = newStudentId
+                        )
+                    } else null
+                }
+                db.skillAssessmentDao().insertAll(restoredAssessments)
+
+                withContext(Dispatchers.Main) {
+                    showMessage("Curso restaurado com sucesso!")
+                    refreshAllData(uid)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    showMessage("Erro ao restaurar backup: ${e.message}")
                 }
             }
         }
