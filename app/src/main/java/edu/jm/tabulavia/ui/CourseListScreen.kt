@@ -108,6 +108,43 @@ fun CourseListScreen(
         }
     }
 
+    var showImportDialog by remember { mutableStateOf(false) }
+    var importJsonContent by remember { mutableStateOf("") }
+    var suggestedCourseName by remember { mutableStateOf("") }
+
+    if (showImportDialog) {
+        AlertDialog(
+            onDismissRequest = { showImportDialog = false },
+            title = { Text("Importar Turma") },
+            text = {
+                Column {
+                    Text("Deseja importar esta turma? Você pode alterar o nome abaixo:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = suggestedCourseName,
+                        onValueChange = { suggestedCourseName = it },
+                        label = { Text("Nome da Turma") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.importCourseBackup(importJsonContent, suggestedCourseName)
+                    showImportDialog = false
+                }) {
+                    Text("Importar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     // Launcher for Importing a Course
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -117,10 +154,17 @@ fun CourseListScreen(
                 try {
                     context.contentResolver.openInputStream(it)?.use { inputStream ->
                         val content = BufferedReader(InputStreamReader(inputStream)).readText()
-                        viewModel.importCourseBackup(content)
+                        
+                        // Try to extract original name for suggestion
+                        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+                        val backup = json.decodeFromString(edu.jm.tabulavia.model.CourseBackup.serializer(), content)
+                        
+                        importJsonContent = content
+                        suggestedCourseName = "${backup.course.className} (Recuperado)"
+                        showImportDialog = true
                     }
                 } catch (e: Exception) {
-                    // Handled by ViewModel/MessageHandler
+                    viewModel.showMessage("Arquivo de backup inválido")
                 }
             }
         }

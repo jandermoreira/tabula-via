@@ -1450,7 +1450,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     /**
      * Restores a course and all its related data from a JSON backup string and syncs with Firestore.
      */
-    fun importCourseBackup(jsonString: String) {
+    fun importCourseBackup(jsonString: String, customName: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val uid = com.google.firebase.Firebase.auth.currentUser?.uid
@@ -1461,7 +1461,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 val newCourseId = UUID.randomUUID().toString()
                 val restoredCourse = backup.course.copy(
                     classId = newCourseId,
-                    className = "${backup.course.className} (Importado)"
+                    className = customName ?: "${backup.course.className} (Importado)"
                 )
                 
                 if (uid != null) {
