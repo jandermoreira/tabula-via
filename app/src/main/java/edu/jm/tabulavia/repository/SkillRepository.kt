@@ -7,6 +7,7 @@ package edu.jm.tabulavia.repository
 import com.google.firebase.firestore.FirebaseFirestore
 import edu.jm.tabulavia.dao.CourseSkillDao
 import edu.jm.tabulavia.model.CourseSkill
+import edu.jm.tabulavia.model.SkillAssessment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
@@ -24,6 +25,7 @@ import java.util.UUID
  */
 class SkillRepository(
     private val courseSkillDao: CourseSkillDao,
+    private val skillAssessmentDao: edu.jm.tabulavia.dao.SkillAssessmentDao,
     private val firestore: FirebaseFirestore,
     private val scope: CoroutineScope
 ) {
@@ -44,6 +46,12 @@ class SkillRepository(
      */
     suspend fun getSkillsForCourse(courseId: String): List<CourseSkill> =
         courseSkillDao.getSkillsForCourse(courseId)
+
+    /**
+     * Retrieves all assessments for a specific student.
+     */
+    suspend fun getAssessmentsForStudent(studentId: String): List<SkillAssessment> =
+        skillAssessmentDao.getAssessmentsForStudentList(studentId)
 
     // ---------- Real-time sync from Firestore ----------
 

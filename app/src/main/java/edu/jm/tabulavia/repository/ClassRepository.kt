@@ -94,6 +94,12 @@ class ClassRepository(
         activityDao.getActivitiesForClass(courseId)
 
     /**
+     * Retrieves all activities associated with a specific course as a list.
+     */
+    suspend fun getActivitiesForClassList(courseId: String): List<Activity> =
+        activityDao.getActivitiesForClassList(courseId)
+
+    /**
      * Fetches every activity stored in the local database.
      */
     suspend fun getAllActivities(): List<Activity> = activityDao.getAllActivities()
@@ -196,6 +202,12 @@ class ClassRepository(
             throw e
         }
     }
+
+    /**
+     * Retrieves all members and their group assignments for a specific activity as a list.
+     */
+    suspend fun getGroupMembersList(activityId: String): List<GroupMember> =
+        groupMemberDao.getGroupMembersForActivityList(activityId)
 
     /**
      * Retrieves all members and their group assignments for a specific activity as a Flow.
