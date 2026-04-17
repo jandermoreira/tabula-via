@@ -1449,6 +1449,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     /**
      * Restores a course and all its related data from a JSON backup string.
+     * This operation is performed locally, regenerating IDs to avoid conflicts.
      */
     fun importCourseBackup(jsonString: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -1462,38 +1463,41 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 val newCourseId = UUID.randomUUID().toString()
                 val restoredCourse = backup.course.copy(
                     classId = newCourseId,
-                    className = "${backup.course.className} (Restaurado)"
+                    className = "${backup.course.className} (Importado)"
                 )
 
-                val uid = com.google.firebase.Firebase.auth.currentUser?.uid ?: ""
-                courseRepository.insertCourse(restoredCourse, uid)
+                // Direct DAO insert to bypass repository side-effects during import
+                db.courseDao().insertCourse(restoredCourse)
 
-                // 2. Map old student IDs to new ones
+                // 2. Map old student IDs to new ones and restore
                 val studentIdMap = mutableMapOf<String, String>()
-                backup.students.forEach { student ->
+                val restoredStudents = backup.students.map { student ->
                     val newStudentId = UUID.randomUUID().toString()
                     studentIdMap[student.studentId] = newStudentId
-                    val restoredStudent = student.copy(
+                    student.copy(
                         studentId = newStudentId,
                         classId = newCourseId
                     )
-                    studentRepository.insertStudent(restoredStudent, uid)
+                }
+                if (restoredStudents.isNotEmpty()) {
+                    db.studentDao().insertAll(restoredStudents)
                 }
 
                 // 3. Map old session IDs to new ones and restore records
                 val sessionIdMap = mutableMapOf<String, String>()
-                backup.sessions.forEach { session ->
+                val restoredSessions = backup.sessions.map { session ->
                     val newSessionId = UUID.randomUUID().toString()
                     sessionIdMap[session.sessionId] = newSessionId
-
-                    val restoredSession = session.copy(
+                    session.copy(
                         sessionId = newSessionId,
                         classId = newCourseId
                     )
-                    db.attendanceDao().insertClassSession(restoredSession)
+                }
+                if (restoredSessions.isNotEmpty()) {
+                    db.attendanceDao().insertAllSessions(restoredSessions)
                 }
 
-                // Restore attendance records with new IDs
+                // Restore attendance records with remapped IDs
                 val restoredAttendance = backup.attendance.mapNotNull { record ->
                     val newSessionId = sessionIdMap[record.sessionId]
                     val newStudentId = studentIdMap[record.studentId]
@@ -1501,21 +1505,25 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         record.copy(sessionId = newSessionId, studentId = newStudentId)
                     } else null
                 }
-                attendanceRepository.insertAllAttendanceRecords(restoredAttendance)
+                if (restoredAttendance.isNotEmpty()) {
+                    db.attendanceDao().insertAttendanceRecords(restoredAttendance)
+                }
 
-                // 4. Map old activity IDs to new ones
+                // 4. Map old activity IDs to new ones and restore
                 val activityIdMap = mutableMapOf<String, String>()
-                backup.activities.forEach { activity ->
+                val restoredActivities = backup.activities.map { activity ->
                     val newActivityId = UUID.randomUUID().toString()
                     activityIdMap[activity.activityId] = newActivityId
-                    val restoredActivity = activity.copy(
+                    activity.copy(
                         activityId = newActivityId,
                         classId = newCourseId
                     )
-                    courseRepository.insertActivity(restoredActivity, uid)
+                }
+                if (restoredActivities.isNotEmpty()) {
+                    db.activityDao().insertAll(restoredActivities)
                 }
 
-                // Restore group members
+                // Restore group members with remapped IDs
                 val restoredGroupMembers = backup.groupMembers.mapNotNull { member ->
                     val newActivityId = activityIdMap[member.activityId]
                     val newStudentId = studentIdMap[member.studentId]
@@ -1523,7 +1531,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         member.copy(activityId = newActivityId, studentId = newStudentId)
                     } else null
                 }
-                courseRepository.insertAllGroupMembers(restoredGroupMembers)
+                if (restoredGroupMembers.isNotEmpty()) {
+                    db.groupMemberDao().insertAll(restoredGroupMembers)
+                }
 
                 // Restore highlighted skills for activities
                 val restoredHighlightedSkills = backup.highlightedSkills.mapNotNull { highlighted ->
@@ -1535,28 +1545,34 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         )
                     } else null
                 }
-                db.activityHighlightedSkillDao().insertAll(restoredHighlightedSkills)
+                if (restoredHighlightedSkills.isNotEmpty()) {
+                    db.activityHighlightedSkillDao().insertAll(restoredHighlightedSkills)
+                }
 
                 // 5. Restore skills and assessments
-                backup.skills.forEach { skill ->
-                    val restoredSkill = skill.copy(
+                val restoredSkills = backup.skills.map { skill ->
+                    skill.copy(
                         courseId = newCourseId,
-                        firestoreId = UUID.randomUUID().toString() // New sync ID
+                        firestoreId = UUID.randomUUID().toString()
                     )
-                    skillRepository.insertCourseSkills(uid, newCourseId, listOf(restoredSkill))
+                }
+                if (restoredSkills.isNotEmpty()) {
+                    db.courseSkillDao().insertCourseSkills(restoredSkills)
                 }
 
                 val restoredAssessments = backup.assessments.mapNotNull { assessment ->
                     val newStudentId = studentIdMap[assessment.studentId]
                     if (newStudentId != null) {
                         assessment.copy(
-                            id = 0, // Auto-increment will handle it
+                            id = 0, // Let Room auto-generate new Long ID
                             studentId = newStudentId,
-                            firestoreId = UUID.randomUUID().toString() // New sync ID
+                            firestoreId = UUID.randomUUID().toString()
                         )
                     } else null
                 }
-                db.skillAssessmentDao().insertAll(restoredAssessments)
+                if (restoredAssessments.isNotEmpty()) {
+                    db.skillAssessmentDao().insertAll(restoredAssessments)
+                }
 
                 // Restore student consolidated skills
                 val restoredStudentSkills = backup.studentSkills.mapNotNull { skillState ->
@@ -1568,11 +1584,19 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         )
                     } else null
                 }
-                db.skillDao().insertOrUpdateSkills(restoredStudentSkills)
+                if (restoredStudentSkills.isNotEmpty()) {
+                    db.skillDao().insertOrUpdateSkills(restoredStudentSkills)
+                }
 
                 withContext(Dispatchers.Main) {
-                    showMessage("Curso restaurado com sucesso!")
-                    refreshAllData(uid)
+                    val message = "Turma '${restoredCourse.className}' restaurada: " +
+                            "${restoredStudents.size} alunos, ${restoredActivities.size} atividades."
+                    showMessage(message)
+                    
+                    // Trigger Firestore sync for the new data if user is logged in
+                    Firebase.auth.currentUser?.uid?.let { uid ->
+                        refreshAllData(uid)
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
