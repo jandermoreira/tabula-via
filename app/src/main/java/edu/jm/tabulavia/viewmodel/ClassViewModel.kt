@@ -1388,9 +1388,13 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     groupMembers.addAll(courseRepository.getGroupMembersList(activity.activityId))
                 }
 
+                // Collect highlighted skills for these activities
+                val highlightedSkills = db.activityHighlightedSkillDao().getHighlightedSkillsForClass(classId)
+
                 // Collect skills and assessments
                 val skills = skillRepository.getSkillsForCourse(classId)
                 val assessments = mutableListOf<SkillAssessment>()
+                val studentSkills = db.skillDao().getSkillsForClass(classId)
                 students.forEach { student ->
                     assessments.addAll(skillRepository.getAssessmentsForStudent(student.studentId))
                 }
@@ -1403,7 +1407,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     activities = activities,
                     groupMembers = groupMembers,
                     skills = skills,
-                    assessments = assessments
+                    highlightedSkills = highlightedSkills,
+                    assessments = assessments,
+                    studentSkills = studentSkills
                 )
 
                 // Serialize using Kotlinx Serialization
@@ -1503,11 +1509,23 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 }
                 courseRepository.insertAllGroupMembers(restoredGroupMembers)
 
+                // Restore highlighted skills for activities
+                val restoredHighlightedSkills = backup.highlightedSkills.mapNotNull { highlighted ->
+                    val newActivityId = activityIdMap[highlighted.activityId]
+                    if (newActivityId != null) {
+                        highlighted.copy(
+                            activityId = newActivityId,
+                            firestoreId = UUID.randomUUID().toString()
+                        )
+                    } else null
+                }
+                db.activityHighlightedSkillDao().insertAll(restoredHighlightedSkills)
+
                 // 5. Restore skills and assessments
                 backup.skills.forEach { skill ->
                     val restoredSkill = skill.copy(
                         courseId = newCourseId,
-                        firestoreId = null // Let sync generate new one
+                        firestoreId = UUID.randomUUID().toString() // New sync ID
                     )
                     skillRepository.insertCourseSkills(uid, newCourseId, listOf(restoredSkill))
                 }
@@ -1517,11 +1535,24 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     if (newStudentId != null) {
                         assessment.copy(
                             id = 0, // Auto-increment will handle it
-                            studentId = newStudentId
+                            studentId = newStudentId,
+                            firestoreId = UUID.randomUUID().toString() // New sync ID
                         )
                     } else null
                 }
                 db.skillAssessmentDao().insertAll(restoredAssessments)
+
+                // Restore student consolidated skills
+                val restoredStudentSkills = backup.studentSkills.mapNotNull { skillState ->
+                    val newStudentId = studentIdMap[skillState.studentId]
+                    if (newStudentId != null) {
+                        skillState.copy(
+                            studentId = newStudentId,
+                            firestoreId = UUID.randomUUID().toString()
+                        )
+                    } else null
+                }
+                db.skillDao().insertOrUpdateSkills(restoredStudentSkills)
 
                 withContext(Dispatchers.Main) {
                     showMessage("Curso restaurado com sucesso!")

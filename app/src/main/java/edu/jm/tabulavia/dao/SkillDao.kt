@@ -31,4 +31,14 @@ interface SkillDao {
      */
     @Query("SELECT * FROM student_skills")
     suspend fun getAllSkills(): List<StudentSkill>
+
+    /**
+     * Retrieves all skills for students in a specific course.
+     */
+    @Query("""
+        SELECT ss.* FROM student_skills ss
+        INNER JOIN students s ON ss.studentId = s.studentId
+        WHERE s.classId = :classId
+    """)
+    suspend fun getSkillsForClass(classId: String): List<StudentSkill>
 }

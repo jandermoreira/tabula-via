@@ -32,8 +32,14 @@ data class CourseBackup(
     /** Skills defined for this course. */
     val skills: List<CourseSkill> = emptyList(),
 
+    /** Specific skills targeted or highlighted for each activity. */
+    val highlightedSkills: List<ActivityHighlightedSkill> = emptyList(),
+
     /** Skill assessments for students in this course. */
-    val assessments: List<SkillAssessment> = emptyList()
+    val assessments: List<SkillAssessment> = emptyList(),
+
+    /** Consolidated skill levels for each student. */
+    val studentSkills: List<StudentSkill> = emptyList()
 )
 
 @Serializable

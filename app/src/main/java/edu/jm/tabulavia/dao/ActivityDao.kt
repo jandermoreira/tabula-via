@@ -86,4 +86,14 @@ interface ActivityHighlightedSkillDao {
      */
     @Query("SELECT * FROM activity_highlighted_skills")
     suspend fun getAll(): List<ActivityHighlightedSkill>
+
+    /**
+     * Retrieves all highlighted skill mappings for a specific class.
+     */
+    @Query("""
+        SELECT ahs.* FROM activity_highlighted_skills ahs
+        INNER JOIN activities a ON ahs.activityId = a.activityId
+        WHERE a.classId = :classId
+    """)
+    suspend fun getHighlightedSkillsForClass(classId: String): List<ActivityHighlightedSkill>
 }
