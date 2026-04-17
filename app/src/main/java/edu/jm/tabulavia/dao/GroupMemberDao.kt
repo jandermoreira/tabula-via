@@ -35,6 +35,12 @@ interface GroupMemberDao {
     fun getGroupMembersForActivity(activityId: String): Flow<List<GroupMember>>
 
     /**
+     * Retrieves all group members associated with a specific activity as a list.
+     */
+    @Query("SELECT * FROM group_members WHERE activityId = :activityId")
+    suspend fun getGroupMembersForActivityList(activityId: String): List<GroupMember>
+
+    /**
      * Deletes all group members associated with a specific activity.
      */
     @Query("DELETE FROM group_members WHERE activityId = :activityId")

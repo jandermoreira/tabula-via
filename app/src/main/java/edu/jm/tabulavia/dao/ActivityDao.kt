@@ -41,6 +41,12 @@ interface ActivityDao {
     fun getActivitiesForClass(classId: String): Flow<List<Activity>>
 
     /**
+     * Retrieves all activities for a specific class as a list.
+     */
+    @Query("SELECT * FROM activities WHERE classId = :classId ORDER BY timestamp DESC")
+    suspend fun getActivitiesForClassList(classId: String): List<Activity>
+
+    /**
      * Retrieves all activities across all courses.
      */
     @Query("SELECT * FROM activities")

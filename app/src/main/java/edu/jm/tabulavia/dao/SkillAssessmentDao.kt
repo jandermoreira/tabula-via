@@ -40,6 +40,12 @@ interface SkillAssessmentDao {
     fun getAllAssessmentsForStudent(studentId: String): Flow<List<SkillAssessment>>
 
     /**
+     * Retrieves all assessments for a specific student as a list.
+     */
+    @Query("SELECT * FROM skill_assessments WHERE studentId = :studentId")
+    suspend fun getAssessmentsForStudentList(studentId: String): List<SkillAssessment>
+
+    /**
      * Retrieves all skill assessments in the database.
      */
     @Query("SELECT * FROM skill_assessments")
