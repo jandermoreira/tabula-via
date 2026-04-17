@@ -6,6 +6,36 @@ package edu.jm.tabulavia.model
 
 import kotlinx.serialization.Serializable
 
+/**
+ * Data transfer object for a single course backup.
+ */
+@Serializable
+data class CourseBackup(
+    /** The course being backed up. */
+    val course: Course,
+
+    /** Students enrolled in this course. */
+    val students: List<Student>,
+
+    /** Sessions for this course. */
+    val sessions: List<ClassSession>,
+
+    /** Attendance records for all sessions in this course. */
+    val attendance: List<AttendanceRecord>,
+
+    /** Activities created for this course. */
+    val activities: List<Activity>,
+
+    /** Group membership for activities in this course. */
+    val groupMembers: List<GroupMember> = emptyList(),
+
+    /** Skills defined for this course. */
+    val skills: List<CourseSkill> = emptyList(),
+
+    /** Skill assessments for students in this course. */
+    val assessments: List<SkillAssessment> = emptyList()
+)
+
 @Serializable
 data class BackupData(
     /** List of all courses registered in the system. */
