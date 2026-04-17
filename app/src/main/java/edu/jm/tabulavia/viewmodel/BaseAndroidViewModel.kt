@@ -20,7 +20,7 @@ abstract class BaseAndroidViewModel(application: Application) : AndroidViewModel
     private val _messageFlow = MutableSharedFlow<String>()
     val messageFlow: SharedFlow<String> = _messageFlow
 
-    protected fun showMessage(text: String) {
+    fun showMessage(text: String) {
         viewModelScope.launch {
             _messageFlow.emit(text)
         }
