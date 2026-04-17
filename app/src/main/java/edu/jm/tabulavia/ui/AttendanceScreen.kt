@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -134,6 +135,7 @@ fun AttendanceScreen(
             // Attendance Statistics
             val presentCount = attendanceMap.values.count { it == AttendanceStatus.PRESENT }
             val absentCount = attendanceMap.values.count { it == AttendanceStatus.ABSENT }
+            val justifiedCount = attendanceMap.values.count { it == AttendanceStatus.JUSTIFIED }
             val totalCount = presentCount + absentCount
 
             // Calculate attendance percentage using double for precision
@@ -161,9 +163,14 @@ fun AttendanceScreen(
                     color = MaterialTheme.colorScheme.error
                 )
                 Text(
+                    text = "$justifiedCount Justificados",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFFF57C00)
+                )
+                Text(
                     text = formattedAttendance,
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.secondary
                 )
             }
 
@@ -235,7 +242,7 @@ fun Calendar.toFormattedDateString(): String {
 }
 
 /**
- * List item representing a student and their attendance selector.
+ * List item representing a student and their attendance selector with 3 states.
  */
 @Composable
 fun AttendanceItem(
@@ -244,22 +251,30 @@ fun AttendanceItem(
     onStatusChange: (AttendanceStatus) -> Unit
 ) {
     val isAbsent = status == AttendanceStatus.ABSENT
+    val isJustified = status == AttendanceStatus.JUSTIFIED
+    val isPresent = status == AttendanceStatus.PRESENT
 
     Card(
         onClick = {
-            val nextStatus = if (isAbsent) AttendanceStatus.PRESENT else AttendanceStatus.ABSENT
+            // Cycle through PRESENT -> ABSENT -> JUSTIFIED -> PRESENT
+            val nextStatus = when (status) {
+                AttendanceStatus.PRESENT -> AttendanceStatus.ABSENT
+                AttendanceStatus.ABSENT -> AttendanceStatus.JUSTIFIED
+                AttendanceStatus.JUSTIFIED -> AttendanceStatus.PRESENT
+            }
             onStatusChange(nextStatus)
         },
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isAbsent)
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            else
-                MaterialTheme.colorScheme.surface
+            containerColor = when (status) {
+                AttendanceStatus.ABSENT -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                AttendanceStatus.JUSTIFIED -> Color(0xFFFFF8E1) // Light Amber
+                else -> MaterialTheme.colorScheme.surface
+            }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isAbsent) 0.dp else 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isPresent) 2.dp else 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -270,7 +285,11 @@ fun AttendanceItem(
             Box(modifier = Modifier.scale(0.8f)) {
                 EmojiWithBlob(
                     emoji = mapIdToEmoji(student.studentNumber),
-                    backgroundColor = if (isAbsent) Color.Gray else mapIdToColor(student.studentNumber),
+                    backgroundColor = when (status) {
+                        AttendanceStatus.ABSENT -> Color.Gray
+                        AttendanceStatus.JUSTIFIED -> Color(0xFFFFB300)
+                        else -> mapIdToColor(student.studentNumber)
+                    },
                     color = if (isAbsent) Color.Gray else MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -285,24 +304,37 @@ fun AttendanceItem(
                     text = displayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isAbsent) Color.Gray else Color.Unspecified
+                    color = when (status) {
+                        AttendanceStatus.ABSENT -> Color.Gray
+                        AttendanceStatus.JUSTIFIED -> Color(0xFF795548) // Dark Brown
+                        else -> Color.Unspecified
+                    }
                 )
 
                 val mutedGreen = Color(0xFF2E7D32)
                 Text(
                     text = student.studentNumber,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isAbsent) Color.Gray.copy(alpha = 0.7f) else mutedGreen
+                    color = when (status) {
+                        AttendanceStatus.ABSENT -> Color.Gray.copy(alpha = 0.7f)
+                        AttendanceStatus.JUSTIFIED -> Color(0xFF8D6E63)
+                        else -> mutedGreen
+                    }
                 )
             }
 
             Icon(
-                imageVector = if (isAbsent) Icons.Default.Close else Icons.Default.CheckCircle,
+                imageVector = when (status) {
+                    AttendanceStatus.ABSENT -> Icons.Default.Close
+                    AttendanceStatus.JUSTIFIED -> Icons.Default.Info
+                    else -> Icons.Default.CheckCircle
+                },
                 contentDescription = null,
-                tint = if (isAbsent)
-                    MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
-                else
-                    Color.Green,
+                tint = when (status) {
+                    AttendanceStatus.ABSENT -> MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                    AttendanceStatus.JUSTIFIED -> Color(0xFFF57C00) // Amber
+                    else -> Color.Green
+                },
                 modifier = Modifier.size(28.dp)
             )
         }
