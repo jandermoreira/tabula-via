@@ -90,12 +90,14 @@ fun CourseListScreen(
             coroutineScope.launch {
                 try {
                     courseToExport?.let { course ->
-                        viewModel.loadClassDetails(course.classId)
-                        viewModel.exportCourseBackup { jsonString ->
-                            context.contentResolver.openOutputStream(it)?.use { outputStream ->
-                                OutputStreamWriter(outputStream).use { writer ->
-                                    writer.write(jsonString)
+                        viewModel.exportCourseBackup(course) { jsonString ->
+                            try {
+                                context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                                    outputStream.write(jsonString.toByteArray())
+                                    outputStream.flush()
                                 }
+                            } catch (e: Exception) {
+                                // Error handling
                             }
                         }
                     }

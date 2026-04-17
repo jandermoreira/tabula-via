@@ -1363,44 +1363,45 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     }
 
     /**
-     * Collects and serializes all data for the currently selected course into a JSON string.
+     * Collects and serializes all data for a specific course into a JSON string.
+     * This operation is performed locally using the Room database.
      */
-    fun exportCourseBackup(onBackupReady: (String) -> Unit) {
-        val currentCourse = _selectedClass.value ?: return
-        val classId = currentCourse.classId
+    fun exportCourseBackup(course: Course, onBackupReady: (String) -> Unit) {
+        val classId = course.classId
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Collect students
-                val students = studentRepository.getStudentsForClassList(classId)
-
+                // Collect students directly from DAO for maximum reliability
+                val students = db.studentDao().getStudentsForClassList(classId)
+                
                 // Collect sessions and their records
-                val sessions = attendanceRepository.getClassSessions(classId)
+                val sessions = db.attendanceDao().getClassSessionsForClass(classId)
                 val allRecords = mutableListOf<AttendanceRecord>()
                 sessions.forEach { session ->
-                    allRecords.addAll(attendanceRepository.getRecordsForSession(session.sessionId))
+                    allRecords.addAll(db.attendanceDao().getAttendanceRecordsForSession(session.sessionId))
                 }
 
                 // Collect activities and their group members
-                val activities = courseRepository.getActivitiesForClassList(classId)
+                val activities = db.activityDao().getActivitiesForClassList(classId)
                 val groupMembers = mutableListOf<GroupMember>()
                 activities.forEach { activity ->
-                    groupMembers.addAll(courseRepository.getGroupMembersList(activity.activityId))
+                    groupMembers.addAll(db.groupMemberDao().getGroupMembersForActivityList(activity.activityId))
                 }
 
                 // Collect highlighted skills for these activities
                 val highlightedSkills = db.activityHighlightedSkillDao().getHighlightedSkillsForClass(classId)
 
                 // Collect skills and assessments
-                val skills = skillRepository.getSkillsForCourse(classId)
+                val skills = db.courseSkillDao().getSkillsForCourse(classId)
                 val assessments = mutableListOf<SkillAssessment>()
                 val studentSkills = db.skillDao().getSkillsForClass(classId)
+                
                 students.forEach { student ->
-                    assessments.addAll(skillRepository.getAssessmentsForStudent(student.studentId))
+                    assessments.addAll(db.skillAssessmentDao().getAssessmentsForStudentList(student.studentId))
                 }
 
                 val backup = CourseBackup(
-                    course = currentCourse,
+                    course = course,
                     students = students,
                     sessions = sessions,
                     attendance = allRecords,
@@ -1418,10 +1419,25 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     ignoreUnknownKeys = true
                     encodeDefaults = true
                 }
-                val jsonString = json.encodeToString(CourseBackup.serializer(), backup)
+                
+                val jsonString = try {
+                    json.encodeToString(CourseBackup.serializer(), backup)
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        showMessage("Erro na serialização: ${e.message}")
+                    }
+                    ""
+                }
 
-                withContext(Dispatchers.Main) {
-                    onBackupReady(jsonString)
+                if (jsonString.isNotBlank()) {
+                    withContext(Dispatchers.Main) {
+                        onBackupReady(jsonString)
+                        showMessage("Backup de ${course.className} gerado com sucesso!")
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        showMessage("Falha ao gerar conteúdo do backup.")
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
