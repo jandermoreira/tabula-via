@@ -6,5 +6,6 @@ import kotlinx.serialization.Serializable
 enum class AttendanceStatus(val displayName: String) {
     PRESENT("Presente"),
     ABSENT("Ausente"),
-    JUSTIFIED("Justificado")
+//    JUSTIFIED("Justificado"),
+    EXCUSED("Dispensado")
 }

@@ -55,7 +55,7 @@ private val BlobShape = GenericShape { size, _ ->
 }
 /**
  * Displays a student entry with an emoji avatar and their display name.
- * * @param student The student data model.
+ * @param student The student data model.
  * @param modifier Decorator for the root layout of this item.
  * @param isAbsent Flag to trigger visual styling for missing students.
  */

@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -135,7 +135,7 @@ fun AttendanceScreen(
             // Attendance Statistics
             val presentCount = attendanceMap.values.count { it == AttendanceStatus.PRESENT }
             val absentCount = attendanceMap.values.count { it == AttendanceStatus.ABSENT }
-            val justifiedCount = attendanceMap.values.count { it == AttendanceStatus.JUSTIFIED }
+            val excusedCount = attendanceMap.values.count { it == AttendanceStatus.EXCUSED }
             val totalCount = presentCount + absentCount
 
             // Calculate attendance percentage using double for precision
@@ -163,7 +163,7 @@ fun AttendanceScreen(
                     color = MaterialTheme.colorScheme.error
                 )
                 Text(
-                    text = "$justifiedCount Justificados",
+                    text = "$excusedCount Dispensados",
                     style = MaterialTheme.typography.labelLarge,
                     color = Color(0xFFF57C00)
                 )
@@ -251,16 +251,17 @@ fun AttendanceItem(
     onStatusChange: (AttendanceStatus) -> Unit
 ) {
     val isAbsent = status == AttendanceStatus.ABSENT
-    val isJustified = status == AttendanceStatus.JUSTIFIED
+    val isExcused = status == AttendanceStatus.EXCUSED
     val isPresent = status == AttendanceStatus.PRESENT
 
     Card(
         onClick = {
-            // Cycle through PRESENT -> ABSENT -> JUSTIFIED -> PRESENT
+            // Cycle through PRESENT -> ABSENT -> EXCUSED -> PRESENT
             val nextStatus = when (status) {
                 AttendanceStatus.PRESENT -> AttendanceStatus.ABSENT
-                AttendanceStatus.ABSENT -> AttendanceStatus.JUSTIFIED
-                AttendanceStatus.JUSTIFIED -> AttendanceStatus.PRESENT
+                AttendanceStatus.ABSENT -> AttendanceStatus.EXCUSED
+                AttendanceStatus.EXCUSED -> AttendanceStatus.PRESENT
+//                AttendanceStatus.JUSTIFIED -> AttendanceStatus.PRESENT
             }
             onStatusChange(nextStatus)
         },
@@ -270,7 +271,7 @@ fun AttendanceItem(
         colors = CardDefaults.cardColors(
             containerColor = when (status) {
                 AttendanceStatus.ABSENT -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                AttendanceStatus.JUSTIFIED -> Color(0xFFFFF8E1) // Light Amber
+                AttendanceStatus.EXCUSED -> Color(0xFFFFF8E1) // Light Amber
                 else -> MaterialTheme.colorScheme.surface
             }
         ),
@@ -287,7 +288,7 @@ fun AttendanceItem(
                     emoji = mapIdToEmoji(student.studentNumber),
                     backgroundColor = when (status) {
                         AttendanceStatus.ABSENT -> Color.Gray
-                        AttendanceStatus.JUSTIFIED -> Color(0xFFFFB300)
+                        AttendanceStatus.EXCUSED -> Color(0xFFFFB300)
                         else -> mapIdToColor(student.studentNumber)
                     },
                     color = if (isAbsent) Color.Gray else MaterialTheme.colorScheme.onSurface
@@ -306,7 +307,7 @@ fun AttendanceItem(
                     fontWeight = FontWeight.SemiBold,
                     color = when (status) {
                         AttendanceStatus.ABSENT -> Color.Gray
-                        AttendanceStatus.JUSTIFIED -> Color(0xFF795548) // Dark Brown
+                        AttendanceStatus.EXCUSED -> Color(0xFF795548)
                         else -> Color.Unspecified
                     }
                 )
@@ -317,7 +318,7 @@ fun AttendanceItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = when (status) {
                         AttendanceStatus.ABSENT -> Color.Gray.copy(alpha = 0.7f)
-                        AttendanceStatus.JUSTIFIED -> Color(0xFF8D6E63)
+                        AttendanceStatus.EXCUSED -> Color(0xFF8D6E63)
                         else -> mutedGreen
                     }
                 )
@@ -326,13 +327,13 @@ fun AttendanceItem(
             Icon(
                 imageVector = when (status) {
                     AttendanceStatus.ABSENT -> Icons.Default.Close
-                    AttendanceStatus.JUSTIFIED -> Icons.Default.Info
+                    AttendanceStatus.EXCUSED -> Icons.Default.RemoveCircle
                     else -> Icons.Default.CheckCircle
                 },
                 contentDescription = null,
                 tint = when (status) {
                     AttendanceStatus.ABSENT -> MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
-                    AttendanceStatus.JUSTIFIED -> Color(0xFFF57C00) // Amber
+                    AttendanceStatus.EXCUSED -> Color(0xFFF57C00)
                     else -> Color.Green
                 },
                 modifier = Modifier.size(28.dp)
