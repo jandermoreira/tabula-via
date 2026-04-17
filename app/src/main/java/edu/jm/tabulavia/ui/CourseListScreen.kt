@@ -8,6 +8,8 @@
 
 package edu.jm.tabulavia.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,14 +22,17 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.Course
 import edu.jm.tabulavia.utils.MessageHandler
@@ -35,6 +40,9 @@ import edu.jm.tabulavia.viewmodel.AuthViewModel
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 import kotlinx.coroutines.launch
 import edu.jm.tabulavia.BuildConfig
+import java.io.OutputStreamWriter
+import java.io.InputStreamReader
+import java.io.BufferedReader
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -69,8 +77,52 @@ fun CourseListScreen(
 
     var showBackupDialog by remember { mutableStateOf(false) }
     var isBackupLoading by remember { mutableStateOf(false) }
+    var courseToExport by remember { mutableStateOf<Course?>(null) }
+    val context = LocalContext.current
 
     val coroutineScope = rememberCoroutineScope()
+
+    // Launcher for Exporting a Course
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let {
+            coroutineScope.launch {
+                try {
+                    courseToExport?.let { course ->
+                        viewModel.loadClassDetails(course.classId)
+                        viewModel.exportCourseBackup { jsonString ->
+                            context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                                OutputStreamWriter(outputStream).use { writer ->
+                                    writer.write(jsonString)
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Handled by ViewModel/MessageHandler
+                }
+            }
+        }
+    }
+
+    // Launcher for Importing a Course
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            coroutineScope.launch {
+                try {
+                    context.contentResolver.openInputStream(it)?.use { inputStream ->
+                        val content = BufferedReader(InputStreamReader(inputStream)).readText()
+                        viewModel.importCourseBackup(content)
+                    }
+                } catch (e: Exception) {
+                    // Handled by ViewModel/MessageHandler
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -150,7 +202,11 @@ fun CourseListScreen(
                     Column(modifier = Modifier.padding(horizontal = 8.dp)) {
                         CourseItem(
                             course = course,
-                            onClick = { onCourseClicked(course) }
+                            onClick = { onCourseClicked(course) },
+                            onExport = {
+                                courseToExport = course
+                                exportLauncher.launch("${course.className}_backup.json")
+                            }
                         )
                     }
                 }
@@ -226,6 +282,29 @@ fun CourseListScreen(
                             Text("RESTAURAR CÓPIA")
                         }
 
+                        Divider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        /**
+                         * Executes local file import operation.
+                         */
+                        Button(
+                            onClick = {
+                                importLauncher.launch(arrayOf("application/json"))
+                                showBackupDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Icon(
+                                Icons.Filled.FileUpload,
+                                contentDescription = "Importar curso de arquivo"
+                            )
+                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("IMPORTAR CURSO (.json)")
+                        }
+
                         if (BuildConfig.FLAVOR == "dev") {
                             /**
                              * Clears the entire local database.
@@ -277,7 +356,8 @@ fun CourseListScreen(
 @Composable
 fun CourseItem(
     course: Course,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onExport: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -296,7 +376,7 @@ fun CourseItem(
                 tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.width(16.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = course.className,
                     style = MaterialTheme.typography.titleMedium
@@ -304,6 +384,13 @@ fun CourseItem(
                 Text(
                     text = "${course.academicYear}/${course.period}",
                     style = MaterialTheme.typography.bodySmall
+                )
+            }
+            IconButton(onClick = onExport) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Exportar curso",
+                    tint = MaterialTheme.colorScheme.secondary
                 )
             }
         }
