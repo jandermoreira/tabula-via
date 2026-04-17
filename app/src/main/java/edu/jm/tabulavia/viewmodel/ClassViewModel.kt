@@ -84,7 +84,10 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         applicationContext = application.applicationContext
     )
     private val skillRepository = SkillRepository(
-        courseSkillDao = db.courseSkillDao(), firestore = Firebase.firestore, scope = viewModelScope
+        courseSkillDao = db.courseSkillDao(),
+        skillAssessmentDao = db.skillAssessmentDao(),
+        firestore = Firebase.firestore,
+        scope = viewModelScope
     )
 
     private val cloudStorageRepository = CloudStorageRepository(
@@ -1355,6 +1358,69 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             courseRepository.persistGroups(
                 activityId = _loadedActivityId.value ?: return@launch, groups = groups
             )
+        }
+    }
+
+    /**
+     * Collects and serializes all data for the currently selected course into a JSON string.
+     */
+    fun exportCourseBackup(onBackupReady: (String) -> Unit) {
+        val currentCourse = _selectedClass.value ?: return
+        val classId = currentCourse.classId
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Collect students
+                val students = studentRepository.getStudentsForClassList(classId)
+
+                // Collect sessions and their records
+                val sessions = attendanceRepository.getClassSessions(classId)
+                val allRecords = mutableListOf<AttendanceRecord>()
+                sessions.forEach { session ->
+                    allRecords.addAll(attendanceRepository.getRecordsForSession(session.sessionId))
+                }
+
+                // Collect activities and their group members
+                val activities = courseRepository.getActivitiesForClassList(classId)
+                val groupMembers = mutableListOf<GroupMember>()
+                activities.forEach { activity ->
+                    groupMembers.addAll(courseRepository.getGroupMembersList(activity.activityId))
+                }
+
+                // Collect skills and assessments
+                val skills = skillRepository.getSkillsForCourse(classId)
+                val assessments = mutableListOf<SkillAssessment>()
+                students.forEach { student ->
+                    assessments.addAll(skillRepository.getAssessmentsForStudent(student.studentId))
+                }
+
+                val backup = CourseBackup(
+                    course = currentCourse,
+                    students = students,
+                    sessions = sessions,
+                    attendance = allRecords,
+                    activities = activities,
+                    groupMembers = groupMembers,
+                    skills = skills,
+                    assessments = assessments
+                )
+
+                // Serialize using Kotlinx Serialization
+                val json = kotlinx.serialization.json.Json {
+                    prettyPrint = true
+                    ignoreUnknownKeys = true
+                    encodeDefaults = true
+                }
+                val jsonString = json.encodeToString(CourseBackup.serializer(), backup)
+
+                withContext(Dispatchers.Main) {
+                    onBackupReady(jsonString)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    showMessage("Erro ao gerar backup: ${e.message}")
+                }
+            }
         }
     }
 }
