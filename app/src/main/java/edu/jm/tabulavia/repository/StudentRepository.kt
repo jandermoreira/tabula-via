@@ -79,6 +79,17 @@ class StudentRepository(
         studentDao.getStudentsForClass(classId)
 
     /**
+     * Retrieves all students for a specific class as a list.
+     *
+     * @param classId The unique identifier of the course.
+     * @return List of students.
+     */
+    suspend fun getStudentsForClassList(classId: String): List<Student> =
+        withContext(Dispatchers.IO) {
+            studentDao.getStudentsForClassList(classId)
+        }
+
+    /**
      * Retrieves a student by their unique identifier.
      *
      * @param studentId The unique identifier of the student.

@@ -44,6 +44,12 @@ interface StudentDao {
     fun getStudentsForClass(classId: String): Flow<List<Student>>
 
     /**
+     * Retrieves all students for a given class as a list.
+     */
+    @Query("SELECT * FROM students WHERE classId = :classId ORDER BY name ASC")
+    suspend fun getStudentsForClassList(classId: String): List<Student>
+
+    /**
      * Retrieves a specific student based on its unique identifier.
      */
     @Query("SELECT * FROM students WHERE studentId = :studentId")
