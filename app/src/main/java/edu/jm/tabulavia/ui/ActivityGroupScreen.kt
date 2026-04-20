@@ -335,11 +335,11 @@ private fun GroupsExpandedView(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         groupStudents.sortedBy { it.effectiveName }.forEach { student ->
-                            val isStudentAbsent =
-                                todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
+                            val status = todaysAttendance[student.studentId] ?: AttendanceStatus.PRESENT
+                            
                             StudentItem(
                                 student = student,
-                                isAbsent = isStudentAbsent,
+                                status = status,
                                 modifier = Modifier
                                     .width(90.dp)
                                     .clickable { onStudentClick(student) }
@@ -391,8 +391,6 @@ private fun ManualGroupEditorView(
     val scope = rememberCoroutineScope()
 
     val primaryColor = MaterialTheme.colorScheme.primary
-    val surfaceColor = MaterialTheme.colorScheme.surface
-    val dropTargetBackground = primaryColor.copy(alpha = 0.05f)
     val dashColorInactive = Color.Gray.copy(alpha = 0.4f)
 
     /**
@@ -665,11 +663,11 @@ private fun ManualGroupEditorView(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                 ) {
-                    val isStudentAbsent =
-                        viewModel.currentSessionAttendance.collectAsState().value[draggedStudent!!.student.studentId] == AttendanceStatus.ABSENT
+                    val status =
+                        viewModel.currentSessionAttendance.collectAsState().value[draggedStudent!!.student.studentId] ?: AttendanceStatus.PRESENT
                     StudentItem(
                         student = draggedStudent!!.student,
-                        isAbsent = isStudentAbsent,
+                        status = status,
                     )
                 }
             }
@@ -701,7 +699,7 @@ private fun DraggableStudentWrapper(
     var itemCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     val todaysAttendance by viewModel.currentSessionAttendance.collectAsState()
-    val isStudentAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
+    val status = todaysAttendance[student.studentId] ?: AttendanceStatus.PRESENT
 
     Box(
         modifier = Modifier
@@ -719,7 +717,7 @@ private fun DraggableStudentWrapper(
             }) {
         StudentItem(
             student = student,
-            isAbsent = isStudentAbsent,
+            status = status,
         )
     }
 }
@@ -738,15 +736,10 @@ private fun DraggableStudentWrapper(
 private fun ConfigurationView(
     viewModel: ClassViewModel, onCancel: () -> Unit, onGroupsCreated: () -> Unit
 ) {
-    val groupingCriteria = listOf("Aleatório", "Manual")
     val formationOptions = listOf("Número de grupos", "Alunos por grupo")
 
     val currentConfig = LocalConfiguration.current
     val isLandscape = currentConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
-
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier

@@ -237,10 +237,10 @@ fun StudentsGrid(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(students, key = { it.studentId }) { student ->
-                val isAbsent = todaysAttendance[student.studentId] == AttendanceStatus.ABSENT
+                val status = todaysAttendance[student.studentId] ?: AttendanceStatus.PRESENT
                 StudentItem(
                     student = student,
-                    isAbsent = isAbsent,
+                    status = status,
                     modifier = Modifier.combinedClickable(
                         onClick = { onStudentClick(student.studentId) },
                         onLongClick = { onStudentLongClick(student) }

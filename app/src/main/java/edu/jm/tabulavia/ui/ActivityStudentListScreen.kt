@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.utils.EmojiColorHelper
 import edu.jm.tabulavia.viewmodel.ClassViewModel
@@ -85,16 +86,13 @@ fun ActivityStudentListScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(students, key = { it.studentId }) { student ->
-                    val studentEmoji = studentEmojiMap[student.studentId] ?: "❓"
-                    val isStudentAbsent = true
-
                     StudentItem(
                         student = student,
-                        isAbsent = isStudentAbsent,
+                        status = AttendanceStatus.PRESENT,
                         modifier = Modifier
                             .padding(8.dp)
                             .fillMaxWidth()
-                            .alpha(if (isStudentAbsent) 0.5f else 1f)
+//                            .alpha(if (isStudentAbsent) 0.5f else 1f)
                     )
                 }
             }

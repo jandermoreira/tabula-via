@@ -20,13 +20,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToColor
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToEmoji
@@ -53,25 +58,31 @@ private val BlobShape = GenericShape { size, _ ->
     )
     close()
 }
+
 /**
  * Displays a student entry with an emoji avatar and their display name.
  * @param student The student data model.
+ * @param status The current attendance status of the student.
  * @param modifier Decorator for the root layout of this item.
- * @param isAbsent Flag to trigger visual styling for missing students.
  */
 @Composable
 fun StudentItem(
     student: Student,
-    modifier: Modifier = Modifier,
-    isAbsent: Boolean
+    status: AttendanceStatus,
+    modifier: Modifier = Modifier
 ) {
-    val backgroundColor = if (isAbsent) Color.Gray else mapIdToColor(student.studentNumber)
-    val emojiColor = if (isAbsent) Color.Gray else MaterialTheme.colorScheme.onSurface
+    val (backgroundColor, itemAlpha, textAlpha) = when (status) {
+        AttendanceStatus.PRESENT -> Triple(mapIdToColor(student.studentNumber), 1f, 1f)
+        AttendanceStatus.ABSENT -> Triple(Color.Yellow, 0.8f, 0.7f)
+        AttendanceStatus.EXCUSED -> Triple(Color.Gray, 0.8f, 0.8f)
+    }
 
+    val emojiColor =
+        if (status == AttendanceStatus.ABSENT) Color.Gray else MaterialTheme.colorScheme.onSurface
     val emoji = mapIdToEmoji(student.studentNumber)
 
     Column(
-        modifier = modifier.alpha(if (isAbsent) 0.5f else 1f),
+        modifier = modifier.alpha(itemAlpha),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Visual representation component
@@ -79,7 +90,8 @@ fun StudentItem(
             emoji = emoji,
             color = emojiColor,
             backgroundColor = backgroundColor,
-            modifier = modifier.alpha(0.9f)
+            isDashed = status != AttendanceStatus.PRESENT,
+            modifier = Modifier.alpha(0.9f)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -90,8 +102,8 @@ fun StudentItem(
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            modifier = modifier.alpha(if (isAbsent) 0.7f else 1f),
-            )
+            modifier = Modifier.alpha(textAlpha),
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
     }
@@ -99,7 +111,7 @@ fun StudentItem(
 
 /**
  * Composites an emoji over a decorative blob shape.
- * * @param emoji The text-based emoji to display.
+ * @param emoji The text-based emoji to display.
  * @param backgroundColor The base color for the background shape.
  * @param modifier Decorator for the emoji container.
  */
@@ -108,7 +120,8 @@ fun EmojiWithBlob(
     emoji: String,
     backgroundColor: Color,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.onSurface
+    color: Color = MaterialTheme.colorScheme.onSurface,
+    isDashed: Boolean = false
 ) {
     Box(
         modifier = modifier.size(64.dp),
@@ -119,9 +132,37 @@ fun EmojiWithBlob(
             modifier = Modifier
                 .size(width = 64.dp, height = 52.dp)
                 .rotate(-10f)
-                .background(
-                    color = backgroundColor.copy(),
-                    shape = BlobShape
+                .then(
+                    if (isDashed) {
+                        Modifier
+                            .drawBehind {
+                                val outline = BlobShape.createOutline(size, layoutDirection, this)
+                                if (outline is Outline.Generic) {
+                                    drawPath(
+                                        path = outline.path,
+                                        color = backgroundColor,
+                                        style = Stroke(
+                                            width = 2.dp.toPx(),
+                                            pathEffect = PathEffect.dashPathEffect(
+                                                floatArrayOf(
+                                                    10f,
+                                                    10f
+                                                ), 0f
+                                            )
+                                        )
+                                    )
+                                }
+                            }
+                            .background(
+                                color = backgroundColor,
+                                shape = BlobShape
+                            )
+                    } else {
+                        Modifier.background(
+                            color = backgroundColor,
+                            shape = BlobShape
+                        )
+                    }
                 )
         )
 
