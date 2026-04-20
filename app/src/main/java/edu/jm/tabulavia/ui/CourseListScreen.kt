@@ -8,6 +8,7 @@
 
 package edu.jm.tabulavia.ui
 
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -156,8 +157,11 @@ fun CourseListScreen(
                         val content = BufferedReader(InputStreamReader(inputStream)).readText()
                         
                         // Try to extract original name for suggestion
+                        Log.d("json", "Json loaded")
                         val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+                        Log.d("json", "Got json")
                         val backup = json.decodeFromString(edu.jm.tabulavia.model.CourseBackup.serializer(), content)
+                        Log.d("json", "Json backup")
                         
                         importJsonContent = content
                         suggestedCourseName = "${backup.course.className} (Recuperado)"
@@ -165,6 +169,7 @@ fun CourseListScreen(
                     }
                 } catch (e: Exception) {
                     viewModel.showMessage("Arquivo de backup inválido")
+                    Log.e("json", "Erro ao importar backup", e)
                 }
             }
         }
