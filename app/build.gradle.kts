@@ -109,7 +109,7 @@ dependencies {
     // Credenciais e Autenticação
     implementation(libs.androidx.credentials.lib)
     implementation(libs.androidx.credentials.playservicesauth)
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
+    implementation(libs.googleid)
     implementation(libs.play.services.auth)
 
     // Firebase (BOM garante compatibilidade de versões)

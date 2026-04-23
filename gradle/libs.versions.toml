@@ -15,7 +15,8 @@ navigationCompose = "2.9.6"
 navigationComposeVersion = "2.7.7"
 playServicesAuth = "21.4.0"
 roomRuntime = "2.7.0-beta01" #"2.6.1"
-credentials = "1.3.0-alpha01"
+googleid = "1.2.0"
+credentials = "1.6.0"
 ui = "1.10.0"
 junitJupiter = "5.8.1"
 junitJunit = "4.12"
@@ -50,6 +51,7 @@ androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
 junit-junit = { group = "junit", name = "junit", version.ref = "junitJunit" }
