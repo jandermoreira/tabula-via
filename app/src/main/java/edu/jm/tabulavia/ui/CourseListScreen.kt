@@ -78,36 +78,9 @@ fun CourseListScreen(
 
     var showBackupDialog by remember { mutableStateOf(false) }
     var isBackupLoading by remember { mutableStateOf(false) }
-    var courseToExport by remember { mutableStateOf<Course?>(null) }
     val context = LocalContext.current
 
     val coroutineScope = rememberCoroutineScope()
-
-    // Launcher for Exporting a Course
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        uri?.let {
-            coroutineScope.launch {
-                try {
-                    courseToExport?.let { course ->
-                        viewModel.exportCourseBackup(course) { jsonString ->
-                            try {
-                                context.contentResolver.openOutputStream(it)?.use { outputStream ->
-                                    outputStream.write(jsonString.toByteArray())
-                                    outputStream.flush()
-                                }
-                            } catch (e: Exception) {
-                                // Error handling
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Handled by ViewModel/MessageHandler
-                }
-            }
-        }
-    }
 
     var showImportDialog by remember { mutableStateOf(false) }
     var importJsonContent by remember { mutableStateOf("") }
@@ -253,11 +226,7 @@ fun CourseListScreen(
                     Column(modifier = Modifier.padding(horizontal = 8.dp)) {
                         CourseItem(
                             course = course,
-                            onClick = { onCourseClicked(course) },
-                            onExport = {
-                                courseToExport = course
-                                exportLauncher.launch("${course.className}_backup.json")
-                            }
+                            onClick = { onCourseClicked(course) }
                         )
                     }
                 }
@@ -407,8 +376,7 @@ fun CourseListScreen(
 @Composable
 fun CourseItem(
     course: Course,
-    onClick: () -> Unit,
-    onExport: () -> Unit
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -435,13 +403,6 @@ fun CourseItem(
                 Text(
                     text = "${course.academicYear}/${course.period}",
                     style = MaterialTheme.typography.bodySmall
-                )
-            }
-            IconButton(onClick = onExport) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = "Exportar curso",
-                    tint = MaterialTheme.colorScheme.secondary
                 )
             }
         }

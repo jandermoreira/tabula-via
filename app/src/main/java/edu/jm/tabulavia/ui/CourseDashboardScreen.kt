@@ -5,6 +5,8 @@
 
 package edu.jm.tabulavia.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -17,16 +19,19 @@ import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.ClassViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Main screen for the course dashboard.
@@ -58,6 +63,33 @@ fun CourseDashboardScreen(
     val activities by viewModel.activities.collectAsState()
     val courseSkills by viewModel.classSkills.collectAsState()
 
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    /**
+     * Launcher for exporting the current course to a JSON file.
+     */
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let {
+            coroutineScope.launch {
+                selectedCourse?.let { course ->
+                    viewModel.exportCourseBackup(course) { jsonString ->
+                        try {
+                            context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                                outputStream.write(jsonString.toByteArray())
+                                outputStream.flush()
+                            }
+                        } catch (e: Exception) {
+                            viewModel.showMessage("Erro ao salvar arquivo")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -74,6 +106,18 @@ fun CourseDashboardScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Voltar para a lista de turmas"
                         )
+                    }
+                },
+                actions = {
+                    selectedCourse?.let { course ->
+                        IconButton(onClick = {
+                            exportLauncher.launch("${course.className}_backup.json")
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Exportar turma"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
