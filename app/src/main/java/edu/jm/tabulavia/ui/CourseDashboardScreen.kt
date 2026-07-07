@@ -143,7 +143,7 @@ fun CourseDashboardScreen(
                         title = "Relatórios",
                         subtitle = "Análise e desempenho",
                         icon = Icons.Default.Assessment,
-                        onClick = { /* TODO: Implementar navegação para a tela de Relatórios */ }
+                        onClick = { navController.navigate("reportList/$classId") }
                     )
                 }
             }
@@ -153,7 +153,7 @@ fun CourseDashboardScreen(
 
 /**
  * A reusable card component for dashboard navigation.
- * * @param title The text label of the card.
+ * @param title The text label of the card.
  * @param subtitle Descriptive text below the title.
  * @param icon The vector icon to display.
  * @param onClick Action to perform when the card is clicked.

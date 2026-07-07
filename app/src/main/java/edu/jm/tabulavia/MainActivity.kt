@@ -198,6 +198,18 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(
+                            route = "reportList/{classId}",
+                            arguments = listOf(navArgument("classId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val classId = backStackEntry.arguments?.getString("classId") ?: ""
+                            ReportListScreen(
+                                classId = classId,
+                                viewModel = courseViewModel,
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(
                             route = "activityStudentList/{activityId}",
                             arguments = listOf(navArgument("activityId") { type = NavType.StringType })
                         ) { backStackEntry ->

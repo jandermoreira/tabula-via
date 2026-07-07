@@ -875,6 +875,31 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         attendanceMap.clear()
     }
 
+    /**
+     * Generates a formatted string for the attendance report.
+     * Includes student number and attendance percentage separated by a tab.
+     */
+    suspend fun generateAttendanceReport(): String = withContext(Dispatchers.IO) {
+        val currentClass = _selectedClass.value ?: return@withContext "Turma não encontrada."
+        val totalClasses = currentClass.numberOfClasses
+        
+        if (totalClasses <= 0) {
+            return@withContext "O número total de aulas deve ser configurado para calcular a frequência."
+        }
+
+        val students = _studentsForClass.value.sortedBy { it.studentNumber }
+        val reportBuilder = StringBuilder()
+
+        for (student in students) {
+            val absences = attendanceRepository.countStudentAbsences(student.studentId)
+            val presenceCount = (totalClasses - absences).coerceAtLeast(0).toFloat()
+            val percentage = ((presenceCount / totalClasses.toFloat()) * 100f).toInt()
+            reportBuilder.append("${student.studentNumber}\t$percentage\n")
+        }
+
+        return@withContext reportBuilder.toString().trim()
+    }
+
     // --- Backup and Restore Logic ---
 
     /**
