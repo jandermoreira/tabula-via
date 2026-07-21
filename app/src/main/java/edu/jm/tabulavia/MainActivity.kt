@@ -101,7 +101,7 @@ class MainActivity : ComponentActivity() {
                         composable("splash") {
                             LaunchedEffect(Unit) {
                                 delay(600)
-                                navController.navigate("addClass") {
+                                navController.navigate("classList") {
                                     popUpTo("splash") { inclusive = true }
                                 }
                             }
