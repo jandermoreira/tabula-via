@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private val courseViewModel: ClassViewModel by viewModels()
+    private val classViewModel: ClassViewModel by viewModels()
     private val authViewModel: AuthViewModel by viewModels()
     private lateinit var credentialManager: CredentialManager
 
@@ -101,42 +101,42 @@ class MainActivity : ComponentActivity() {
                         composable("splash") {
                             LaunchedEffect(Unit) {
                                 delay(600)
-                                navController.navigate("courseList") {
+                                navController.navigate("addClass") {
                                     popUpTo("splash") { inclusive = true }
                                 }
                             }
                         }
 
-                        composable("courseList") {
-                            CourseListScreen(
-                                viewModel = courseViewModel,
+                        composable("classList") {
+                            ClassListScreen(
+                                viewModel = classViewModel,
                                 authViewModel = authViewModel,
-                                onAddCourseClicked = { navController.navigate("addCourse") },
-                                onCourseClicked = { course ->
-                                    navController.navigate("courseDashboard/${course.classId}")
+                                onAddClassClicked = { navController.navigate("addClass") },
+                                onClassClicked = { clazz ->
+                                    navController.navigate("classDashboard/${clazz.classId}")
                                 },
                                 onLoginClicked = { signIn() },
                                 onLogoutClicked = { logout() })
                         }
 
-                        composable("addCourse") {
-                            AddCourseScreen(
-                                viewModel = courseViewModel,
-                                onCourseAdded = { navController.popBackStack() },
+                        composable("addClass") {
+                            AddClassScreen(
+                                viewModel = classViewModel,
+                                onClassAdded = { navController.popBackStack() },
                                 onNavigateBack = { navController.popBackStack() })
                         }
 
                         composable(
-                            route = "courseDashboard/{classId}",
+                            route = "classDashboard/{classId}",
                             arguments = listOf(navArgument("classId") { type = NavType.StringType })
                         ) { backStackEntry ->
                             val classId = backStackEntry.arguments?.getString("classId") ?: ""
-                            CourseDashboardScreen(
+                            ClassDashboardScreen(
                                 classId = classId,
-                                viewModel = courseViewModel,
+                                viewModel = classViewModel,
                                 navController = navController,
                                 onNavigateBack = {
-                                    courseViewModel.resetClassState()
+                                    classViewModel.resetClassState()
                                     navController.popBackStack()
                                 })
                         }
@@ -146,18 +146,18 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("classId") { type = NavType.StringType })
                         ) {
                             StudentListScreen(
-                                viewModel = courseViewModel,
+                                viewModel = classViewModel,
                                 onNavigateBack = { navController.popBackStack() })
                         }
 
                         composable(
-                            route = "courseSkills/{classId}",
+                            route = "classSkills/{classId}",
                             arguments = listOf(navArgument("classId") { type = NavType.StringType })
                         ) { backStackEntry ->
                             val classId = backStackEntry.arguments?.getString("classId") ?: ""
-                            CourseSkillsScreen(
-                                courseId = classId,
-                                viewModel = courseViewModel,
+                            ClassSkillsScreen(
+                                classId = classId,
+                                viewModel = classViewModel,
                                 onNavigateBack = { navController.popBackStack() })
                         }
 
@@ -166,21 +166,21 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("classId") { type = NavType.StringType })
                         ) {
                             AttendanceDashboardScreen(
-                                viewModel = courseViewModel,
+                                viewModel = classViewModel,
                                 onNavigateBack = { navController.popBackStack() },
                                 onStartNewAttendance = {
-                                    courseViewModel.prepareNewSession()
+                                    classViewModel.prepareNewSession()
                                     navController.navigate("attendanceScreen")
                                 },
                                 onEditAttendance = { session ->
-                                    courseViewModel.prepareToEditFrequencySession(session)
+                                    classViewModel.prepareToEditFrequencySession(session)
                                     navController.navigate("attendanceScreen")
                                 })
                         }
 
                         composable("attendanceScreen") {
                             AttendanceScreen(
-                                viewModel = courseViewModel,
+                                viewModel = classViewModel,
                                 onNavigateBack = { navController.popBackStack() })
                         }
 
@@ -189,7 +189,7 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("classId") { type = NavType.StringType })
                         ) {
                             ActivityListScreen(
-                                viewModel = courseViewModel,
+                                viewModel = classViewModel,
                                 onNavigateBack = { navController.popBackStack() },
                                 onActivityClicked = { activity ->
                                     val route = if (activity.description == "Individual") "activityStudentList" else "activityGroupScreen"
@@ -204,7 +204,7 @@ class MainActivity : ComponentActivity() {
                             val classId = backStackEntry.arguments?.getString("classId") ?: ""
                             ReportListScreen(
                                 classId = classId,
-                                viewModel = courseViewModel,
+                                viewModel = classViewModel,
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }
@@ -216,7 +216,7 @@ class MainActivity : ComponentActivity() {
                             val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
                             ActivityStudentListScreen(
                                 activityId = activityId,
-                                viewModel = courseViewModel,
+                                viewModel = classViewModel,
                                 onNavigateBack = { navController.popBackStack() })
                         }
 
@@ -227,7 +227,7 @@ class MainActivity : ComponentActivity() {
                             val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
                             ActivityGroupScreen(
                                 activityId = activityId,
-                                viewModel = courseViewModel,
+                                viewModel = classViewModel,
                                 onNavigateBack = { navController.popBackStack() })
                         }
                     }

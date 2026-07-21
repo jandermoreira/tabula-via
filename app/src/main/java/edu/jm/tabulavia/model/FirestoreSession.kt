@@ -16,7 +16,7 @@ data class FirestoreSession(
     val sessionId: String = "",
 
     /**
-     * Reference to the course identifier.
+     * Reference to the class identifier.
      */
     val classId: String = "",
 

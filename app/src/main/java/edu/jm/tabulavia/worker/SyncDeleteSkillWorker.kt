@@ -30,7 +30,7 @@ class SyncDeleteSkillWorker(
             // Reference to the specific document using the UUID generated at creation
             val documentReference = firestore.collection("users")
                 .document(userId)
-                .collection("courses")
+                .collection("classes")
                 .document(classId)
                 .collection("skills")
                 .document(firestoreId)

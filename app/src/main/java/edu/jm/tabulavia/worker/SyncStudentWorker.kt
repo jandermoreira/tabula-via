@@ -42,7 +42,7 @@ class SyncStudentWorker(
             // Reference to the specific student document in Firestore
             val documentReference = firestore.collection("users")
                 .document(userId)
-                .collection("courses")
+                .collection("classes")
                 .document(classId)
                 .collection("students")
                 .document(studentId)
@@ -78,7 +78,7 @@ class SyncStudentWorker(
          * Creates input data for this worker.
          *
          * @param userId The ID of the authenticated user.
-         * @param classId The ID of the course the student belongs to.
+         * @param classId The ID of the class the student belongs to.
          * @param studentId The ID of the student to sync.
          * @return A [androidx.work.Data] object containing the worker's input.
          */

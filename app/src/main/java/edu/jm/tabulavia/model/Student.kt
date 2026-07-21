@@ -1,6 +1,6 @@
 /**
  * Student entity for the 'students' table.
- * Manages student data with a unique identifier to ensure isolation per course
+ * Manages student data with a unique identifier to ensure isolation per class
  * and persistence across device reinstalls.
  */
 package edu.jm.tabulavia.model
@@ -9,14 +9,17 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 @Entity(
     tableName = "students",
     foreignKeys = [
         ForeignKey(
-            entity = Course::class,
+            entity = AcademicClass::class,
             parentColumns = ["classId"],
             childColumns = ["classId"],
             onDelete = ForeignKey.CASCADE
@@ -25,7 +28,6 @@ import kotlinx.serialization.Serializable
     indices = [Index(value = ["classId"])]
 )
 data class Student(
-
     /**
      * Unique identifier for the student.
      * Must be a UUID generated at creation or retrieved from Firestore.
@@ -50,8 +52,9 @@ data class Student(
 
     /**
      * Reference to the associated class ID.
-     * Ensures the student belongs exclusively to one course instance.
+     * Ensures the student belongs exclusively to one class instance.
      */
+    @JsonNames("courseId")
     val classId: String = ""
 ) {
     /**

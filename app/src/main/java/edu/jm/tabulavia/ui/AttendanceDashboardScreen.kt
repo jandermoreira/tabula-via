@@ -40,7 +40,7 @@ fun AttendanceDashboardScreen(
     onStartNewAttendance: () -> Unit,
     onEditAttendance: (ClassSession) -> Unit
 ) {
-    val selectedCourse by viewModel.selectedClass.collectAsState()
+    val selectedClass by viewModel.selectedClass.collectAsState()
     val classSessions by viewModel.classSessions.collectAsState()
     var selectedSessionForOptions by remember { mutableStateOf<ClassSession?>(null) }
     var sessionToDelete by remember { mutableStateOf<ClassSession?>(null) }
@@ -52,7 +52,7 @@ fun AttendanceDashboardScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    val titleText = selectedCourse?.let {
+                    val titleText = selectedClass?.let {
                         "${it.className} ${it.academicYear}/${it.period} - Frequência"
                     } ?: ""
                     Text(titleText)

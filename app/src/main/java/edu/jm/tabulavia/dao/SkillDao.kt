@@ -33,7 +33,7 @@ interface SkillDao {
     suspend fun getAllSkills(): List<StudentSkill>
 
     /**
-     * Retrieves all skills for students in a specific course.
+     * Retrieves all skills for students in a specific class.
      */
     @Query("""
         SELECT ss.* FROM student_skills ss

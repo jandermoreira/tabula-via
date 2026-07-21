@@ -1,6 +1,6 @@
 /**
- * File: CourseDashboardScreen.kt
- * Description: UI components for the course dashboard, displaying students, activities, skills, and reports.
+ * File: ClassDashboardScreen.kt
+ * Description: UI components for the class dashboard, displaying students, activities, skills, and reports.
  */
 
 package edu.jm.tabulavia.ui
@@ -34,15 +34,15 @@ import edu.jm.tabulavia.viewmodel.ClassViewModel
 import kotlinx.coroutines.launch
 
 /**
- * Main screen for the course dashboard.
+ * Main screen for the class dashboard.
  * * @param classId The unique identifier of the class.
- * @param viewModel The ViewModel handling course logic.
+ * @param viewModel The ViewModel handling class logic.
  * @param navController Controller for app navigation.
  * @param onNavigateBack Callback for the back navigation action.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CourseDashboardScreen(
+fun ClassDashboardScreen(
     classId: String,
     viewModel: ClassViewModel,
     navController: NavController,
@@ -58,24 +58,24 @@ fun CourseDashboardScreen(
         viewModel.loadClassDetails(classId)
     }
 
-    val selectedCourse by viewModel.selectedClass.collectAsState()
+    val selectedClass by viewModel.selectedClass.collectAsState()
     val students by viewModel.studentsForClass.collectAsState()
     val activities by viewModel.activities.collectAsState()
-    val courseSkills by viewModel.classSkills.collectAsState()
+    val classSkills by viewModel.classSkills.collectAsState()
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     /**
-     * Launcher for exporting the current course to a JSON file.
+     * Launcher for exporting the current class to a JSON file.
      */
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         uri?.let {
             coroutineScope.launch {
-                selectedCourse?.let { course ->
-                    viewModel.exportCourseBackup(course) { jsonString ->
+                selectedClass?.let { clazz ->
+                    viewModel.exportClassBackup(clazz) { jsonString ->
                         try {
                             context.contentResolver.openOutputStream(it)?.use { outputStream ->
                                 outputStream.write(jsonString.toByteArray())
@@ -95,7 +95,7 @@ fun CourseDashboardScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    val titleText = selectedCourse?.let {
+                    val titleText = selectedClass?.let {
                         "${it.className} ${it.academicYear}/${it.period}"
                     } ?: "Carregando..."
                     Text(titleText)
@@ -109,9 +109,9 @@ fun CourseDashboardScreen(
                     }
                 },
                 actions = {
-                    selectedCourse?.let { course ->
+                    selectedClass?.let { clazz ->
                         IconButton(onClick = {
-                            exportLauncher.launch("${course.className}_backup.json")
+                            exportLauncher.launch("${clazz.className}_backup.json")
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Share,
@@ -176,9 +176,9 @@ fun CourseDashboardScreen(
                 item {
                     DashboardCard(
                         title = "Habilidades",
-                        subtitle = "${courseSkills.size} habilidades definidas",
+                        subtitle = "${classSkills.size} habilidades definidas",
                         icon = Icons.Default.Psychology,
-                        onClick = { navController.navigate("courseSkills/$classId") }
+                        onClick = { navController.navigate("classSkills/$classId") }
                     )
                 }
 

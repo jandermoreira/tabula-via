@@ -17,24 +17,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import edu.jm.tabulavia.model.CourseSkill
+import edu.jm.tabulavia.model.ClassSkill
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CourseSkillsScreen(
-    courseId: String,
+fun ClassSkillsScreen(
+    classId: String,
     viewModel: ClassViewModel,
     onNavigateBack: () -> Unit
 ) {
     MessageHandler(viewModel)
 
-    val courseSkills by viewModel.classSkills.collectAsState()
+    val classSkills by viewModel.classSkills.collectAsState()
     var showAddSkillDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(courseId) {
-        viewModel.loadSkillsForClass(courseId)
+    LaunchedEffect(classId) {
+        viewModel.loadSkillsForClass(classId)
     }
 
     Scaffold(
@@ -59,9 +59,9 @@ fun CourseSkillsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(courseSkills) { skill ->
-                CourseSkillItem(skill, onDelete = {
-                    viewModel.deleteCclassSkill(skill)
+            items(classSkills) { skill ->
+                ClassSkillItem(skill, onDelete = {
+                    viewModel.deleteClassSkill(skill)
                 })
             }
         }
@@ -76,7 +76,7 @@ fun CourseSkillsScreen(
 }
 
 @Composable
-private fun CourseSkillItem(skill: CourseSkill, onDelete: () -> Unit) {
+private fun ClassSkillItem(skill: ClassSkill, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

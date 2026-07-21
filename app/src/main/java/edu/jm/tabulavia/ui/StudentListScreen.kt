@@ -2,8 +2,8 @@
  * StudentListScreen.kt
  *
  * Provides the user interface for listing, adding, editing, and removing students
- * within a specific course. It manages the visibility of various action dialogs
- * and handles interactions with the CourseViewModel.
+ * within a specific class. It manages the visibility of various action dialogs
+ * and handles interactions with the ClassViewModel.
  */
 
 package edu.jm.tabulavia.ui
@@ -53,7 +53,7 @@ fun StudentListScreen(
 
     // Data observation
     val students by viewModel.studentsForClass.collectAsState()
-    val selectedCourse by viewModel.selectedClass.collectAsState()
+    val selectedClass by viewModel.selectedClass.collectAsState()
     val todaysAttendance by viewModel.currentSessionAttendance.collectAsState()
     val selectedStudentDetails by viewModel.selectedStudentDetails.collectAsState()
     val attendancePercentage by viewModel.studentAttendancePercentage.collectAsState()
@@ -62,7 +62,7 @@ fun StudentListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    val titleText = selectedCourse?.let {
+                    val titleText = selectedClass?.let {
                         "${it.className} ${it.academicYear}/${it.period} - Alunos"
                     } ?: ""
                     Text(titleText)

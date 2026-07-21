@@ -1,6 +1,6 @@
 /**
  * ClassSession entity for the 'class_sessions' table.
- * Represents a specific class meeting, isolated by course and persistent via String ID.
+ * Represents a specific class meeting, isolated by class and persistent via String ID.
  */
 package edu.jm.tabulavia.model
 
@@ -8,14 +8,17 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 @Entity(
     tableName = "class_sessions",
     foreignKeys = [
         ForeignKey(
-            entity = Course::class,
+            entity = AcademicClass::class,
             parentColumns = ["classId"],
             childColumns = ["classId"],
             onDelete = ForeignKey.CASCADE
@@ -41,8 +44,9 @@ data class ClassSession(
     val firestoreId: String? = null,
 
     /**
-     * Reference to the associated course ID.
+     * Reference to the associated class ID.
      */
+    @JsonNames("courseId")
     val classId: String,
 
     /**

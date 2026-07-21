@@ -69,9 +69,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     private val db = DatabaseProvider.getDatabase(application)
 
-    private val courseRepository = ClassRepository(
+    private val classRepository = ClassRepository(
         context = application.applicationContext,
-        courseDao = db.courseDao(),
+        classDao = db.classDao(),
         activityDao = db.activityDao(),
         groupMemberDao = db.groupMemberDao(),
         firestore = Firebase.firestore
@@ -86,7 +86,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         applicationContext = application.applicationContext
     )
     private val skillRepository = SkillRepository(
-        courseSkillDao = db.courseSkillDao(),
+        classSkillDao = db.classSkillDao(),
         skillAssessmentDao = db.skillAssessmentDao(),
         firestore = Firebase.firestore,
         scope = viewModelScope
@@ -97,8 +97,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     )
 
     // --- UI State Streams ---
-    private val _selectedClass = MutableStateFlow<Course?>(null)
-    val selectedClass: StateFlow<Course?> = _selectedClass.asStateFlow()
+    private val _selectedClass = MutableStateFlow<AcademicClass?>(null)
+    val selectedClass: StateFlow<AcademicClass?> = _selectedClass.asStateFlow()
 
     private val _selectedActivity = MutableStateFlow<Activity?>(null)
     val selectedActivity: StateFlow<Activity?> = _selectedActivity.asStateFlow()
@@ -107,9 +107,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     val studentsForClass: StateFlow<List<Student>> = _studentsForClass.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val _classSessions = _selectedClass.flatMapLatest { course ->
-        if (course != null) {
-            attendanceRepository.getClassSessionsFlow(course.classId)
+    private val _classSessions = _selectedClass.flatMapLatest { academicClass ->
+        if (academicClass != null) {
+            attendanceRepository.getClassSessionsFlow(academicClass.classId)
         } else {
             kotlinx.coroutines.flow.flowOf(emptyList())
         }
@@ -143,8 +143,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     val studentSkillSummaries: StateFlow<Map<String, SkillAssessmentsSummary>> =
         _studentSkillSummaries.asStateFlow()
 
-    private val _classSkills = MutableStateFlow<List<CourseSkill>>(emptyList())
-    val classSkills: StateFlow<List<CourseSkill>> = _classSkills.asStateFlow()
+    private val _classSkills = MutableStateFlow<List<ClassSkill>>(emptyList())
+    val classSkills: StateFlow<List<ClassSkill>> = _classSkills.asStateFlow()
 
     private val _generatedGroups = MutableStateFlow<List<List<Student>>>(emptyList())
     val generatedGroups: StateFlow<List<List<Student>>> = _generatedGroups.asStateFlow()
@@ -178,7 +178,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     val groupsLoaded: StateFlow<Boolean> = _groupsLoaded.asStateFlow()
 
     // --- Compose-driven Form State ---
-    var courseName by mutableStateOf("")
+    var className by mutableStateOf("")
     var academicYear by mutableStateOf("")
     var period by mutableStateOf("")
     var numberOfClasses by mutableIntStateOf(0)
@@ -199,7 +199,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     // --- Loading and Clearing Logic ---
 
-    val classes: StateFlow<List<Course>> = courseRepository.getAllCoursesFlow().stateIn(
+    val classes: StateFlow<List<AcademicClass>> = classRepository.getAllClassesFlow().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
@@ -207,7 +207,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     init {
         Firebase.auth.currentUser?.uid?.let { uid ->
-            courseRepository.startCoursesSync(uid)
+            classRepository.startClassesSync(uid)
         }
     }
 
@@ -216,20 +216,20 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      */
     override fun onCleared() {
         super.onCleared()
-        courseRepository.stopCoursesSync()
+        classRepository.stopClassesSync()
         studentRepository.stopStudentsSync()
-        courseRepository.stopActivitiesSync()
+        classRepository.stopActivitiesSync()
         attendanceRepository.stopAttendanceSync()
         skillRepository.stopAllListeners()
     }
 
     /**
-     * Refreshes all course data by pulling information from the cloud provider.
+     * Refreshes all class data by pulling information from the cloud provider.
      */
     fun refreshAllData(uid: String) {
         viewModelScope.launch {
             try {
-                courseRepository.syncCoursesFromCloud(uid)
+                classRepository.syncClassesFromCloud(uid)
             } catch (e: Exception) {
                 showMessage("Sync failed: ${e.message}")
             }
@@ -249,15 +249,15 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         // Start real-time sync for all related data
         Firebase.auth.currentUser?.uid?.let { uid ->
             studentRepository.startStudentsSync(uid, classId)
-            courseRepository.startActivitiesSync(uid, classId)
+            classRepository.startActivitiesSync(uid, classId)
             attendanceRepository.startAttendanceSync(classId)
-            skillRepository.startListeningToCourseSkills(uid, classId)
+            skillRepository.startListeningToClassSkills(uid, classId)
         }
 
         // Launch coroutines to collect Flows from Room (they will emit initial data and updates)
         viewModelScope.launch {
             // Get the selected class (one-shot)
-            _selectedClass.value = courseRepository.getCourseById(classId)
+            _selectedClass.value = classRepository.getClassById(classId)
 
             // Collect students (real-time)
             studentRepository.getStudentsForClass(classId).collect { studentsList ->
@@ -267,26 +267,26 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
         viewModelScope.launch {
             // Collect activities (real-time)
-            courseRepository.getActivitiesForClass(classId).collect { activitiesList ->
+            classRepository.getActivitiesForClass(classId).collect { activitiesList ->
                 _activities.value = activitiesList
             }
         }
 
         viewModelScope.launch {
             // Collect class skills (real-time via the new Flow from SkillRepository)
-            skillRepository.getSkillsFlowForCourse(classId).collect { skillsList ->
+            skillRepository.getSkillsFlowForClass(classId).collect { skillsList ->
                 _classSkills.value = skillsList
             }
         }
     }
 
     /**
-     * Resets the UI state for the current course and stops all active Firestore listeners.
+     * Resets the UI state for the current class and stops all active Firestore listeners.
      */
     fun resetClassState() {
         // Stop listeners
         studentRepository.stopStudentsSync()
-        currentClassId?.let { skillRepository.stopListeningToCourseSkills(it) }
+        currentClassId?.let { skillRepository.stopListeningToClassSkills(it) }
         currentClassId = null
 
         _selectedClass.value = null
@@ -334,7 +334,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             _selectedStudentDetails.value = studentRepository.getStudentById(studentId)
 
             val classId = _selectedClass.value?.classId ?: return@launch
-            val classSkills = skillRepository.getSkillsForCourse(classId)
+            val classSkills = skillRepository.getSkillsForClass(classId)
             _classSkills.value = classSkills
 
             attendanceRepository.countStudentAbsencesFlow(studentId).collect { absences ->
@@ -388,7 +388,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      */
     fun loadSkillsForClass(classId: String) {
         viewModelScope.launch {
-            _classSkills.value = skillRepository.getSkillsForCourse(classId)
+            _classSkills.value = skillRepository.getSkillsForClass(classId)
         }
     }
 
@@ -411,13 +411,13 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
         if (skillName.isNotBlank()) {
             viewModelScope.launch {
-                val newSkill = CourseSkill(
-                    courseId = classId,
+                val newSkill = ClassSkill(
+                    classId = classId,
                     skillName = skillName,
                     firestoreId = java.util.UUID.randomUUID().toString()
                 )
 
-                skillRepository.insertCourseSkills(uid, classId, listOf(newSkill))
+                skillRepository.insertClassSkills(uid, classId, listOf(newSkill))
 
                 skillName = ""
                 loadSkillsForClass(classId)
@@ -429,12 +429,12 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     /**
      * Removes a skill from the class.
      */
-    fun deleteCclassSkill(skill: CourseSkill) {
+    fun deleteClassSkill(skill: ClassSkill) {
         val uid = Firebase.auth.currentUser?.uid ?: return
         val classId = _selectedClass.value?.classId ?: return
 
         viewModelScope.launch {
-            skillRepository.deleteCourseSkill(uid, classId, skill)
+            skillRepository.deleteClassSkill(uid, classId, skill)
             loadSkillsForClass(classId)
         }
     }
@@ -498,7 +498,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         _loadedActivityId.value = null
 
         viewModelScope.launch {
-            val activity = courseRepository.getActivityById(activityId)
+            val activity = classRepository.getActivityById(activityId)
             _selectedActivity.value = activity
             if (activity != null) {
                 loadPersistedGroups(activityId, activity.classId)
@@ -517,7 +517,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     private fun loadPersistedGroups(activityId: String, classId: String) {
         viewModelScope.launch {
             // Combines both flows to reactively reconstruct the groups list
-            courseRepository.getGroupMembers(activityId)
+            classRepository.getGroupMembers(activityId)
                 .combine(studentRepository.getStudentsForClass(classId)) { members, students ->
                     if (members.isNotEmpty()) {
                         val studentMap = students.associateBy { it.studentId }
@@ -567,7 +567,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     classId = classId
                 )
 
-                courseRepository.insertActivity(newActivity, uid)
+                classRepository.insertActivity(newActivity, uid)
 
                 val highlightedSkills = activityHighlightedSkills.sorted().map { skillName ->
                     ActivityHighlightedSkill(
@@ -593,7 +593,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      */
     fun loadActivitiesForClass(classId: String) {
         viewModelScope.launch {
-            courseRepository.getActivitiesForClass(classId).collect { activitiesList ->
+            classRepository.getActivitiesForClass(classId).collect { activitiesList ->
                 _activities.value = activitiesList
             }
         }
@@ -647,7 +647,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 }
             }
             _generatedGroups.value = groups
-            courseRepository.persistGroups(activityId, groups)
+            classRepository.persistGroups(activityId, groups)
         }
     }
 
@@ -914,14 +914,14 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 //        showMessage("Iniciando backup...")
 //        try {
 //            val backupData = BackupData(
-//                courses = courseRepository.getAllCourses(),
+//                classes = classRepository.getAllClasses(),
 //                students = studentRepository.getAllStudents(),
 //                classSessions = attendanceRepository.getAllSessions(),
 //                attendanceRecords = attendanceRepository.getAllRecords(),
-//                activities = courseRepository.getAllActivities(),
-//                groupMembers = courseRepository.getAllGroupMembers(),
+//                activities = classRepository.getAllActivities(),
+//                groupMembers = classRepository.getAllGroupMembers(),
 ////                skillAssessments = skillRepository.getAllAssessments().first(),
-////                courseSkills = skillRepository.getAllCourseSkills(),
+////                classSkills = skillRepository.getAllClassSkills(),
 ////                activityHighlightedSkills = skillRepository.getAllHighlightedSkills(),
 ////                studentSkills = skillRepository.getAllStudentSkills()
 //            )
@@ -952,14 +952,14 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 //
 //            withContext(Dispatchers.IO) {
 //                db.clearAllTables()
-//                courseRepository.insertAllCourses(backupData.courses)
+//                classRepository.insertAllClasses(backupData.classes)
 //                studentRepository.insertAllStudents(backupData.students, userId)
-//                courseRepository.insertAllActivities(backupData.activities)
+//                classRepository.insertAllActivities(backupData.activities)
 //                attendanceRepository.insertAllSessions(backupData.classSessions)
 //                attendanceRepository.insertAllAttendanceRecords(backupData.attendanceRecords)
-//                courseRepository.insertAllGroupMembers(backupData.groupMembers)
+//                classRepository.insertAllGroupMembers(backupData.groupMembers)
 ////                skillRepository.insertAllAssessments(backupData.skillAssessments)
-////                skillRepository.insertCourseSkills(backupData.courseSkills)
+////                skillRepository.insertClassSkills(backupData.classSkills)
 ////                skillRepository.insertAllHighlightedSkills(backupData.activityHighlightedSkills)
 ////                skillRepository.insertOrUpdateStudentSkills(backupData.studentSkills)
 //            }
@@ -1009,7 +1009,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     /**
      * Deletes Firestore collections only for the current user, including nested subcollections.
-     * Iterates through courses to ensure orphans are not left behind.
+     * Iterates through classes to ensure orphans are not left behind.
      */
     private suspend fun clearFirestoreDatabaseForCurrentUser() {
         val uid = Firebase.auth.currentUser?.uid ?: return
@@ -1021,18 +1021,18 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             deleteCollection("users/$uid/$collection")
         }
 
-        // Process courses and their nested subcollections (students, sessions, etc.)
-        val coursesRef = firestore.collection("users/$uid/courses")
-        val coursesSnapshot = coursesRef.get().await()
+        // Process classes and their nested subcollections (students, sessions, etc.)
+        val classesRef = firestore.collection("users/$uid/classes")
+        val classesSnapshot = classesRef.get().await()
 
-        for (courseDoc in coursesSnapshot.documents) {
-            val courseId = courseDoc.id
+        for (classDoc in classesSnapshot.documents) {
+            val classId = classDoc.id
             // Explicitly clear subcollections that Firestore won't delete automatically
-            deleteCollection("users/$uid/courses/$courseId/students")
-            // deleteCollection("users/$uid/courses/$courseId/sessions")
+            deleteCollection("users/$uid/classes/$classId/students")
+            // deleteCollection("users/$uid/classes/$classId/sessions")
 
-            // Delete the course document itself
-            courseDoc.reference.delete().await()
+            // Delete the class document itself
+            classDoc.reference.delete().await()
         }
     }
 
@@ -1054,7 +1054,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         batch.commit().await()
     }
 
-    // --- Course and Student Creation Logic ---
+    // --- Class and Student Creation Logic ---
 
     private var isAddingClass = false
 
@@ -1065,7 +1065,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     fun addClass(onClassAdded: () -> Unit) {
         if (isAddingClass) return
 
-        if (courseName.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
+        if (className.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
             val uid = Firebase.auth.currentUser?.uid ?: return
             isAddingClass = true
 
@@ -1073,25 +1073,25 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 try {
                     val generatedClassId = java.util.UUID.randomUUID().toString()
 
-                    val newClass = Course(
+                    val newClass = AcademicClass(
                         classId = generatedClassId,
-                        className = courseName,
+                        className = className,
                         academicYear = academicYear,
                         period = period,
                         numberOfClasses = numberOfClasses
                     )
 
-                    courseRepository.insertCourse(newClass, uid)
+                    classRepository.insertClass(newClass, uid)
 
                     val skills = defaultComputerScienceSkills.map { skillName ->
-                        CourseSkill(
-                            courseId = generatedClassId,
+                        ClassSkill(
+                            classId = generatedClassId,
                             skillName = skillName,
                             firestoreId = java.util.UUID.randomUUID().toString()
                         )
                     }
 
-                    skillRepository.insertCourseSkills(uid, generatedClassId, skills)
+                    skillRepository.insertClassSkills(uid, generatedClassId, skills)
 
                     loadClassDetails(generatedClassId)
 
@@ -1108,7 +1108,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Resets the input fields for class creation.
      */
     private fun resetClassForm() {
-        courseName = ""
+        className = ""
         academicYear = ""
         period = ""
         numberOfClasses = 0
@@ -1382,18 +1382,18 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         _generatedGroups.value = groups
 
         viewModelScope.launch {
-            courseRepository.persistGroups(
+            classRepository.persistGroups(
                 activityId = _loadedActivityId.value ?: return@launch, groups = groups
             )
         }
     }
 
     /**
-     * Collects and serializes all data for a specific course into a JSON string.
+     * Collects and serializes all data for a specific class into a JSON string.
      * This operation is performed locally using the Room database.
      */
-    fun exportCourseBackup(course: Course, onBackupReady: (String) -> Unit) {
-        val classId = course.classId
+    fun exportClassBackup(academicClass: AcademicClass, onBackupReady: (String) -> Unit) {
+        val classId = academicClass.classId
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -1418,7 +1418,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 val highlightedSkills = db.activityHighlightedSkillDao().getHighlightedSkillsForClass(classId)
 
                 // Collect skills and assessments
-                val skills = db.courseSkillDao().getSkillsForCourse(classId)
+                val skills = db.classSkillDao().getSkillsForClass(classId)
                 val assessments = mutableListOf<SkillAssessment>()
                 val studentSkills = db.skillDao().getSkillsForClass(classId)
                 
@@ -1426,8 +1426,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     assessments.addAll(db.skillAssessmentDao().getAssessmentsForStudentList(student.studentId))
                 }
 
-                val backup = CourseBackup(
-                    course = course,
+                val backup = ClassBackup(
+                    clazz = academicClass,
                     students = students,
                     sessions = sessions,
                     attendance = allRecords,
@@ -1447,7 +1447,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 }
                 
                 val jsonString = try {
-                    json.encodeToString(CourseBackup.serializer(), backup)
+                    json.encodeToString(ClassBackup.serializer(), backup)
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         showMessage("Erro na serialização: ${e.message}")
@@ -1458,7 +1458,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 if (jsonString.isNotBlank()) {
                     withContext(Dispatchers.Main) {
                         onBackupReady(jsonString)
-                        showMessage("Backup de ${course.className} gerado com sucesso!")
+                        showMessage("Backup de ${academicClass.className} gerado com sucesso!")
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -1474,47 +1474,47 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     }
 
     /**
-     * Restores a course and all its related data from a JSON backup string and syncs with Firestore.
+     * Restores a class and all its related data from a JSON backup string and syncs with Firestore.
      */
-    fun importCourseBackup(jsonString: String, customName: String? = null) {
+    fun importClassBackup(jsonString: String, customName: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val uid = com.google.firebase.Firebase.auth.currentUser?.uid
                 val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                val backup = json.decodeFromString(CourseBackup.serializer(), jsonString)
+                val backup = json.decodeFromString(ClassBackup.serializer(), jsonString)
 
                 // 1. Prepare Data and Mappings
-                val newCourseId = UUID.randomUUID().toString()
-                val restoredCourse = backup.course.copy(
-                    classId = newCourseId,
-                    className = customName ?: "${backup.course.className} (Importado)"
+                val newClassId = UUID.randomUUID().toString()
+                val restoredClass = backup.clazz.copy(
+                    classId = newClassId,
+                    className = customName ?: "${backup.clazz.className} (Importado)"
                 )
 
                 val studentIdMap = mutableMapOf<String, String>()
                 val restoredStudents = backup.students.map { student ->
                     val newId = UUID.randomUUID().toString()
                     studentIdMap[student.studentId] = newId
-                    student.copy(studentId = newId, classId = newCourseId)
+                    student.copy(studentId = newId, classId = newClassId)
                 }
 
                 val sessionIdMap = mutableMapOf<String, String>()
                 val restoredSessions = backup.sessions.map { session ->
                     val newId = UUID.randomUUID().toString()
                     sessionIdMap[session.sessionId] = newId
-                    session.copy(sessionId = newId, classId = newCourseId)
+                    session.copy(sessionId = newId, classId = newClassId)
                 }
 
                 val activityIdMap = mutableMapOf<String, String>()
                 val restoredActivities = backup.activities.map { activity ->
                     val newId = UUID.randomUUID().toString()
                     activityIdMap[activity.activityId] = newId
-                    activity.copy(activityId = newId, classId = newCourseId)
+                    activity.copy(activityId = newId, classId = newClassId)
                 }
 
                 // 2. Consolidated Local Database Transaction
                 db.withTransaction {
-                    // 2.1 Course Insertion
-                    db.courseDao().insertCourse(restoredCourse)
+                    // 2.1 Class Insertion
+                    db.classDao().insertClass(restoredClass)
 
                     // 2.2 Students Insertion
                     if (restoredStudents.isNotEmpty()) {
@@ -1569,9 +1569,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     }
 
                     // 2.5 Skills and Assessments
-                    val restoredSkills = backup.skills.map { it.copy(courseId = newCourseId, firestoreId = UUID.randomUUID().toString()) }
+                    val restoredSkills = backup.skills.map { it.copy(classId = newClassId, firestoreId = UUID.randomUUID().toString()) }
                     if (restoredSkills.isNotEmpty()) {
-                        db.courseSkillDao().insertCourseSkills(restoredSkills)
+                        db.classSkillDao().insertClassSkills(restoredSkills)
                     }
 
                     val restoredHSkills = backup.highlightedSkills.mapNotNull { hs ->
@@ -1598,19 +1598,19 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
                 // 3. Cloud Sync (outside transaction)
                 if (uid != null) {
-                    val userCoursesRef = Firebase.firestore.collection("users").document(uid).collection("courses")
+                    val userClassesRef = Firebase.firestore.collection("users").document(uid).collection("classes")
                     
-                    // Sync course
-                    userCoursesRef.document(newCourseId).set(restoredCourse)
+                    // Sync class
+                    userClassesRef.document(newClassId).set(restoredClass)
 
                     // Sync students
                     restoredStudents.forEach { student ->
-                        userCoursesRef.document(newCourseId).collection("students").document(student.studentId).set(student)
+                        userClassesRef.document(newClassId).collection("students").document(student.studentId).set(student)
                     }
 
                     // Sync activities
                     restoredActivities.forEach { activity ->
-                        userCoursesRef.document(newCourseId).collection("activities").document(activity.activityId).set(activity)
+                        userClassesRef.document(newClassId).collection("activities").document(activity.activityId).set(activity)
                     }
 
                     // Sync sessions to Firestore
@@ -1623,12 +1623,12 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
                         val firestoreSession = mapOf(
                             "sessionId" to session.sessionId,
-                            "classId" to newCourseId,
+                            "classId" to newClassId,
                             "timestamp" to session.timestamp,
                             "attendance" to attendanceMap.mapValues { it.value.name }
                         )
                         
-                        userCoursesRef.document(newCourseId).collection("sessions").document(session.sessionId).set(firestoreSession)
+                        userClassesRef.document(newClassId).collection("sessions").document(session.sessionId).set(firestoreSession)
                     }
 
                     // Reconstruction and persist groups for sync
@@ -1638,15 +1638,15 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                             groupList.mapNotNull { member -> restoredStudents.find { it.studentId == member.studentId } }
                         }
                         if (groups.isNotEmpty()) {
-                            courseRepository.persistGroups(newAid, groups)
+                            classRepository.persistGroups(newAid, groups)
                         }
                     }
                     
                     // Sync skills
-                    val skillsToSync = db.courseSkillDao().getSkillsForCourse(newCourseId)
+                    val skillsToSync = db.classSkillDao().getSkillsForClass(newClassId)
                     skillsToSync.forEach { skill ->
                          val firestoreId = skill.firestoreId ?: UUID.randomUUID().toString()
-                         userCoursesRef.document(newCourseId).collection("skills").document(firestoreId).set(skill)
+                         userClassesRef.document(newClassId).collection("skills").document(firestoreId).set(skill)
                     }
                 }
 

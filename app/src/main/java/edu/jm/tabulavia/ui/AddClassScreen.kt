@@ -1,6 +1,6 @@
 /**
- * UI components for course management in the Tabulavia application.
- * This file contains the screen to add new academic courses.
+ * UI components for class management in the Tabulavia application.
+ * This file contains the screen to add new academic classes.
  */
 
 package edu.jm.tabulavia.ui
@@ -20,16 +20,16 @@ import edu.jm.tabulavia.viewmodel.ClassViewModel
 import java.time.Year
 
 /**
- * Screen that provides a form to add a new course to the system.
- * * @param viewModel The state holder for course data.
- * @param onCourseAdded Callback executed after successful course creation.
+ * Screen that provides a form to add a new class to the system.
+ * * @param viewModel The state holder for class data.
+ * @param onClassAdded Callback executed after successful class creation.
  * @param onNavigateBack Callback to return to the previous screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddCourseScreen(
+fun AddClassScreen(
     viewModel: ClassViewModel,
-    onCourseAdded: () -> Unit,
+    onClassAdded: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
     MessageHandler(viewModel)
@@ -58,8 +58,8 @@ fun AddCourseScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedTextField(
-                value = viewModel.courseName,
-                onValueChange = { viewModel.courseName = it },
+                value = viewModel.className,
+                onValueChange = { viewModel.className = it },
                 label = { Text("Nome da Turma (ex: CAP)") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -97,9 +97,9 @@ fun AddCourseScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action button to save the course
+            // Action button to save the class
             Button(
-                onClick = { viewModel.addClass(onCourseAdded) },
+                onClick = { viewModel.addClass(onClassAdded) },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Salvar Turma")

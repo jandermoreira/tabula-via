@@ -60,7 +60,7 @@ class StudentRepository(
         for (student in students) {
             val docRef = firestore.collection("users")
                 .document(uid)
-                .collection("courses")
+                .collection("classes")
                 .document(student.classId)
                 .collection("students")
                 .document(student.studentId)
@@ -72,7 +72,7 @@ class StudentRepository(
     /**
      * Observes all students from a specific class.
      *
-     * @param classId The unique identifier of the course.
+     * @param classId The unique identifier of the class.
      * @return Flow containing the list of students.
      */
     fun getStudentsForClass(classId: String): Flow<List<Student>> =
@@ -81,7 +81,7 @@ class StudentRepository(
     /**
      * Retrieves all students for a specific class as a list.
      *
-     * @param classId The unique identifier of the course.
+     * @param classId The unique identifier of the class.
      * @return List of students.
      */
     suspend fun getStudentsForClassList(classId: String): List<Student> =
@@ -99,7 +99,7 @@ class StudentRepository(
         studentDao.getStudentById(studentId)
 
     /**
-     * Observes all students across all courses.
+     * Observes all students across all classes.
      */
     fun getAllStudentsFlow(): Flow<List<Student>> = studentDao.getAllStudentsFlow()
 
@@ -166,19 +166,19 @@ class StudentRepository(
     private var studentsListener: ListenerRegistration? = null
 
     /**
-         * Starts a Firestore snapshot listener for a specific course's students.
+         * Starts a Firestore snapshot listener for a specific class's students.
          * Uses documentChanges to specifically handle ADDED, MODIFIED, and REMOVED events,
          * ensuring the local Room database stays perfectly in sync with Firestore.
          *
          * @param uid The authenticated user ID.
-         * @param classId The unique identifier of the course.
+         * @param classId The unique identifier of the class.
          */
         fun startStudentsSync(uid: String, classId: String) {
             stopStudentsSync()
 
             studentsListener = firestore.collection("users")
                 .document(uid)
-                .collection("courses")
+                .collection("classes")
                 .document(classId)
                 .collection("students")
                 .addSnapshotListener { snapshot, error ->

@@ -12,14 +12,14 @@ import edu.jm.tabulavia.model.*
 
 @Database(
     entities = [
-        Course::class,
+        AcademicClass::class,
         Student::class,
         ClassSession::class,
         AttendanceRecord::class,
         Activity::class,
         StudentSkill::class,
         GroupMember::class,
-        CourseSkill::class,
+        ClassSkill::class,
         SkillAssessment::class,
         ActivityHighlightedSkill::class
     ],
@@ -30,19 +30,14 @@ import edu.jm.tabulavia.model.*
 abstract class AppDatabase : RoomDatabase() {
 
     /**
-     * Provides access to Course-related database operations.
+     * Provides access to Class-related database operations.
      */
-    abstract fun courseDao(): CourseDao
+    abstract fun classDao(): ClassDao
 
     /**
      * Provides access to Student-related database operations.
      */
     abstract fun studentDao(): StudentDao
-
-//    /**
-//     * Provides access to ClassSession-related database operations.
-//     */
-//    abstract fun classSessionDao(): ClassSessionDao
 
     /**
      * Provides access to Attendance-related database operations.
@@ -65,9 +60,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun groupMemberDao(): GroupMemberDao
 
     /**
-     * Provides access to Course Skill mapping database operations.
+     * Provides access to Class Skill mapping database operations.
      */
-    abstract fun courseSkillDao(): CourseSkillDao
+    abstract fun classSkillDao(): ClassSkillDao
 
     /**
      * Provides access to Skill Assessment database operations.

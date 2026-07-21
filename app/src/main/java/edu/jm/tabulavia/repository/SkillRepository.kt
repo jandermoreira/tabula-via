@@ -1,12 +1,12 @@
 /**
- * Repository for managing course skills.
+ * Repository for managing class skills.
  * Provides local data access via Room and real-time synchronization with Firestore.
  */
 package edu.jm.tabulavia.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
-import edu.jm.tabulavia.dao.CourseSkillDao
-import edu.jm.tabulavia.model.CourseSkill
+import edu.jm.tabulavia.dao.ClassSkillDao
+import edu.jm.tabulavia.model.ClassSkill
 import edu.jm.tabulavia.model.SkillAssessment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -15,37 +15,37 @@ import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 /**
- * Repository responsible only for CourseSkill operations.
+ * Repository responsible only for ClassSkill operations.
  *
  * Features:
- * - Observe skills for a course via Flow (backed by Room)
+ * - Observe skills for a class via Flow (backed by Room)
  * - Insert skills locally and sync to Firestore in background
  * - Delete skills locally and from Firestore
  * - Listen to Firestore changes to keep local data in sync across devices
  */
 class SkillRepository(
-    private val courseSkillDao: CourseSkillDao,
+    private val classSkillDao: ClassSkillDao,
     private val skillAssessmentDao: edu.jm.tabulavia.dao.SkillAssessmentDao,
     private val firestore: FirebaseFirestore,
     private val scope: CoroutineScope
 ) {
-    // Active Firestore listeners per course ID
-    private val courseSkillsListeners = mutableMapOf<String, () -> Unit>()
+    // Active Firestore listeners per class ID
+    private val classSkillsListeners = mutableMapOf<String, () -> Unit>()
 
     // ---------- Observation ----------
 
     /**
-     * Returns a Flow that emits the list of skills for a given course.
+     * Returns a Flow that emits the list of skills for a given class.
      * The Flow is updated automatically whenever the local database changes.
      */
-    fun getSkillsFlowForCourse(courseId: String): Flow<List<CourseSkill>> =
-        courseSkillDao.getSkillsForCourseFlow(courseId)
+    fun getSkillsFlowForClass(classId: String): Flow<List<ClassSkill>> =
+        classSkillDao.getSkillsForClassFlow(classId)
 
     /**
-     * Returns the current list of skills for a course (one-shot).
+     * Returns the current list of skills for a class (one-shot).
      */
-    suspend fun getSkillsForCourse(courseId: String): List<CourseSkill> =
-        courseSkillDao.getSkillsForCourse(courseId)
+    suspend fun getSkillsForClass(classId: String): List<ClassSkill> =
+        classSkillDao.getSkillsForClass(classId)
 
     /**
      * Retrieves all assessments for a specific student.
@@ -56,14 +56,14 @@ class SkillRepository(
     // ---------- Real-time sync from Firestore ----------
 
     /**
-     * Starts listening to real-time changes for skills of a specific course.
+     * Starts listening to real-time changes for skills of a specific class.
      * Any change in Firestore will be reflected in the local database.
      */
-    fun startListeningToCourseSkills(uid: String, classId: String) {
-        stopListeningToCourseSkills(classId)
+    fun startListeningToClassSkills(uid: String, classId: String) {
+        stopListeningToClassSkills(classId)
 
         val listenerRegistration = firestore
-            .collection("users/$uid/courses/$classId/skills")
+            .collection("users/$uid/classes/$classId/skills")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     // Log error if needed (optional)
@@ -73,47 +73,47 @@ class SkillRepository(
                     when (change.type) {
                         com.google.firebase.firestore.DocumentChange.Type.ADDED,
                         com.google.firebase.firestore.DocumentChange.Type.MODIFIED -> {
-                            val skill = change.document.toObject(CourseSkill::class.java)
+                            val skill = change.document.toObject(ClassSkill::class.java)
                             scope.launch {
-                                courseSkillDao.insertCourseSkills(listOf(skill))
+                                classSkillDao.insertClassSkills(listOf(skill))
                             }
                         }
                         com.google.firebase.firestore.DocumentChange.Type.REMOVED -> {
-                            val skill = change.document.toObject(CourseSkill::class.java)
+                            val skill = change.document.toObject(ClassSkill::class.java)
                             scope.launch {
-                                courseSkillDao.deleteCourseSkill(skill)
+                                classSkillDao.deleteClassSkill(skill)
                             }
                         }
                     }
                 }
             }
 
-        courseSkillsListeners[classId] = { listenerRegistration.remove() }
+        classSkillsListeners[classId] = { listenerRegistration.remove() }
     }
 
     /**
-     * Stops listening to changes for a specific course.
+     * Stops listening to changes for a specific class.
      */
-    fun stopListeningToCourseSkills(courseId: String) {
-        courseSkillsListeners.remove(courseId)?.invoke()
+    fun stopListeningToClassSkills(classId: String) {
+        classSkillsListeners.remove(classId)?.invoke()
     }
 
     /**
      * Stops all active Firestore listeners.
      */
     fun stopAllListeners() {
-        courseSkillsListeners.values.forEach { it.invoke() }
-        courseSkillsListeners.clear()
+        classSkillsListeners.values.forEach { it.invoke() }
+        classSkillsListeners.clear()
     }
 
     // ---------- Write operations (local + Firestore sync) ----------
 
     /**
-     * Inserts a list of skills for a course.
+     * Inserts a list of skills for a class.
      */
-    suspend fun insertCourseSkills(uid: String, courseId: String, skills: List<CourseSkill>) {
+    suspend fun insertClassSkills(uid: String, classId: String, skills: List<ClassSkill>) {
         // 1. Local insert
-        courseSkillDao.insertCourseSkills(skills)
+        classSkillDao.insertClassSkills(skills)
 
         // 2. Background sync to Firestore
         scope.launch {
@@ -126,13 +126,13 @@ class SkillRepository(
                         skill
                     }
                     val docRef = firestore
-                        .collection("users/$uid/courses/$courseId/skills")
+                        .collection("users/$uid/classes/$classId/skills")
                         .document(firestoreId)
                     docRef.set(skillWithId).await()
 
                     // If we generated a new firestoreId, update the local record to have it
                     if (skill.firestoreId == null) {
-                        courseSkillDao.insertCourseSkills(listOf(skillWithId))
+                        classSkillDao.insertClassSkills(listOf(skillWithId))
                     }
                 }
             } catch (e: Exception) {
@@ -142,22 +142,22 @@ class SkillRepository(
     }
 
     /**
-     * Deletes a single course skill.
+     * Deletes a single class skill.
      *
      * Steps:
      * 1. Deletes locally from Room.
      * 2. Launches a background coroutine to delete the corresponding Firestore document
      *    (if it has a firestoreId).
      */
-    suspend fun deleteCourseSkill(uid: String, courseId: String, skill: CourseSkill) {
+    suspend fun deleteClassSkill(uid: String, classId: String, skill: ClassSkill) {
         // 1. Local delete
-        courseSkillDao.deleteCourseSkill(skill)
+        classSkillDao.deleteClassSkill(skill)
 
         // 2. Background Firestore delete
         scope.launch {
             try {
                 skill.firestoreId?.let { firestoreId ->
-                    firestore.collection("users/$uid/courses/$courseId/skills")
+                    firestore.collection("users/$uid/classes/$classId/skills")
                         .document(firestoreId)
                         .delete()
                         .await()

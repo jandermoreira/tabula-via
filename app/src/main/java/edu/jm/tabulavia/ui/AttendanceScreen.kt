@@ -82,8 +82,8 @@ fun AttendanceScreen(
 
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                val courseId = students.firstOrNull()?.classId ?: ""
-                viewModel.saveAttendance(courseId, onNavigateBack)
+                val classId = students.firstOrNull()?.classId ?: ""
+                viewModel.saveAttendance(classId, onNavigateBack)
             }) {
                 Icon(
                     imageVector = if (editingSession != null) Icons.Filled.CheckCircle else Icons.Filled.Check,

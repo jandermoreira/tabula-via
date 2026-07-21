@@ -4,50 +4,56 @@
  */
 package edu.jm.tabulavia.model
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
 /**
- * Data transfer object for a single course backup.
+ * Data transfer object for a single class backup.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class CourseBackup(
-    /** The course being backed up. */
-    val course: Course,
+data class ClassBackup(
+    /** The class being backed up. */
+    @JsonNames("course")
+    val clazz: AcademicClass,
 
-    /** Students enrolled in this course. */
+    /** Students enrolled in this class. */
     val students: List<Student>,
 
-    /** Sessions for this course. */
+    /** Sessions for this class. */
     val sessions: List<ClassSession>,
 
-    /** Attendance records for all sessions in this course. */
+    /** Attendance records for all sessions in this class. */
     val attendance: List<AttendanceRecord>,
 
-    /** Activities created for this course. */
+    /** Activities created for this class. */
     val activities: List<Activity>,
 
-    /** Group membership for activities in this course. */
+    /** Group membership for activities in this class. */
     val groupMembers: List<GroupMember> = emptyList(),
 
-    /** Skills defined for this course. */
-    val skills: List<CourseSkill> = emptyList(),
+    /** Skills defined for this class. */
+    val skills: List<ClassSkill> = emptyList(),
 
     /** Specific skills targeted or highlighted for each activity. */
     val highlightedSkills: List<ActivityHighlightedSkill> = emptyList(),
 
-    /** Skill assessments for students in this course. */
+    /** Skill assessments for students in this class. */
     val assessments: List<SkillAssessment> = emptyList(),
 
     /** Consolidated skill levels for each student. */
     val studentSkills: List<StudentSkill> = emptyList()
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class BackupData(
-    /** List of all courses registered in the system. */
-    val courses: List<Course>,
+    /** List of all classes registered in the system. */
+    @JsonNames("courses")
+    val classes: List<AcademicClass>,
 
-    /** List of students across all courses. */
+    /** List of students across all classes. */
     val students: List<Student>,
 
     /** Records of class sessions and meetings. */
@@ -65,8 +71,8 @@ data class BackupData(
     /** Individual skill evaluation records. */
     val skillAssessments: List<SkillAssessment> = emptyList(),
 
-    /** Skills associated with specific courses. */
-    val courseSkills: List<CourseSkill> = emptyList(),
+    /** Skills associated with specific classes. */
+    val classSkills: List<ClassSkill> = emptyList(),
 
     /** Specific skills targeted or highlighted for each activity. */
     val activityHighlightedSkills: List<ActivityHighlightedSkill> = emptyList(),

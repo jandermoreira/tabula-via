@@ -1,6 +1,6 @@
 /**
  * File: ReportListScreen.kt
- * Description: Screen that lists available reports for a course.
+ * Description: Screen that lists available reports for a class.
  */
 
 package edu.jm.tabulavia.ui

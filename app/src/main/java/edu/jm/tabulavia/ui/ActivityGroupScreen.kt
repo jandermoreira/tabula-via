@@ -279,7 +279,7 @@ fun ActivityGroupScreen(
  * @param lazyListState The LazyListState for controlling the scroll state of the list.
  * @param onStudentClick Callback when a student item is clicked.
  * @param onGroupActionClick Callback when a group action icon is clicked.
- * @param viewModel The CourseViewModel instance.
+ * @param viewModel The ClassViewModel instance.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -360,7 +360,7 @@ private fun GroupsExpandedView(
  * @param groups The current list of manual groups.
  * @param unassignedStudents The list of students not currently in any group.
  * @param onMoveStudent Callback to handle moving a student between locations.
- * @param viewModel The CourseViewModel instance.
+ * @param viewModel The ClassViewModel instance.
  * @param isLandscape Boolean indicating if the device is in landscape orientation.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -683,9 +683,9 @@ private fun ManualGroupEditorView(
  * @param student The student object being dragged.
  * @param isDragging True if this student is currently being dragged.
  * @param onStart Callback triggered when a drag gesture starts. Provides initial offset and coordinates.
- * @param onMove Callback triggered when the drag position changes. Provides the drag amount.
+ * @param onMove Callback triggered when the drag position changes. * Provides the drag amount.
  * @param onEnd Callback triggered when a drag gesture ends (either dropped or cancelled).
- * @param viewModel The CourseViewModel instance.
+ * @param viewModel The ClassViewModel instance.
  */
 @Composable
 private fun DraggableStudentWrapper(
@@ -727,7 +727,7 @@ private fun DraggableStudentWrapper(
  * Manages the grouping setup screen. In Landscape, it integrates the
  * criterion selector into the manual editor tools to maximize vertical space.
  *
- * @param viewModel The CourseViewModel instance.
+ * @param viewModel The ClassViewModel instance.
  * @param onCancel Callback for when the configuration is cancelled.
  * @param onGroupsCreated Callback for when groups have been successfully created.
  */
@@ -838,7 +838,7 @@ private fun CriterionSelector(
  * Dialog to apply skill assessments to multiple students at once.
  *
  * @param students The list of students in the group to assess.
- * @param viewModel The CourseViewModel instance.
+ * @param viewModel The ClassViewModel instance.
  * @param activityId The ID of the current activity.
  * @param onDismiss Callback to dismiss the dialog.
  */
@@ -847,7 +847,7 @@ private fun CriterionSelector(
 private fun AssignGroupSkillsForAllDialog(
     students: List<Student>, viewModel: ClassViewModel, activityId: String?, onDismiss: () -> Unit
 ) {
-    val courseSkills by viewModel.classSkills.collectAsState()
+    val classSkills by viewModel.classSkills.collectAsState()
     val context = LocalContext.current
     var highlightedSkillNames by remember(activityId) { mutableStateOf<Set<String>>(emptySet()) }
 
@@ -859,8 +859,8 @@ private fun AssignGroupSkillsForAllDialog(
         }
     }
 
-    var skillLevels by remember(courseSkills) {
-        mutableStateOf(courseSkills.associate { it.skillName to SkillLevel.NOT_APPLICABLE })
+    var skillLevels by remember(classSkills) {
+        mutableStateOf(classSkills.associate { it.skillName to SkillLevel.NOT_APPLICABLE })
     }
 
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Habilidades para o Grupo") }, text = {
@@ -871,7 +871,7 @@ private fun AssignGroupSkillsForAllDialog(
             )
             Spacer(Modifier.height(8.dp))
             LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                items(courseSkills.sortedBy { it.skillName }) { skill ->
+                items(classSkills.sortedBy { it.skillName }) { skill ->
                     SkillAssignmentRow(
                         skillName = skill.skillName,
                         currentLevel = skillLevels[skill.skillName] ?: SkillLevel.NOT_APPLICABLE,
@@ -905,7 +905,7 @@ private fun AssignGroupSkillsForAllDialog(
  * Dialog to assess skills for a specific student within the grouping screen.
  *
  * @param student The student for whom skills are being assigned.
- * @param viewModel The CourseViewModel instance.
+ * @param viewModel The ClassViewModel instance.
  * @param activityId The ID of the current activity.
  * @param onDismiss Callback to dismiss the dialog.
  */
@@ -914,7 +914,7 @@ private fun AssignGroupSkillsForAllDialog(
 private fun AssignGroupSkillsDialog(
     student: Student, viewModel: ClassViewModel, activityId: String?, onDismiss: () -> Unit
 ) {
-    val courseSkills by viewModel.classSkills.collectAsState()
+    val classSkills by viewModel.classSkills.collectAsState()
     val context = LocalContext.current
     var highlightedSkillNames by remember(activityId) { mutableStateOf<Set<String>>(emptySet()) }
 
@@ -926,8 +926,8 @@ private fun AssignGroupSkillsDialog(
         }
     }
 
-    var skillLevels by remember(courseSkills) {
-        mutableStateOf(courseSkills.associate { it.skillName to SkillLevel.NOT_APPLICABLE })
+    var skillLevels by remember(classSkills) {
+        mutableStateOf(classSkills.associate { it.skillName to SkillLevel.NOT_APPLICABLE })
     }
 
     AlertDialog(
@@ -936,7 +936,7 @@ private fun AssignGroupSkillsDialog(
         text = {
             Column {
                 LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-                    items(courseSkills.sortedBy { it.skillName }) { skill ->
+                    items(classSkills.sortedBy { it.skillName }) { skill ->
                         SkillAssignmentRow(
                             skillName = skill.skillName,
                             currentLevel = skillLevels[skill.skillName]

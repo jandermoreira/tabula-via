@@ -1,5 +1,5 @@
 /**
- * Repository for course management, activities, and group formations.
+ * Repository for class management, activities, and group formations.
  * Handles local Room persistence and Firestore synchronization using persistent String IDs.
  */
 package edu.jm.tabulavia.repository
@@ -21,10 +21,10 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import edu.jm.tabulavia.dao.ActivityDao
-import edu.jm.tabulavia.dao.CourseDao
+import edu.jm.tabulavia.dao.ClassDao
 import edu.jm.tabulavia.dao.GroupMemberDao
 import edu.jm.tabulavia.model.Activity
-import edu.jm.tabulavia.model.Course
+import edu.jm.tabulavia.model.AcademicClass
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.worker.SyncActivityWorker
@@ -37,67 +37,67 @@ import kotlinx.coroutines.tasks.await
 
 class ClassRepository(
     private val context: Context,
-    private val courseDao: CourseDao,
+    private val classDao: ClassDao,
     private val activityDao: ActivityDao,
     private val groupMemberDao: GroupMemberDao,
     private val firestore: FirebaseFirestore
 ) {
-    private var coursesListener: ListenerRegistration? = null
+    private var classesListener: ListenerRegistration? = null
     private var studentsListener: ListenerRegistration? = null
     private var activitiesListener: ListenerRegistration? = null
 
     /**
-     * Helper to get the Firestore collection reference for a specific user's courses.
+     * Helper to get the Firestore collection reference for a specific user's classes.
      */
-    private fun userCoursesRef(uid: String) = firestore.collection("users")
+    private fun userClassesRef(uid: String) = firestore.collection("users")
         .document(uid)
-        .collection("courses")
+        .collection("classes")
 
-    // Course Management Block
-
-    /**
-     * Exposes the stream of courses from the local database.
-     */
-    fun getAllCoursesFlow(): Flow<List<Course>> = courseDao.getAllCoursesFlow()
+    // Class Management Block
 
     /**
-     * Retrieves a single course by its persistent String identifier.
+     * Exposes the stream of classes from the local database.
      */
-    suspend fun getCourseById(courseId: String): Course? = courseDao.getCourseById(courseId)
+    fun getAllClassesFlow(): Flow<List<AcademicClass>> = classDao.getAllClassesFlow()
 
     /**
-     * Saves a course locally and triggers a non-blocking cloud synchronization.
+     * Retrieves a single class by its persistent String identifier.
      */
-    suspend fun insertCourse(course: Course, uid: String): String {
+    suspend fun getClassById(classId: String): AcademicClass? = classDao.getClassById(classId)
+
+    /**
+     * Saves a class locally and triggers a non-blocking cloud synchronization.
+     */
+    suspend fun insertClass(academicClass: AcademicClass, uid: String): String {
         // Immediate local persistence
-        courseDao.insertCourse(course)
+        classDao.insertClass(academicClass)
 
         // Asynchronous Firestore update managed by the SDK's internal queue
-        userCoursesRef(uid)
-            .document(course.classId)
-            .set(course)
+        userClassesRef(uid)
+            .document(academicClass.classId)
+            .set(academicClass)
 
-        return course.classId
+        return academicClass.classId
     }
 
     /**
-     * Bulk inserts a list of courses into the local database.
+     * Bulk inserts a list of classes into the local database.
      */
-    suspend fun insertAllCourses(courses: List<Course>) = courseDao.insertAll(courses)
+    suspend fun insertAllClasses(classes: List<AcademicClass>) = classDao.insertAll(classes)
 
     // Activity Management Block
 
     /**
-     * Retrieves all activities associated with a specific course via String ID.
+     * Retrieves all activities associated with a specific class via String ID.
      */
-    fun getActivitiesForClass(courseId: String): Flow<List<Activity>> =
-        activityDao.getActivitiesForClass(courseId)
+    fun getActivitiesForClass(classId: String): Flow<List<Activity>> =
+        activityDao.getActivitiesForClass(classId)
 
     /**
-     * Retrieves all activities associated with a specific course as a list.
+     * Retrieves all activities associated with a specific class as a list.
      */
-    suspend fun getActivitiesForClassList(courseId: String): List<Activity> =
-        activityDao.getActivitiesForClassList(courseId)
+    suspend fun getActivitiesForClassList(classId: String): List<Activity> =
+        activityDao.getActivitiesForClassList(classId)
 
     /**
      * Fetches every activity stored in the local database.
@@ -192,13 +192,13 @@ class ClassRepository(
 
             groupDocumentRef.set(documentData)
                 .addOnSuccessListener {
-                    Log.d("CourseRepository", "Groups queued for Firestore sync for activity: $activityId")
+                    Log.d("ClassRepository", "Groups queued for Firestore sync for activity: $activityId")
                 }
                 .addOnFailureListener { e ->
-                    Log.e("CourseRepository", "Failed to queue groups for Firestore sync (will retry): ${e.message}", e)
+                    Log.e("ClassRepository", "Failed to queue groups for Firestore sync (will retry): ${e.message}", e)
                 }
         } catch (e: Exception) {
-            Log.e("CourseRepository", "Error preparing groups for Firestore sync: ${e.message}", e)
+            Log.e("ClassRepository", "Error preparing groups for Firestore sync: ${e.message}", e)
             throw e
         }
     }
@@ -229,15 +229,15 @@ class ClassRepository(
     // Synchronization Block
 
     /**
-     * Fetches all courses from Firestore and updates the local database.
+     * Fetches all classes from Firestore and updates the local database.
      */
-    suspend fun syncCoursesFromCloud(uid: String) {
+    suspend fun syncClassesFromCloud(uid: String) {
         try {
-            val snapshot = userCoursesRef(uid).get().await()
-            val courses = snapshot.toObjects(Course::class.java)
+            val snapshot = userClassesRef(uid).get().await()
+            val classes = snapshot.toObjects(AcademicClass::class.java)
 
-            if (courses.isNotEmpty()) {
-                courseDao.insertAll(courses)
+            if (classes.isNotEmpty()) {
+                classDao.insertAll(classes)
             }
         } catch (e: Exception) {
             throw e
@@ -245,32 +245,32 @@ class ClassRepository(
     }
 
     /**
-     * Starts a real-time listener for the user's courses in Firestore.
+     * Starts a real-time listener for the user's classes in Firestore.
      * Uses documentChanges to synchronize additions, updates, and deletions with Room.
      *
      * @param uid The authenticated user ID.
      */
-    fun startCoursesSync(uid: String) {
-        stopCoursesSync()
+    fun startClassesSync(uid: String) {
+        stopClassesSync()
 
-        coursesListener = userCoursesRef(uid).addSnapshotListener { snapshot, error ->
+        classesListener = userClassesRef(uid).addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e("ClassRepository", "Firestore listener error: ${error.message}")
                 return@addSnapshotListener
             }
 
             snapshot?.documentChanges?.forEach { change ->
-                val clazz = change.document.toObject(Course::class.java)
+                val clazz = change.document.toObject(AcademicClass::class.java)
 
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         when (change.type) {
                             DocumentChange.Type.ADDED,
                             DocumentChange.Type.MODIFIED -> {
-                                courseDao.insertCourse(clazz)
+                                classDao.insertClass(clazz)
                             }
                             DocumentChange.Type.REMOVED -> {
-                                courseDao.deleteCourse(clazz)
+                                classDao.deleteClass(clazz)
                             }
                         }
                     } catch (e: Exception) {
@@ -284,48 +284,19 @@ class ClassRepository(
     /**
      * Stops the real-time listener to release resources.
      */
-    fun stopCoursesSync() {
-        coursesListener?.remove()
-        coursesListener = null
+    fun stopClassesSync() {
+        classesListener?.remove()
+        classesListener = null
     }
 
-//    /**
-//     * Starts a real-time listener for students within a specific course.
-//     */
-//    fun startStudentsSync(uid: String, courseId: String) {
-//        stopStudentsSync()
-//
-//        studentsListener = userCoursesRef(uid)
-//            .document(courseId)
-//            .collection("students")
-//            .addSnapshotListener { snapshot, error ->
-//                if (error != null) return@addSnapshotListener
-//
-//                snapshot?.let {
-//                    val students = it.toObjects(Student::class.java).filterNotNull()
-//                    CoroutineScope(Dispatchers.IO).launch {
-//                        studentDao.insertAll(students)
-//                    }
-//                }
-//            }
-//    }
-//
-//    /**
-//     * Stops the real-time listener for students.
-//     */
-//    fun stopStudentsSync() {
-//        studentsListener?.remove()
-//        studentsListener = null
-//    }
-
     /**
-     * Starts a real-time listener for activities of a specific course.
+     * Starts a real-time listener for activities of a specific class.
      */
-    fun startActivitiesSync(uid: String, courseId: String) {
+    fun startActivitiesSync(uid: String, classId: String) {
         stopActivitiesSync()
 
-        activitiesListener = userCoursesRef(uid)
-            .document(courseId)
+        activitiesListener = userClassesRef(uid)
+            .document(classId)
             .collection("activities")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
@@ -348,8 +319,8 @@ class ClassRepository(
     }
 
     /**
-     * Retrieves all courses from the local database as a one-time list.
+     * Retrieves all classes from the local database as a one-time list.
      * Used for backup operations.
      */
-    suspend fun getAllCourses(): List<Course> = courseDao.getAllCourses()
+    suspend fun getAllClasses(): List<AcademicClass> = classDao.getAllClasses()
 }

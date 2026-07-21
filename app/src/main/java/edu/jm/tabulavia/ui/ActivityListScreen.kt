@@ -55,7 +55,7 @@ private data class PeerAssessmentData(
 
 /**
  * Composable function for the Activity List Screen.
- * Handles the display of course activities and assessment log dialogs.
+ * Handles the display of class activities and assessment log dialogs.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +66,7 @@ fun ActivityListScreen(
 ) {
     MessageHandler(viewModel)
 
-    val selectedCourse by viewModel.selectedClass.collectAsState()
+    val selectedClass by viewModel.selectedClass.collectAsState()
     val activities by viewModel.activities.collectAsState()
     var showAddActivityDialog by remember { mutableStateOf(false) }
     var showSkillLogDialog by remember { mutableStateOf(false) }
@@ -74,7 +74,7 @@ fun ActivityListScreen(
 
     val skillAssessmentLog by viewModel.skillAssessmentLog.collectAsState()
     val studentsInClass by viewModel.studentsForClass.collectAsState()
-    val courseSkills by viewModel.classSkills.collectAsState()
+    val classSkills by viewModel.classSkills.collectAsState()
 
     // Logic to reload assessment logs
     LaunchedEffect(showSkillLogDialog) {
@@ -91,7 +91,7 @@ fun ActivityListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    val titleText = selectedCourse?.let {
+                    val titleText = selectedClass?.let {
                         "${it.className} ${it.academicYear}/${it.period} - Atividades"
                     } ?: ""
                     Text(titleText)
@@ -203,7 +203,7 @@ fun ActivityListScreen(
                     pastedText.lines().forEach { line ->
                         if (line.isNotBlank()) {
                             val fields = line.split('\t').map { it.trim() }
-                            if (fields.size >= 3 + courseSkills.size) { // Garante que há campos suficientes
+                            if (fields.size >= 3 + classSkills.size) { // Garante que há campos suficientes
                                 try {
                                     val format = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
                                     val date = format.parse(fields[0])
@@ -218,7 +218,7 @@ fun ActivityListScreen(
                                             // É uma autoavaliação (lógica existente)
                                             val student = studentsInClass.find { it.studentNumber == evaluatedId.toString() } // Usando studentNumber para a busca
                                             if (student != null) {
-                                                courseSkills.forEachIndexed { index, skill ->
+                                                classSkills.forEachIndexed { index, skill ->
                                                     val skillValue = fields[3 + index].toIntOrNull()
                                                     val skillLevel = when (skillValue) {
                                                         1 -> SkillLevel.LOW
@@ -244,7 +244,7 @@ fun ActivityListScreen(
                                             val evaluatedStudent = studentsInClass.find { it.studentNumber == evaluatedId.toString() }
 
                                             if (evaluatorStudent != null && evaluatedStudent != null) {
-                                                courseSkills.forEachIndexed { index, skill ->
+                                                classSkills.forEachIndexed { index, skill ->
                                                     val skillValue = fields[3 + index].toIntOrNull()
                                                     if (skillValue != null && skillValue in 1..3) { // Garantir que o valor é válido
                                                         peerAssessmentsToAggregate.add(
@@ -348,8 +348,8 @@ fun BatchSkillEntryDialog(
     onSaveBatch: (String) -> Unit // Agora só recebe o texto colado
 ) {
     var pastedStudentData by remember { mutableStateOf("") }
-    val courseSkills by viewModel.classSkills.collectAsState()
-    val labelText = "- Horário\n- Nº do avaliador\n- Nº do avaliado\n- " + courseSkills.joinToString("\n- ") { it.skillName.replace(" ", "-") }
+    val classSkills by viewModel.classSkills.collectAsState()
+    val labelText = "- Horário\n- Nº do avaliador\n- Nº do avaliado\n- " + classSkills.joinToString("\n- ") { it.skillName.replace(" ", "-") }
 
 
     AlertDialog(

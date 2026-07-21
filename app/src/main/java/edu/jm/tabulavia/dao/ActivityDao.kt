@@ -47,7 +47,7 @@ interface ActivityDao {
     suspend fun getActivitiesForClassList(classId: String): List<Activity>
 
     /**
-     * Retrieves all activities across all courses.
+     * Retrieves all activities across all classes.
      */
     @Query("SELECT * FROM activities")
     suspend fun getAllActivities(): List<Activity>

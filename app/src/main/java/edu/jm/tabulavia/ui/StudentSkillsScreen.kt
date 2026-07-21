@@ -27,11 +27,11 @@ fun StudentSkillsScreen(
 
     val student by viewModel.selectedStudentDetails.collectAsState()
     val skillSummaries by viewModel.studentSkillSummaries.collectAsState()
-    val courseSkills by viewModel.classSkills.collectAsState() // Still useful for displaying all skills
+    val classSkills by viewModel.classSkills.collectAsState() // Still useful for displaying all skills
 
-    // Filter skillSummaries to show only skills that exist in the courseSkills
-    val filteredSkillSummaries = remember(skillSummaries, courseSkills) {
-        val validSkillNames = courseSkills.map { it.skillName }.toSet()
+    // Filter skillSummaries to show only skills that exist in the classSkills
+    val filteredSkillSummaries = remember(skillSummaries, classSkills) {
+        val validSkillNames = classSkills.map { it.skillName }.toSet()
         skillSummaries.filterKeys { it in validSkillNames }.values.toList()
             .sortedBy { it.skillName } // Optional: keep them sorted
     }

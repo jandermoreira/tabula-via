@@ -1,6 +1,6 @@
 /**
- * Worker responsible for synchronizing course skills with Firestore.
- * Uses a batch operation to ensure all skills for a specific course are uploaded efficiently.
+ * Worker responsible for synchronizing class skills with Firestore.
+ * Uses a batch operation to ensure all skills for a specific class are uploaded efficiently.
  * Designed to be triggered after local modifications or periodically as a fallback.
  */
 package edu.jm.tabulavia.worker
@@ -12,21 +12,21 @@ import androidx.work.workDataOf
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.WriteBatch
 import edu.jm.tabulavia.db.DatabaseProvider
-import edu.jm.tabulavia.model.CourseSkill
+import edu.jm.tabulavia.model.ClassSkill
 import kotlinx.coroutines.tasks.await
 
 /**
- * Syncs course skills for a specific user and course.
+ * Syncs class skills for a specific user and class.
  *
  * Input data keys:
  * - USER_ID: Firebase Auth UID (required)
- * - COURSE_ID: target course ID (required)
+ * - CLASS_ID: target class ID (required)
  *
  * Returns [Result.success] if all skills were synced successfully.
  * Returns [Result.retry] on transient errors (up to 3 attempts).
  * Returns [Result.failure] on unrecoverable errors.
  */
-class SyncCourseSkillWorker(
+class SyncClassSkillWorker(
     context: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
@@ -34,15 +34,15 @@ class SyncCourseSkillWorker(
     override suspend fun doWork(): Result {
         // Extract required parameters
         val userId = inputData.getString("USER_ID") ?: return failure("Missing USER_ID")
-        val courseId = inputData.getString("COURSE_ID") ?: return failure("Missing COURSE_ID")
+        val classId = inputData.getString("CLASS_ID") ?: return failure("Missing CLASS_ID")
 
         val database = DatabaseProvider.getDatabase(applicationContext)
-        val courseSkillDao = database.courseSkillDao()
+        val classSkillDao = database.classSkillDao()
         val firestore = FirebaseFirestore.getInstance()
 
         return try {
-            // Fetch local skills for this course
-            val localSkills = courseSkillDao.getSkillsForCourse(courseId)
+            // Fetch local skills for this class
+            val localSkills = classSkillDao.getSkillsForClass(classId)
 
             if (localSkills.isEmpty()) {
                 return Result.success()
@@ -56,8 +56,8 @@ class SyncCourseSkillWorker(
             val skillsCollection = firestore
                 .collection("users")
                 .document(userId)
-                .collection("courses")
-                .document(courseId)
+                .collection("classes")
+                .document(classId)
                 .collection("skills")
 
             // Process skills that already have an ID
@@ -80,7 +80,7 @@ class SyncCourseSkillWorker(
 
             // Update local database with any newly generated Firestore IDs
             if (newSkillsWithIds.isNotEmpty()) {
-                courseSkillDao.insertCourseSkills(newSkillsWithIds)
+                classSkillDao.insertClassSkills(newSkillsWithIds)
             }
 
             Result.success()
@@ -104,9 +104,9 @@ class SyncCourseSkillWorker(
 
     companion object {
         /** Creates input data for this worker */
-        fun buildInputData(userId: String, courseId: String) = workDataOf(
+        fun buildInputData(userId: String, classId: String) = workDataOf(
             "USER_ID" to userId,
-            "COURSE_ID" to courseId
+            "CLASS_ID" to classId
         )
     }
 }

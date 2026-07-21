@@ -1,7 +1,7 @@
 /**
- * CourseListScreen.kt
+ * ClassListScreen.kt
  *
- * Displays the list of courses grouped by academic year.
+ * Displays the list of classes grouped by academic year.
  * Provides authentication actions and backup/restore operations
  * through a dialog embedded in this screen.
  */
@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,41 +34,40 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import edu.jm.tabulavia.model.Course
+import edu.jm.tabulavia.model.AcademicClass
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.AuthViewModel
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 import kotlinx.coroutines.launch
 import edu.jm.tabulavia.BuildConfig
-import java.io.OutputStreamWriter
 import java.io.InputStreamReader
 import java.io.BufferedReader
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-        /**
-         * Displays the main course list screen.
-         *
-         * @param viewModel ViewModel responsible for course data and backup/restore operations.
-         * @param authViewModel ViewModel responsible for authentication state.
-         * @param onAddCourseClicked Callback triggered when add course is requested.
-         * @param onCourseClicked Callback triggered when a course is selected.
-         * @param onLoginClicked Callback triggered when login is requested.
-         * @param onLogoutClicked Callback triggered when logout is requested.
-         */
-fun CourseListScreen(
+/**
+ * Displays the main class list screen.
+ *
+ * @param viewModel ViewModel responsible for class data and backup/restore operations.
+ * @param authViewModel ViewModel responsible for authentication state.
+ * @param onAddClassClicked Callback triggered when add class is requested.
+ * @param onClassClicked Callback triggered when a class is selected.
+ * @param onLoginClicked Callback triggered when login is requested.
+ * @param onLogoutClicked Callback triggered when logout is requested.
+ */
+fun ClassListScreen(
     viewModel: ClassViewModel,
     authViewModel: AuthViewModel,
-    onAddCourseClicked: () -> Unit,
-    onCourseClicked: (Course) -> Unit,
+    onAddClassClicked: () -> Unit,
+    onClassClicked: (AcademicClass) -> Unit,
     onLoginClicked: () -> Unit,
     onLogoutClicked: () -> Unit
 ) {
     MessageHandler(viewModel)
 
-    val courseList by viewModel.classes.collectAsState()
-    val groupedCourses = courseList
+    val classList by viewModel.classes.collectAsState()
+    val groupedClasses = classList
         .groupBy { it.academicYear }
         .toSortedMap(compareByDescending { it.toIntOrNull() ?: 0 })
 
@@ -84,7 +82,7 @@ fun CourseListScreen(
 
     var showImportDialog by remember { mutableStateOf(false) }
     var importJsonContent by remember { mutableStateOf("") }
-    var suggestedCourseName by remember { mutableStateOf("") }
+    var suggestedClassName by remember { mutableStateOf("") }
 
     if (showImportDialog) {
         AlertDialog(
@@ -95,8 +93,8 @@ fun CourseListScreen(
                     Text("Deseja importar esta turma? Você pode alterar o nome abaixo:")
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
-                        value = suggestedCourseName,
-                        onValueChange = { suggestedCourseName = it },
+                        value = suggestedClassName,
+                        onValueChange = { suggestedClassName = it },
                         label = { Text("Nome da Turma") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -105,7 +103,7 @@ fun CourseListScreen(
             },
             confirmButton = {
                 Button(onClick = {
-                    viewModel.importCourseBackup(importJsonContent, suggestedCourseName)
+                    viewModel.importClassBackup(importJsonContent, suggestedClassName)
                     showImportDialog = false
                 }) {
                     Text("Importar")
@@ -119,7 +117,7 @@ fun CourseListScreen(
         )
     }
 
-    // Launcher for Importing a Course
+    // Launcher for Importing a Class
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -133,11 +131,11 @@ fun CourseListScreen(
                         Log.d("json", "Json loaded")
                         val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
                         Log.d("json", "Got json")
-                        val backup = json.decodeFromString(edu.jm.tabulavia.model.CourseBackup.serializer(), content)
+                        val backup = json.decodeFromString(edu.jm.tabulavia.model.ClassBackup.serializer(), content)
                         Log.d("json", "Json backup")
                         
                         importJsonContent = content
-                        suggestedCourseName = "${backup.course.className} (Recuperado)"
+                        suggestedClassName = "${backup.clazz.className} (Recuperado)"
                         showImportDialog = true
                     }
                 } catch (e: Exception) {
@@ -191,7 +189,7 @@ fun CourseListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddCourseClicked) {
+            FloatingActionButton(onClick = onAddClassClicked) {
                 Icon(
                     Icons.Default.GroupAdd,
                     contentDescription = "Adicionar turma"
@@ -202,14 +200,14 @@ fun CourseListScreen(
     ) { paddingValues ->
 
         /**
-         * Displays the list of courses grouped by academic year.
+         * Displays the list of classes grouped by academic year.
          */
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            groupedCourses.forEach { (year, coursesInYear) ->
+            groupedClasses.forEach { (year, classesInYear) ->
 
                 stickyHeader {
                     Text(
@@ -222,11 +220,11 @@ fun CourseListScreen(
                     )
                 }
 
-                items(coursesInYear) { course ->
+                items(classesInYear) { clazz ->
                     Column(modifier = Modifier.padding(horizontal = 8.dp)) {
-                        CourseItem(
-                            course = course,
-                            onClick = { onCourseClicked(course) }
+                        ClassItem(
+                            clazz = clazz,
+                            onClick = { onClassClicked(clazz) }
                         )
                     }
                 }
@@ -319,10 +317,10 @@ fun CourseListScreen(
                         ) {
                             Icon(
                                 Icons.Filled.FileUpload,
-                                contentDescription = "Importar curso de arquivo"
+                                contentDescription = "Importar turma de arquivo"
                             )
                             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("IMPORTAR CURSO (.json)")
+                            Text("IMPORTAR TURMA (.json)")
                         }
 
                         if (BuildConfig.FLAVOR == "dev") {
@@ -368,14 +366,14 @@ fun CourseListScreen(
 }
 
 /**
- * Displays a single course item inside a card.
+ * Displays a single class item inside a card.
  *
- * @param course The course to be displayed.
+ * @param clazz The class to be displayed.
  * @param onClick Callback triggered when the item is selected.
  */
 @Composable
-fun CourseItem(
-    course: Course,
+fun ClassItem(
+    clazz: AcademicClass,
     onClick: () -> Unit
 ) {
     Card(
@@ -397,11 +395,11 @@ fun CourseItem(
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = course.className,
+                    text = clazz.className,
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = "${course.academicYear}/${course.period}",
+                    text = "${clazz.academicYear}/${clazz.period}",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

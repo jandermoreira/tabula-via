@@ -111,7 +111,7 @@ interface AttendanceDao {
 
     /**
      * Deletes all attendance records associated with a specific student ID.
-     * Used when a student is removed from a course to maintain referential integrity.
+     * Used when a student is removed from a class to maintain referential integrity.
      *
      * @param studentId The unique identifier of the student.
      */

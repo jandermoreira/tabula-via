@@ -1,5 +1,5 @@
 /**
- * UI components for activity management within a course.
+ * UI components for activity management within a class.
  * This file handles the creation of new group activities.
  */
 
@@ -22,9 +22,9 @@ import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 
 /**
- * Dialog for adding a new activity to a course.
+ * Dialog for adding a new activity to a class.
  * All activities are now set to "Grupo" by default as per requirements.
- * * @param viewModel The state holder for course and activity data.
+ * * @param viewModel The state holder for class and activity data.
  * @param onDismiss Callback to close the dialog.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +35,7 @@ fun AddActivityDialog(
 ) {
     MessageHandler(viewModel)
 
-    val courseSkills by viewModel.classSkills.collectAsState()
+    val classSkills by viewModel.classSkills.collectAsState()
 
     // Ensure the activity type is always set to "Grupo" when the dialog opens
     LaunchedEffect(Unit) {
@@ -61,7 +61,7 @@ fun AddActivityDialog(
                 Text("Habilidades em destaque", style = MaterialTheme.typography.titleSmall)
                 Spacer(modifier = Modifier.height(8.dp))
 
-                val sortedSkillNames = courseSkills.map { it.skillName }.sorted()
+                val sortedSkillNames = classSkills.map { it.skillName }.sorted()
 
                 // Layout for skill selection chips
                 FlowRow(

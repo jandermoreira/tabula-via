@@ -1,5 +1,5 @@
 /**
- * Entity representing an educational activity linked to a course.
+ * Entity representing an educational activity linked to a class.
  * Uses a UUID string as the primary key for persistent local and remote identification.
  */
 package edu.jm.tabulavia.model
@@ -8,15 +8,18 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 import java.util.UUID
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 @Entity(
     tableName = "activities",
     foreignKeys = [
         ForeignKey(
-            entity = Course::class,
+            entity = AcademicClass::class,
             parentColumns = ["classId"],
             childColumns = ["classId"],
             onDelete = ForeignKey.CASCADE
@@ -32,8 +35,9 @@ data class Activity @JvmOverloads constructor(
     val activityId: String = UUID.randomUUID().toString(),
 
     /**
-     * Identifier of the associated course (String UUID).
+     * Identifier of the associated class (String UUID).
      */
+    @JsonNames("courseId")
     val classId: String = "",
 
     /**

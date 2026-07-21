@@ -98,7 +98,7 @@
         }
     
         /**
-         * Pushes session and attendance data to the Firestore course hierarchy using the authenticated user ID.
+         * Pushes session and attendance data to the Firestore class hierarchy using the authenticated user ID.
          */
         private fun syncSessionToFirestore(
             classId: String,
@@ -118,10 +118,10 @@
                 attendance = attendanceMap.mapValues { it.value.name }
             )
     
-            // Maps data to users/{userId}/courses/{classId}/sessions/{sessionId}
+            // Maps data to users/{userId}/classes/{classId}/sessions/{sessionId}
             firestore.collection("users")
                 .document(userId)
-                .collection("courses")
+                .collection("classes")
                 .document(classId)
                 .collection("sessions")
                 .document(sessionId)
@@ -129,7 +129,7 @@
         }
     
         /**
-         * Starts a real-time listener for attendance of a specific course for the current user.
+         * Starts a real-time listener for attendance of a specific class for the current user.
          * Synchronizes remote changes (additions and deletions) with the local database.
          */
         fun startAttendanceSync(classId: String) {
@@ -138,7 +138,7 @@
     
             attendanceListener = firestore.collection("users")
                 .document(userId)
-                .collection("courses")
+                .collection("classes")
                 .document(classId)
                 .collection("sessions")
                 .addSnapshotListener { snapshot, error ->
@@ -222,7 +222,7 @@
             if (userId != null) {
                 firestore.collection("users")
                     .document(userId)
-                    .collection("courses")
+                    .collection("classes")
                     .document(session.classId)
                     .collection("sessions")
                     .document(session.sessionId)
@@ -257,7 +257,7 @@
         }
     
         /**
-         * Retrieves all class sessions across all courses.
+         * Retrieves all class sessions across all classes.
          */
         suspend fun getAllSessions(): List<ClassSession> = withContext(Dispatchers.IO) {
             attendanceDao.getAllSessions()
@@ -311,7 +311,7 @@
         /**
          * Removes a student's attendance records locally and updates remote sessions.
          * @param studentId The unique identifier of the student.
-         * @param classId The course unique identifier.
+         * @param classId The class unique identifier.
          * @param uid The authenticated user ID.
          */
         suspend fun removeStudentFromAttendanceSessions(
@@ -335,7 +335,7 @@
                 sessions.forEach { session ->
                     val sessionRef = firestore.collection("users")
                         .document(uid)
-                        .collection("courses")
+                        .collection("classes")
                         .document(classId)
                         .collection("sessions")
                         .document(session.sessionId)

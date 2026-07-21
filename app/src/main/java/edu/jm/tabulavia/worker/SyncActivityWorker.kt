@@ -36,7 +36,7 @@ class SyncActivityWorker(
 
             firestore.collection("users")
                 .document(uid)
-                .collection("courses")
+                .collection("classes")
                 .document(classId)
                 .collection("activities")
                 .document(activityId)

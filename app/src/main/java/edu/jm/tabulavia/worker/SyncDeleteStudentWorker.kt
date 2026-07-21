@@ -29,10 +29,10 @@ class SyncDeleteStudentWorker(
         val firestore = FirebaseFirestore.getInstance()
 
         return try {
-            // Reference to users/{userId}/courses/{classId}/students/{studentId}
+            // Reference to users/{userId}/classes/{classId}/students/{studentId}
             firestore.collection("users")
                 .document(userId)
-                .collection("courses")
+                .collection("classes")
                 .document(classId)
                 .collection("students")
                 .document(studentId)
@@ -55,7 +55,7 @@ class SyncDeleteStudentWorker(
          * Builds the input data required for the worker to identify the remote document.
          *
          * @param userId The authenticated user unique identifier.
-         * @param classId The course unique identifier.
+         * @param classId The class unique identifier.
          * @param studentId The student unique identifier.
          * @return Data object containing the identifiers.
          */
