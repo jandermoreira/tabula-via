@@ -3,13 +3,11 @@ Kotlin Code Generation Instructions:
 1. Language and Conventions
 * Strictly follow Kotlin language conventions.
 * Keep all generated source code, comments, and documentation exclusively in English.
-* Do not apply these rules to other programming languages.
-
+* Keep all interface in Portuguese.
 
 2. Naming
 * Use meaningful variable names.
 * Preserve existing function names (do not alter them).
-
 
 3. Documentation and Comments
 * Document the file whenever the generated code constitutes a complete file.
