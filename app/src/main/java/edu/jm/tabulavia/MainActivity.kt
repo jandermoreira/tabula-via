@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -93,6 +95,16 @@ class MainActivity : ComponentActivity() {
                 ) {
 
                     val navController = rememberNavController()
+                    val authenticatedUser by authViewModel.user.collectAsState()
+
+                    // Global observer to enforce login
+                    LaunchedEffect(authenticatedUser) {
+                        if (authenticatedUser == null) {
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
 
                     NavHost(
                         navController = navController, startDestination = "splash"
@@ -101,10 +113,29 @@ class MainActivity : ComponentActivity() {
                         composable("splash") {
                             LaunchedEffect(Unit) {
                                 delay(600)
-                                navController.navigate("classList") {
+                                val destination = if (authenticatedUser == null) "login" else "classList"
+                                navController.navigate(destination) {
                                     popUpTo("splash") { inclusive = true }
                                 }
                             }
+                        }
+
+                        composable("login") {
+                            val errorMessage by authViewModel.errorMessage.collectAsState()
+                            
+                            // Prevent re-navigation if already authenticated
+                            LaunchedEffect(authenticatedUser) {
+                                if (authenticatedUser != null) {
+                                    navController.navigate("classList") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+
+                            LoginScreen(
+                                onGoogleSignInClick = { signIn() },
+                                errorMessage = errorMessage
+                            )
                         }
 
                         composable("classList") {

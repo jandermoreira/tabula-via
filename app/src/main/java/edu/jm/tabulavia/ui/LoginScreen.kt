@@ -1,3 +1,9 @@
+/**
+ * LoginScreen.kt
+ *
+ * Provides the user interface for mandatory Google Authentication.
+ * This screen prevents access to the application until a valid session is established.
+ */
 package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.layout.*
@@ -7,6 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+/**
+ * Renders the login screen with a Google Sign-In button.
+ *
+ * @param onGoogleSignInClick Callback to initiate the authentication flow.
+ * @param errorMessage Optional error message to display in case of failure.
+ */
 @Composable
 fun LoginScreen(
     onGoogleSignInClick: () -> Unit,
@@ -25,6 +37,7 @@ fun LoginScreen(
         Text("Bem-vindo", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Display error message if authentication fails
         if (!errorMessage.isNullOrEmpty()) {
             Text(errorMessage, color = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.height(8.dp))

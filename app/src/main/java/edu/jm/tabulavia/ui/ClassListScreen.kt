@@ -95,7 +95,7 @@ fun ClassListScreen(
                     OutlinedTextField(
                         value = suggestedClassName,
                         onValueChange = { suggestedClassName = it },
-                        label = { Text("Nome da Turma") },
+                        label = { Text("Class Name") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -128,14 +128,11 @@ fun ClassListScreen(
                         val content = BufferedReader(InputStreamReader(inputStream)).readText()
                         
                         // Try to extract original name for suggestion
-                        Log.d("json", "Json loaded")
                         val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                        Log.d("json", "Got json")
                         val backup = json.decodeFromString(edu.jm.tabulavia.model.ClassBackup.serializer(), content)
-                        Log.d("json", "Json backup")
                         
                         importJsonContent = content
-                        suggestedClassName = "${backup.clazz.className} (Recuperado)"
+                        suggestedClassName = "${backup.clazz.className} (Recovered)"
                         showImportDialog = true
                     }
                 } catch (e: Exception) {
@@ -257,7 +254,7 @@ fun ClassListScreen(
                     ) {
 
                         /**
-                         * Executes backup operation.
+                         * Executes cloud backup operation.
                          */
                         Button(
                             onClick = {
@@ -275,11 +272,11 @@ fun ClassListScreen(
                                 contentDescription = "Fazer cópia de segurança"
                             )
                             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("FAZER CÓPIA")
+                            Text("BACKUP TO CLOUD")
                         }
 
                         /**
-                         * Executes restore operation.
+                         * Executes cloud restore operation.
                          */
                         Button(
                             onClick = {
@@ -300,7 +297,7 @@ fun ClassListScreen(
                             Text("RESTAURAR CÓPIA")
                         }
 
-                        Divider(modifier = Modifier.padding(vertical = 4.dp))
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
                         /**
                          * Executes local file import operation.
@@ -346,7 +343,7 @@ fun ClassListScreen(
                                     contentDescription = "Limpar base de dados"
                                 )
                                 Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                                Text("LIMPAR BASE")
+                                Text("CLEAR DATABASE")
                             }
                         }
                     }
