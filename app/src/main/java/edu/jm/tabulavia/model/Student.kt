@@ -55,7 +55,12 @@ data class Student(
      * Ensures the student belongs exclusively to one class instance.
      */
     @JsonNames("courseId")
-    val classId: String = ""
+    val classId: String = "",
+
+    /**
+     * Current enrollment status of the student.
+     */
+    val status: StudentStatus = StudentStatus.ACTIVE
 ) {
     /**
      * Returns the name to be displayed in the UI.

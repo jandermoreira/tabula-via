@@ -23,7 +23,7 @@ import edu.jm.tabulavia.model.*
         SkillAssessment::class,
         ActivityHighlightedSkill::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -116,4 +116,16 @@ class Converters {
      */
     @androidx.room.TypeConverter
     fun toAssessmentSource(value: String) = AssessmentSource.valueOf(value)
+
+    /**
+     * Converts StudentStatus enum to String for storage.
+     */
+    @androidx.room.TypeConverter
+    fun fromStudentStatus(value: StudentStatus) = value.name
+
+    /**
+     * Converts String back to StudentStatus enum.
+     */
+    @androidx.room.TypeConverter
+    fun toStudentStatus(value: String) = StudentStatus.valueOf(value)
 }
