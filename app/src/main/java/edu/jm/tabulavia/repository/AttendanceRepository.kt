@@ -52,10 +52,10 @@
         private var attendanceListener: ListenerRegistration? = null
     
         /**
-         * Gets the current authenticated user ID.
+         * Gets the current authenticated user email.
          */
-        private val currentUserId: String?
-            get() = auth.currentUser?.uid
+        private val currentUserEmail: String?
+            get() = auth.currentUser?.email
     
         /**
          * Saves attendance records locally and synchronizes with Firestore.
@@ -106,7 +106,7 @@
             timestamp: Long,
             attendanceMap: Map<String, AttendanceStatus>
         ) {
-            val userId = currentUserId ?: run {
+            val userEmail = currentUserEmail ?: run {
                 Log.e("AttendanceRepo", "User not authenticated for Firestore sync")
                 return
             }
@@ -118,9 +118,9 @@
                 attendance = attendanceMap.mapValues { it.value.name }
             )
     
-            // Maps data to users/{userId}/classes/{classId}/sessions/{sessionId}
+            // Maps data to users/{userEmail}/classes/{classId}/sessions/{sessionId}
             firestore.collection("users")
-                .document(userId)
+                .document(userEmail)
                 .collection("classes")
                 .document(classId)
                 .collection("sessions")
@@ -133,11 +133,11 @@
          * Synchronizes remote changes (additions and deletions) with the local database.
          */
         fun startAttendanceSync(classId: String) {
-            val userId = currentUserId ?: return
+            val userEmail = currentUserEmail ?: return
             stopAttendanceSync()
     
             attendanceListener = firestore.collection("users")
-                .document(userId)
+                .document(userEmail)
                 .collection("classes")
                 .document(classId)
                 .collection("sessions")
@@ -215,13 +215,13 @@
          * Deletes a session locally using a transaction and removes its remote document from Firestore.
          */
         suspend fun deleteSession(session: ClassSession) = withContext(Dispatchers.IO) {
-            val userId = currentUserId
+            val userEmail = currentUserEmail
     
             attendanceDao.deleteSessionWithRecords(session)
     
-            if (userId != null) {
+            if (userEmail != null) {
                 firestore.collection("users")
-                    .document(userId)
+                    .document(userEmail)
                     .collection("classes")
                     .document(session.classId)
                     .collection("sessions")
@@ -312,12 +312,12 @@
          * Removes a student's attendance records locally and updates remote sessions.
          * @param studentId The unique identifier of the student.
          * @param classId The class unique identifier.
-         * @param uid The authenticated user ID.
+         * @param email The authenticated user email.
          */
         suspend fun removeStudentFromAttendanceSessions(
             studentId: String,
             classId: String,
-            uid: String
+            email: String
         ) {
             withContext(Dispatchers.IO) {
                 // Step 1: Delete local records first to ensure UI consistency
@@ -334,7 +334,7 @@
 
                 sessions.forEach { session ->
                     val sessionRef = firestore.collection("users")
-                        .document(uid)
+                        .document(email)
                         .collection("classes")
                         .document(classId)
                         .collection("sessions")

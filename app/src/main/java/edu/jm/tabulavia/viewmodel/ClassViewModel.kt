@@ -206,8 +206,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     )
 
     init {
-        Firebase.auth.currentUser?.uid?.let { uid ->
-            classRepository.startClassesSync(uid)
+        Firebase.auth.currentUser?.email?.let { email ->
+            classRepository.startClassesSync(email)
         }
     }
 
@@ -226,10 +226,10 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     /**
      * Refreshes all class data by pulling information from the cloud provider.
      */
-    fun refreshAllData(uid: String) {
+    fun refreshAllData(email: String) {
         viewModelScope.launch {
             try {
-                classRepository.syncClassesFromCloud(uid)
+                classRepository.syncClassesFromCloud(email)
             } catch (e: Exception) {
                 showMessage("Sync failed: ${e.message}")
             }
@@ -247,11 +247,11 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         currentClassId = classId
 
         // Start real-time sync for all related data
-        Firebase.auth.currentUser?.uid?.let { uid ->
-            studentRepository.startStudentsSync(uid, classId)
-            classRepository.startActivitiesSync(uid, classId)
+        Firebase.auth.currentUser?.email?.let { email ->
+            studentRepository.startStudentsSync(email, classId)
+            classRepository.startActivitiesSync(email, classId)
             attendanceRepository.startAttendanceSync(classId)
-            skillRepository.startListeningToClassSkills(uid, classId)
+            skillRepository.startListeningToClassSkills(email, classId)
         }
 
         // Launch coroutines to collect Flows from Room (they will emit initial data and updates)
@@ -317,9 +317,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         val updatedStudent = studentToUpdate.copy(
             name = studentName, displayName = studentDisplayName, studentNumber = studentNumber
         )
-        val uid = Firebase.auth.currentUser?.uid ?: return
+        val email = Firebase.auth.currentUser?.email ?: return
         viewModelScope.launch {
-            studentRepository.insertStudent(updatedStudent, uid)
+            studentRepository.insertStudent(updatedStudent, email)
             loadClassDetails(studentToUpdate.classId)
             onDismiss()
         }
@@ -406,7 +406,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Adds a new skill to the current class.
      */
     fun addClassSkill(onSkillAdded: () -> Unit) {
-        val uid = com.google.firebase.Firebase.auth.currentUser?.uid ?: return
+        val email = com.google.firebase.Firebase.auth.currentUser?.email ?: return
         val classId = _selectedClass.value?.classId ?: return
 
         if (skillName.isNotBlank()) {
@@ -417,7 +417,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     firestoreId = java.util.UUID.randomUUID().toString()
                 )
 
-                skillRepository.insertClassSkills(uid, classId, listOf(newSkill))
+                skillRepository.insertClassSkills(email, classId, listOf(newSkill))
 
                 skillName = ""
                 loadSkillsForClass(classId)
@@ -430,11 +430,11 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Removes a skill from the class.
      */
     fun deleteClassSkill(skill: ClassSkill) {
-        val uid = Firebase.auth.currentUser?.uid ?: return
+        val email = Firebase.auth.currentUser?.email ?: return
         val classId = _selectedClass.value?.classId ?: return
 
         viewModelScope.launch {
-            skillRepository.deleteClassSkill(uid, classId, skill)
+            skillRepository.deleteClassSkill(email, classId, skill)
             loadSkillsForClass(classId)
         }
     }
@@ -549,11 +549,11 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     /**
      * Creates a new activity for the current class.
-     * Generates a persistent UUID and synchronizes with Firestore using the user's UID.
+     * Generates a persistent UUID and synchronizes with Firestore using the user's email.
      */
     fun addActivity(onActivityAdded: () -> Unit) {
         val classId = _selectedClass.value?.classId ?: return
-        val uid = com.google.firebase.Firebase.auth.currentUser?.uid ?: return
+        val email = com.google.firebase.Firebase.auth.currentUser?.email ?: return
 
         if (activityName.isNotBlank()) {
             viewModelScope.launch {
@@ -567,7 +567,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     classId = classId
                 )
 
-                classRepository.insertActivity(newActivity, uid)
+                classRepository.insertActivity(newActivity, email)
 
                 val highlightedSkills = activityHighlightedSkills.sorted().map { skillName ->
                     ActivityHighlightedSkill(
@@ -1012,24 +1012,24 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Iterates through classes to ensure orphans are not left behind.
      */
     private suspend fun clearFirestoreDatabaseForCurrentUser() {
-        val uid = Firebase.auth.currentUser?.uid ?: return
+        val email = Firebase.auth.currentUser?.email ?: return
         val firestore = Firebase.firestore
 
         // Delete independent top-level collections
         val userCollections = listOf("attendance", "skills", "activities")
         userCollections.forEach { collection ->
-            deleteCollection("users/$uid/$collection")
+            deleteCollection("users/$email/$collection")
         }
 
         // Process classes and their nested subcollections (students, sessions, etc.)
-        val classesRef = firestore.collection("users/$uid/classes")
+        val classesRef = firestore.collection("users/$email/classes")
         val classesSnapshot = classesRef.get().await()
 
         for (classDoc in classesSnapshot.documents) {
             val classId = classDoc.id
             // Explicitly clear subcollections that Firestore won't delete automatically
-            deleteCollection("users/$uid/classes/$classId/students")
-            // deleteCollection("users/$uid/classes/$classId/sessions")
+            deleteCollection("users/$email/classes/$classId/students")
+            // deleteCollection("users/$email/classes/$classId/sessions")
 
             // Delete the class document itself
             classDoc.reference.delete().await()
@@ -1066,7 +1066,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         if (isAddingClass) return
 
         if (className.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
-            val uid = Firebase.auth.currentUser?.uid ?: return
+            val email = Firebase.auth.currentUser?.email ?: return
             isAddingClass = true
 
             viewModelScope.launch {
@@ -1081,7 +1081,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         numberOfClasses = numberOfClasses
                     )
 
-                    classRepository.insertClass(newClass, uid)
+                    classRepository.insertClass(newClass, email)
 
                     val skills = defaultComputerScienceSkills.map { skillName ->
                         ClassSkill(
@@ -1091,7 +1091,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         )
                     }
 
-                    skillRepository.insertClassSkills(uid, generatedClassId, skills)
+                    skillRepository.insertClassSkills(email, generatedClassId, skills)
 
                     loadClassDetails(generatedClassId)
 
@@ -1119,7 +1119,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      */
     fun addStudent(onStudentsAdded: () -> Unit) {
         val classId = _selectedClass.value?.classId ?: return
-        val uid = Firebase.auth.currentUser?.uid ?: run {
+        val email = Firebase.auth.currentUser?.email ?: run {
             showMessage("Usuário não logado.")
             return
         }
@@ -1141,7 +1141,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 )
 
                 try {
-                    studentRepository.insertStudent(newStudent, uid)
+                    studentRepository.insertStudent(newStudent, email)
 
                     showMessage("Aluno adicionado com sucesso.")
 
@@ -1166,11 +1166,11 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * the class details to ensure the UI reflects the current database state.
      */
     fun deleteStudent(student: Student) {
-        val uid = Firebase.auth.currentUser?.uid ?: return
+        val email = Firebase.auth.currentUser?.email ?: return
 
         viewModelScope.launch {
             try {
-                studentRepository.deleteStudent(student, uid)
+                studentRepository.deleteStudent(student, email)
                 attendanceMap.remove(student.studentId)
 
                 loadClassDetails(student.classId)
@@ -1191,7 +1191,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      */
     fun addStudentsInBulk(onStudentsAdded: () -> Unit) {
         val targetClassId = _selectedClass.value?.classId ?: return
-        val currentUserId = Firebase.auth.currentUser?.uid ?: run {
+        val email = Firebase.auth.currentUser?.email ?: run {
             showMessage("Usuário não logado.")
             return
         }
@@ -1257,7 +1257,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 val totalIgnored = (rawStudentListData.lineSequence().filter { it.isNotBlank() }
                     .count() - studentsToInsert.size)
 
-                studentRepository.insertAllStudents(studentsToInsert, currentUserId)
+                studentRepository.insertAllStudents(studentsToInsert, email)
 
                 val message = if (totalIgnored > 0) {
                     "${studentsToInsert.size} aluno(s) adicionado(s). $totalIgnored linha(s) ignorada(s) (duplicatas)."
@@ -1479,7 +1479,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     fun importClassBackup(jsonString: String, customName: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val uid = com.google.firebase.Firebase.auth.currentUser?.uid
+                val email = com.google.firebase.Firebase.auth.currentUser?.email
                 val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
                 val backup = json.decodeFromString(ClassBackup.serializer(), jsonString)
 
@@ -1597,8 +1597,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 }
 
                 // 3. Cloud Sync (outside transaction)
-                if (uid != null) {
-                    val userClassesRef = Firebase.firestore.collection("users").document(uid).collection("classes")
+                if (email != null) {
+                    val userClassesRef = Firebase.firestore.collection("users").document(email).collection("classes")
                     
                     // Sync class
                     userClassesRef.document(newClassId).set(restoredClass)
@@ -1655,7 +1655,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     val studentsCount = restoredStudents.size
                     val summary = "Importado e sincronizado: $studentsCount alunos, $activitiesCount atividades."
                     showMessage(summary)
-                    if (uid != null) refreshAllData(uid)
+                    if (email != null) refreshAllData(email)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {

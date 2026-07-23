@@ -33,7 +33,7 @@ class SyncClassSkillWorker(
 
     override suspend fun doWork(): Result {
         // Extract required parameters
-        val userId = inputData.getString("USER_ID") ?: return failure("Missing USER_ID")
+        val userEmail = inputData.getString("USER_ID") ?: return failure("Missing USER_ID")
         val classId = inputData.getString("CLASS_ID") ?: return failure("Missing CLASS_ID")
 
         val database = DatabaseProvider.getDatabase(applicationContext)
@@ -55,7 +55,7 @@ class SyncClassSkillWorker(
             val batch = firestore.batch()
             val skillsCollection = firestore
                 .collection("users")
-                .document(userId)
+                .document(userEmail)
                 .collection("classes")
                 .document(classId)
                 .collection("skills")
@@ -104,8 +104,8 @@ class SyncClassSkillWorker(
 
     companion object {
         /** Creates input data for this worker */
-        fun buildInputData(userId: String, classId: String) = workDataOf(
-            "USER_ID" to userId,
+        fun buildInputData(email: String, classId: String) = workDataOf(
+            "USER_ID" to email,
             "CLASS_ID" to classId
         )
     }

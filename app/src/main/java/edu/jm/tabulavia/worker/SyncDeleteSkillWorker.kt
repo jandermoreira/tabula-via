@@ -20,7 +20,7 @@ class SyncDeleteSkillWorker(
      * Executes the deletion of the specified document in Firestore.
      */
     override suspend fun doWork(): Result {
-        val userId = inputData.getString("USER_ID") ?: return Result.failure()
+        val userEmail = inputData.getString("USER_ID") ?: return Result.failure()
         val classId = inputData.getString("CLASS_ID") ?: return Result.failure()
         val firestoreId = inputData.getString("FIRESTORE_ID") ?: return Result.failure()
 
@@ -29,7 +29,7 @@ class SyncDeleteSkillWorker(
         return try {
             // Reference to the specific document using the UUID generated at creation
             val documentReference = firestore.collection("users")
-                .document(userId)
+                .document(userEmail)
                 .collection("classes")
                 .document(classId)
                 .collection("skills")

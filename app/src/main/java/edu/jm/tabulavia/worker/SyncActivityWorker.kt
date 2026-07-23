@@ -24,7 +24,7 @@ class SyncActivityWorker(
     override suspend fun doWork(): Result {
         val activityId = inputData.getString("ACTIVITY_ID") ?: return Result.failure()
         val classId = inputData.getString("CLASS_ID") ?: return Result.failure()
-        val uid = inputData.getString("USER_ID") ?: return Result.failure()
+        val email = inputData.getString("USER_ID") ?: return Result.failure()
 
         val db = DatabaseProvider.getDatabase(applicationContext)
         val activityDao = db.activityDao()
@@ -35,7 +35,7 @@ class SyncActivityWorker(
             val activity = activityDao.getActivityById(activityId) ?: return Result.success()
 
             firestore.collection("users")
-                .document(uid)
+                .document(email)
                 .collection("classes")
                 .document(classId)
                 .collection("activities")

@@ -59,11 +59,11 @@ class SkillRepository(
      * Starts listening to real-time changes for skills of a specific class.
      * Any change in Firestore will be reflected in the local database.
      */
-    fun startListeningToClassSkills(uid: String, classId: String) {
+    fun startListeningToClassSkills(email: String, classId: String) {
         stopListeningToClassSkills(classId)
 
         val listenerRegistration = firestore
-            .collection("users/$uid/classes/$classId/skills")
+            .collection("users/$email/classes/$classId/skills")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     // Log error if needed (optional)
@@ -111,7 +111,7 @@ class SkillRepository(
     /**
      * Inserts a list of skills for a class.
      */
-    suspend fun insertClassSkills(uid: String, classId: String, skills: List<ClassSkill>) {
+    suspend fun insertClassSkills(email: String, classId: String, skills: List<ClassSkill>) {
         // 1. Local insert
         classSkillDao.insertClassSkills(skills)
 
@@ -126,7 +126,7 @@ class SkillRepository(
                         skill
                     }
                     val docRef = firestore
-                        .collection("users/$uid/classes/$classId/skills")
+                        .collection("users/$email/classes/$classId/skills")
                         .document(firestoreId)
                     docRef.set(skillWithId).await()
 
@@ -149,7 +149,7 @@ class SkillRepository(
      * 2. Launches a background coroutine to delete the corresponding Firestore document
      *    (if it has a firestoreId).
      */
-    suspend fun deleteClassSkill(uid: String, classId: String, skill: ClassSkill) {
+    suspend fun deleteClassSkill(email: String, classId: String, skill: ClassSkill) {
         // 1. Local delete
         classSkillDao.deleteClassSkill(skill)
 
@@ -157,7 +157,7 @@ class SkillRepository(
         scope.launch {
             try {
                 skill.firestoreId?.let { firestoreId ->
-                    firestore.collection("users/$uid/classes/$classId/skills")
+                    firestore.collection("users/$email/classes/$classId/skills")
                         .document(firestoreId)
                         .delete()
                         .await()

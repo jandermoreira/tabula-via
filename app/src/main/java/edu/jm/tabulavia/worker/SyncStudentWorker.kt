@@ -25,7 +25,7 @@ class SyncStudentWorker(
      */
     override suspend fun doWork(): Result {
         // Extract required parameters from input data
-        val userId = inputData.getString("USER_ID") ?: return failure("Missing USER_ID")
+        val userEmail = inputData.getString("USER_ID") ?: return failure("Missing USER_ID")
         val classId = inputData.getString("CLASS_ID") ?: return failure("Missing CLASS_ID")
         val studentId = inputData.getString("STUDENT_ID") ?: return failure("Missing STUDENT_ID")
 
@@ -41,7 +41,7 @@ class SyncStudentWorker(
 
             // Reference to the specific student document in Firestore
             val documentReference = firestore.collection("users")
-                .document(userId)
+                .document(userEmail)
                 .collection("classes")
                 .document(classId)
                 .collection("students")
@@ -77,13 +77,13 @@ class SyncStudentWorker(
         /**
          * Creates input data for this worker.
          *
-         * @param userId The ID of the authenticated user.
+         * @param email The email of the authenticated user.
          * @param classId The ID of the class the student belongs to.
          * @param studentId The ID of the student to sync.
          * @return A [androidx.work.Data] object containing the worker's input.
          */
-        fun buildInputData(userId: String, classId: String, studentId: String) = workDataOf(
-            "USER_ID" to userId,
+        fun buildInputData(email: String, classId: String, studentId: String) = workDataOf(
+            "USER_ID" to email,
             "CLASS_ID" to classId,
             "STUDENT_ID" to studentId
         )

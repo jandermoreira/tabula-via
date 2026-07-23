@@ -37,11 +37,11 @@ class StudentRepository(
      * @param student The student to insert or update.
      * @param uid The authenticated user ID.
      */
-    suspend fun insertStudent(student: Student, uid: String) {
+    suspend fun insertStudent(student: Student, email: String) {
         studentDao.insertStudent(student)
 
         val syncRequest = OneTimeWorkRequestBuilder<SyncStudentWorker>()
-            .setInputData(SyncStudentWorker.buildInputData(uid, student.classId, student.studentId))
+            .setInputData(SyncStudentWorker.buildInputData(email, student.classId, student.studentId))
             .build()
         WorkManager.getInstance(applicationContext).enqueue(syncRequest)
     }
@@ -53,13 +53,13 @@ class StudentRepository(
      * @param students List of students to insert.
      * @param uid The authenticated user ID.
      */
-    suspend fun insertAllStudents(students: List<Student>, uid: String) {
+    suspend fun insertAllStudents(students: List<Student>, email: String) {
         studentDao.insertAll(students)
 
         val batch = firestore.batch()
         for (student in students) {
             val docRef = firestore.collection("users")
-                .document(uid)
+                .document(email)
                 .collection("classes")
                 .document(student.classId)
                 .collection("students")
@@ -116,14 +116,14 @@ class StudentRepository(
      * @param student The student entity to delete.
      * @param uid The authenticated user ID.
      */
-    suspend fun deleteStudent(student: Student, uid: String) {
+    suspend fun deleteStudent(student: Student, email: String) {
         withContext(Dispatchers.IO) {
             try {
                 // Remove local attendance records first to maintain integrity
                 attendanceRepository.removeStudentFromAttendanceSessions(
                     studentId = student.studentId,
                     classId = student.classId,
-                    uid = uid
+                    email = email
                 )
             } catch (e: Exception) {
                 // Logs failure but allows student deletion to proceed
@@ -137,7 +137,7 @@ class StudentRepository(
             val syncWorkRequest = OneTimeWorkRequestBuilder<SyncDeleteStudentWorker>()
                 .setInputData(
                     SyncDeleteStudentWorker.buildInputData(
-                        userId = uid,
+                        email =  email,
                         classId = student.classId,
                         studentId = student.studentId
                     )
@@ -173,11 +173,11 @@ class StudentRepository(
          * @param uid The authenticated user ID.
          * @param classId The unique identifier of the class.
          */
-        fun startStudentsSync(uid: String, classId: String) {
+        fun startStudentsSync(email: String, classId: String) {
             stopStudentsSync()
 
             studentsListener = firestore.collection("users")
-                .document(uid)
+                .document(email)
                 .collection("classes")
                 .document(classId)
                 .collection("students")

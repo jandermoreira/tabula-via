@@ -32,11 +32,11 @@ class CloudStorageRepository(
      * @return RepositoryResult indicating success or failure.
      */
     suspend fun uploadBackupData(backupData: BackupData): RepositoryResult = withContext(Dispatchers.IO) {
-        val userId = auth.currentUser?.uid ?: return@withContext RepositoryResult(false, "Usuário não logado.")
+        val userEmail = auth.currentUser?.email ?: return@withContext RepositoryResult(false, "Usuário não logado.")
 
         try {
             val jsonString = json.encodeToString(backupData)
-            val storageRef = storage.reference.child("backups/$userId/backup.json")
+            val storageRef = storage.reference.child("backups/$userEmail/backup.json")
             storageRef.putBytes(jsonString.toByteArray()).await()
             RepositoryResult(true, "Backup concluído com sucesso!")
         } catch (e: Exception) {
@@ -49,10 +49,10 @@ class CloudStorageRepository(
      * @return RestoreResult containing BackupData or null and a message.
      */
     suspend fun downloadBackupData(): RestoreResult = withContext(Dispatchers.IO) {
-        val userId = auth.currentUser?.uid ?: return@withContext RestoreResult(null, "Usuário não logado.")
+        val userEmail = auth.currentUser?.email ?: return@withContext RestoreResult(null, "Usuário não logado.")
 
         try {
-            val storageRef = storage.reference.child("backups/$userId/backup.json")
+            val storageRef = storage.reference.child("backups/$userEmail/backup.json")
             val bytes = storageRef.getBytes(10 * 1024 * 1024).await()
             val jsonString = String(bytes)
             val backupData = json.decodeFromString<BackupData>(jsonString)

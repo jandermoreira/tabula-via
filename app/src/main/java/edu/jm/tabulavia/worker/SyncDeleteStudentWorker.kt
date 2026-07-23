@@ -22,16 +22,16 @@ class SyncDeleteStudentWorker(
      * Accesses the specific Firestore document path and performs a delete operation.
      */
     override suspend fun doWork(): Result {
-        val userId = inputData.getString("USER_ID") ?: return Result.failure()
+        val userEmail = inputData.getString("USER_ID") ?: return Result.failure()
         val classId = inputData.getString("CLASS_ID") ?: return Result.failure()
         val studentId = inputData.getString("STUDENT_ID") ?: return Result.failure()
 
         val firestore = FirebaseFirestore.getInstance()
 
         return try {
-            // Reference to users/{userId}/classes/{classId}/students/{studentId}
+            // Reference to users/{userEmail}/classes/{classId}/students/{studentId}
             firestore.collection("users")
-                .document(userId)
+                .document(userEmail)
                 .collection("classes")
                 .document(classId)
                 .collection("students")
@@ -54,13 +54,13 @@ class SyncDeleteStudentWorker(
         /**
          * Builds the input data required for the worker to identify the remote document.
          *
-         * @param userId The authenticated user unique identifier.
+         * @param email The authenticated user email.
          * @param classId The class unique identifier.
          * @param studentId The student unique identifier.
          * @return Data object containing the identifiers.
          */
-        fun buildInputData(userId: String, classId: String, studentId: String) = workDataOf(
-            "USER_ID" to userId,
+        fun buildInputData(email: String, classId: String, studentId: String) = workDataOf(
+            "USER_ID" to email,
             "CLASS_ID" to classId,
             "STUDENT_ID" to studentId
         )

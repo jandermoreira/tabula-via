@@ -49,8 +49,8 @@ class ClassRepository(
     /**
      * Helper to get the Firestore collection reference for a specific user's classes.
      */
-    private fun userClassesRef(uid: String) = firestore.collection("users")
-        .document(uid)
+    private fun userClassesRef(email: String) = firestore.collection("users")
+        .document(email)
         .collection("classes")
 
     // Class Management Block
@@ -68,12 +68,12 @@ class ClassRepository(
     /**
      * Saves a class locally and triggers a non-blocking cloud synchronization.
      */
-    suspend fun insertClass(academicClass: AcademicClass, uid: String): String {
+    suspend fun insertClass(academicClass: AcademicClass, email: String): String {
         // Immediate local persistence
         classDao.insertClass(academicClass)
 
         // Asynchronous Firestore update managed by the SDK's internal queue
-        userClassesRef(uid)
+        userClassesRef(email)
             .document(academicClass.classId)
             .set(academicClass)
 
@@ -107,7 +107,7 @@ class ClassRepository(
     /**
      * Persists a single activity record locally and schedules a background sync to Firestore.
      */
-    suspend fun insertActivity(activity: Activity, uid: String) {
+    suspend fun insertActivity(activity: Activity, email: String) {
         activityDao.insert(activity)
 
         val syncWorkRequest = OneTimeWorkRequestBuilder<SyncActivityWorker>()
@@ -115,7 +115,7 @@ class ClassRepository(
                 workDataOf(
                     "ACTIVITY_ID" to activity.activityId,
                     "CLASS_ID" to activity.classId,
-                    "USER_ID" to uid
+                    "USER_ID" to email
                 )
             )
             .setConstraints(
@@ -171,11 +171,11 @@ class ClassRepository(
 
         // Synchronize group data with Firestore in the background
         val currentUser = Firebase.auth.currentUser
-        val uid = currentUser?.uid ?: throw IllegalStateException("User not logged in. Cannot persist groups.")
+        val email = currentUser?.email ?: throw IllegalStateException("User not logged in. Cannot persist groups.")
 
         try {
             val groupDocumentRef = Firebase.firestore.collection("users")
-                .document(uid)
+                .document(email)
                 .collection("activities")
                 .document(activityId)
                 .collection("groups")
@@ -231,9 +231,9 @@ class ClassRepository(
     /**
      * Fetches all classes from Firestore and updates the local database.
      */
-    suspend fun syncClassesFromCloud(uid: String) {
+    suspend fun syncClassesFromCloud(email: String) {
         try {
-            val snapshot = userClassesRef(uid).get().await()
+            val snapshot = userClassesRef(email).get().await()
             val classes = snapshot.toObjects(AcademicClass::class.java)
 
             if (classes.isNotEmpty()) {
@@ -248,12 +248,12 @@ class ClassRepository(
      * Starts a real-time listener for the user's classes in Firestore.
      * Uses documentChanges to synchronize additions, updates, and deletions with Room.
      *
-     * @param uid The authenticated user ID.
+     * @param email The authenticated user email.
      */
-    fun startClassesSync(uid: String) {
+    fun startClassesSync(email: String) {
         stopClassesSync()
 
-        classesListener = userClassesRef(uid).addSnapshotListener { snapshot, error ->
+        classesListener = userClassesRef(email).addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e("ClassRepository", "Firestore listener error: ${error.message}")
                 return@addSnapshotListener
@@ -292,10 +292,10 @@ class ClassRepository(
     /**
      * Starts a real-time listener for activities of a specific class.
      */
-    fun startActivitiesSync(uid: String, classId: String) {
+    fun startActivitiesSync(email: String, classId: String) {
         stopActivitiesSync()
 
-        activitiesListener = userClassesRef(uid)
+        activitiesListener = userClassesRef(email)
             .document(classId)
             .collection("activities")
             .addSnapshotListener { snapshot, error ->
