@@ -29,11 +29,20 @@ object DatabaseProvider {
     }
 
     /**
-     * Migration from version 14 to 15: Renames 'numberOfClasses' to 'numberOfSession' in 'classes' table.
+     * Migration from version 14 to 15: Renames 'numberOfClasses' to 'numberOfSessions' in 'classes' table.
      */
     private val MIGRATION_14_15 = object : Migration(14, 15) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE classes RENAME COLUMN numberOfClasses TO numberOfSession")
+        }
+    }
+
+    /**
+     * Migration from version 14 to 15: Renames 'numberOfSession' to 'numberOfSessions' in 'classes' table.
+     */
+    private val MIGRATION_15_16 = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE classes RENAME COLUMN numberOfSession TO numberOfSessions")
         }
     }
 
@@ -51,7 +60,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 BuildConfig.DATABASE_NAME
-            ).addMigrations(MIGRATION_13_14, MIGRATION_14_15)
+            ).addMigrations(MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
 
             /*
              * Apply destructive migration only for the development environment
