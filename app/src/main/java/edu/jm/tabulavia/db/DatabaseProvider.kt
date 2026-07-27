@@ -38,9 +38,9 @@ object DatabaseProvider {
     }
 
     /**
-     * Migration from version 14 to 15: Renames 'numberOfSession' to 'numberOfSessions' in 'classes' table.
+     * Migration from version 15 to 16: Renames 'numberOfSession' to 'numberOfSessions' in 'classes' table.
      */
-    private val MIGRATION_15_16 = object : Migration(14, 15) {
+    private val MIGRATION_15_16 = object : Migration(15, 16) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE classes RENAME COLUMN numberOfSession TO numberOfSessions")
         }
