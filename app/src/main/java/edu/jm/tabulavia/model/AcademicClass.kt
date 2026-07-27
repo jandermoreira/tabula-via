@@ -43,5 +43,6 @@ data class AcademicClass(
     /**
      * Number of class sessions planned.
      */
+    @JsonNames("numberOfClasses")
     val numberOfSession: Int = 0
 )
