@@ -43,5 +43,5 @@ data class AcademicClass(
     /**
      * Number of class sessions planned.
      */
-    val numberOfClasses: Int = 0
+    val numberOfSession: Int = 0
 )

@@ -87,8 +87,8 @@ fun AddClassScreen(
             )
 
             OutlinedTextField(
-                value = if (viewModel.numberOfClasses > 0) viewModel.numberOfClasses.toString() else "",
-                onValueChange = { viewModel.numberOfClasses = it.toIntOrNull() ?: 0 },
+                value = if (viewModel.numberOfSession > 0) viewModel.numberOfSession.toString() else "",
+                onValueChange = { viewModel.numberOfSession = it.toIntOrNull() ?: 15 },
                 label = { Text("Número de Aulas") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

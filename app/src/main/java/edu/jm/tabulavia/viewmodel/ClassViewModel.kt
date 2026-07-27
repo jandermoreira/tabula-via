@@ -183,7 +183,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     var className by mutableStateOf("")
     var academicYear by mutableStateOf("")
     var period by mutableStateOf("")
-    var numberOfClasses by mutableIntStateOf(0)
+    var numberOfSession by mutableIntStateOf(15)
     var studentName by mutableStateOf("")
     var studentDisplayName by mutableStateOf("")
     var studentNumber by mutableStateOf("")
@@ -340,7 +340,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             _classSkills.value = classSkills
 
             attendanceRepository.countStudentAbsencesFlow(studentId).collect { absences ->
-                val totalClasses = _selectedClass.value?.numberOfClasses ?: 0
+                val totalClasses = _selectedClass.value?.numberOfSession ?: 0
 
                 if (totalClasses > 0) {
                     val presenceCount = (totalClasses - absences).toFloat()
@@ -883,7 +883,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      */
     suspend fun generateAttendanceReport(): String = withContext(Dispatchers.IO) {
         val currentClass = _selectedClass.value ?: return@withContext "Turma não encontrada."
-        val totalClasses = currentClass.numberOfClasses
+        val totalClasses = currentClass.numberOfSession
         
         if (totalClasses <= 0) {
             return@withContext "O número total de aulas deve ser configurado para calcular a frequência."
@@ -1080,7 +1080,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         className = className,
                         academicYear = academicYear,
                         period = period,
-                        numberOfClasses = numberOfClasses
+                        numberOfSession = numberOfSession
                     )
 
                     classRepository.insertClass(newClass, email)
@@ -1113,7 +1113,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         className = ""
         academicYear = ""
         period = ""
-        numberOfClasses = 0
+        numberOfSession = 0
     }
 
     /**
