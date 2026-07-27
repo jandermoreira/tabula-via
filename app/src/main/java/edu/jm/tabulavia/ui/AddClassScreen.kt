@@ -28,9 +28,7 @@ import java.time.Year
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddClassScreen(
-    viewModel: ClassViewModel,
-    onClassAdded: () -> Unit,
-    onNavigateBack: () -> Unit
+    viewModel: ClassViewModel, onClassAdded: () -> Unit, onNavigateBack: () -> Unit
 ) {
     MessageHandler(viewModel)
 
@@ -38,16 +36,12 @@ fun AddClassScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Adicionar Nova Turma") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
-                    }
+            TopAppBar(title = { Text("Adicionar Nova Turma") }, navigationIcon = {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                 }
-            )
-        }
-    ) { paddingValues ->
+            })
+        }) { paddingValues ->
         // Main form layout
         Column(
             modifier = Modifier
@@ -99,8 +93,7 @@ fun AddClassScreen(
 
             // Action button to save the class
             Button(
-                onClick = { viewModel.addClass(onClassAdded) },
-                modifier = Modifier.fillMaxWidth()
+                onClick = { viewModel.addClass(onClassAdded) }, modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Salvar Turma")
             }
