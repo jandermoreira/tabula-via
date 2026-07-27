@@ -1,5 +1,5 @@
 /**
- * Repository for class management, activities, and group formations.
+ * Repository for class management, activities, students, and group formations.
  * Handles local Room persistence and Firestore synchronization using persistent String IDs.
  */
 package edu.jm.tabulavia.repository
@@ -23,6 +23,7 @@ import com.google.firebase.ktx.Firebase
 import edu.jm.tabulavia.dao.ActivityDao
 import edu.jm.tabulavia.dao.ClassDao
 import edu.jm.tabulavia.dao.GroupMemberDao
+import edu.jm.tabulavia.dao.StudentDao
 import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.AcademicClass
 import edu.jm.tabulavia.model.GroupMember
@@ -38,6 +39,7 @@ import kotlinx.coroutines.tasks.await
 class ClassRepository(
     private val context: Context,
     private val classDao: ClassDao,
+    private val studentDao: StudentDao,
     private val activityDao: ActivityDao,
     private val groupMemberDao: GroupMemberDao,
     private val firestore: FirebaseFirestore
@@ -52,6 +54,13 @@ class ClassRepository(
     private fun userClassesRef(email: String) = firestore.collection("users")
         .document(email)
         .collection("classes")
+
+    /**
+     * Helper to get the Firestore collection reference for students within a class.
+     */
+    private fun userStudentsRef(email: String, classId: String) = userClassesRef(email)
+        .document(classId)
+        .collection("students")
 
     // Class Management Block
 
@@ -84,6 +93,58 @@ class ClassRepository(
      * Bulk inserts a list of classes into the local database.
      */
     suspend fun insertAllClasses(classes: List<AcademicClass>) = classDao.insertAll(classes)
+
+    // Student Management Block
+
+    /**
+     * Retrieves all students associated with a specific class via String ID.
+     */
+    fun getStudentsForClass(classId: String): Flow<List<Student>> =
+        studentDao.getStudentsForClass(classId)
+
+    /**
+     * Retrieves all students associated with a specific class as a list.
+     */
+    suspend fun getStudentsForClassList(classId: String): List<Student> =
+        studentDao.getStudentsForClassList(classId)
+
+    /**
+     * Fetches every student stored in the local database.
+     */
+    suspend fun getAllStudents(): List<Student> = studentDao.getAllStudents()
+
+    /**
+     * Inserts a student record locally and syncs with Firestore.
+     */
+    suspend fun insertStudent(student: Student, email: String) {
+        studentDao.insertStudent(student)
+
+        userStudentsRef(email, student.classId)
+            .document(student.studentId)
+            .set(student)
+            .await()
+    }
+
+    /**
+     * Bulk inserts a list of students into local database and syncs to Firestore using batch write.
+     */
+    suspend fun insertAllStudents(students: List<Student>, email: String) {
+        if (students.isEmpty()) return
+
+        studentDao.insertAll(students)
+
+        val batch = firestore.batch()
+        students.forEach { student ->
+            val docRef = userStudentsRef(email, student.classId).document(student.studentId)
+            batch.set(docRef, student)
+        }
+        batch.commit().await()
+    }
+
+    /**
+     * Bulk inserts a list of students into the local database only.
+     */
+    suspend fun insertAllStudentsLocal(students: List<Student>) = studentDao.insertAll(students)
 
     // Activity Management Block
 
@@ -146,9 +207,6 @@ class ClassRepository(
 
     // Group Management Block
 
-    /**
-     * Records group assignments for an activity.
-     */
     /**
      * Records group assignments for an activity.
      */
@@ -287,6 +345,32 @@ class ClassRepository(
     fun stopClassesSync() {
         classesListener?.remove()
         classesListener = null
+    }
+
+    /**
+     * Starts a real-time listener for students of a specific class.
+     */
+    fun startStudentsSync(email: String, classId: String) {
+        stopStudentsSync()
+
+        studentsListener = userStudentsRef(email, classId).addSnapshotListener { snapshot, error ->
+            if (error != null) return@addSnapshotListener
+
+            snapshot?.let {
+                val students = it.toObjects(Student::class.java).filterNotNull()
+                CoroutineScope(Dispatchers.IO).launch {
+                    studentDao.insertAll(students)
+                }
+            }
+        }
+    }
+
+    /**
+     * Stops the active students listener.
+     */
+    fun stopStudentsSync() {
+        studentsListener?.remove()
+        studentsListener = null
     }
 
     /**

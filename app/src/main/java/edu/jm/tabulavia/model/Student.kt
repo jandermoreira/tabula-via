@@ -9,10 +9,15 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.google.firebase.firestore.Exclude
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonNames
 
+/**
+ * Represents a student within an academic class.
+ */
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 @Entity(
@@ -66,7 +71,8 @@ data class Student(
      * Returns the name to be displayed in the UI.
      * Uses displayName if it is not blank; otherwise, falls back to the full name.
      */
+    @get:Exclude
+    @Transient
     val effectiveName: String
         get() = displayName.ifBlank { name }
-
 }

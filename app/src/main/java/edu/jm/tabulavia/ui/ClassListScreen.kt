@@ -132,7 +132,7 @@ fun ClassListScreen(
                         val backup = json.decodeFromString(edu.jm.tabulavia.model.ClassBackup.serializer(), content)
                         
                         importJsonContent = content
-                        suggestedClassName = "${backup.clazz.className} (Recovered)"
+                        suggestedClassName = "${backup.clazz.className} (Recuperado)"
                         showImportDialog = true
                     }
                 } catch (e: Exception) {

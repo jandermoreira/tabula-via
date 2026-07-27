@@ -6,6 +6,7 @@
 package edu.jm.tabulavia.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -72,6 +73,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     private val classRepository = ClassRepository(
         context = application.applicationContext,
         classDao = db.classDao(),
+        studentDao = db.studentDao(),
         activityDao = db.activityDao(),
         groupMemberDao = db.groupMemberDao(),
         firestore = Firebase.firestore
@@ -1474,12 +1476,23 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     }
 
     /**
-     * Restores a class and all its related data from a JSON backup string and syncs with Firestore.
+     * Restores an academic class and its associated data from a JSON backup string and syncs it with Firestore.
+     *
+     * @param jsonString The raw JSON string containing class backup data.
+     * @param customName Optional custom name to override the restored class name.
      */
     fun importClassBackup(jsonString: String, customName: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val email = com.google.firebase.Firebase.auth.currentUser?.email
+                val user = com.google.firebase.Firebase.auth.currentUser
+                val email: String = user?.email?.lowercase() ?: run {
+                    Log.e("ClassViewModel", "Remote synchronization aborted: user email is null or blank.")
+                    withContext(Dispatchers.Main) {
+                        showMessage("Erro na importação: Usuário não autenticado.")
+                    }
+                    return@launch
+                }
+
                 val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
                 val backup = json.decodeFromString(ClassBackup.serializer(), jsonString)
 
@@ -1521,16 +1534,15 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         db.studentDao().insertAll(restoredStudents)
                     }
 
-                    // 2.3 Sessions and Attendance mapping and insertion
+                    // 2.3 Sessions and Attendance Mapping and Insertion
                     if (restoredSessions.isNotEmpty()) {
                         db.attendanceDao().insertAllSessions(restoredSessions)
-                        
-                        // Reconstruct attendance records using new IDs
+
                         val allRestoredRecords = mutableListOf<AttendanceRecord>()
                         backup.sessions.forEachIndexed { index, oldSession ->
                             val newSessionId = restoredSessions[index].sessionId
-                            val recordsForThisSession = backup.attendance.filter { it.sessionId == oldSession.sessionId }
-                            
+                            val recordsForThisSession = backup.attendance.filter { record -> record.sessionId == oldSession.sessionId }
+
                             recordsForThisSession.forEach { record ->
                                 val newStudentId = studentIdMap[record.studentId]
                                 if (newStudentId != null) {
@@ -1555,12 +1567,11 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         db.activityDao().insertAll(restoredActivities)
                     }
 
-                    // Groups Mapping
-                    val restoredMembers = backup.groupMembers.mapNotNull { m ->
-                        val newAid = activityIdMap[m.activityId]
-                        val newStid = studentIdMap[m.studentId]
-                        if (newAid != null && newStid != null) {
-                            m.copy(activityId = newAid, studentId = newStid)
+                    val restoredMembers = backup.groupMembers.mapNotNull { member ->
+                        val newActivityId = activityIdMap[member.activityId]
+                        val newStudentId = studentIdMap[member.studentId]
+                        if (newActivityId != null && newStudentId != null) {
+                            member.copy(activityId = newActivityId, studentId = newStudentId)
                         } else null
                     }
 
@@ -1569,85 +1580,161 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     }
 
                     // 2.5 Skills and Assessments
-                    val restoredSkills = backup.skills.map { it.copy(classId = newClassId, firestoreId = UUID.randomUUID().toString()) }
+                    val restoredSkills = backup.skills.map { skill ->
+                        skill.copy(classId = newClassId, firestoreId = UUID.randomUUID().toString())
+                    }
                     if (restoredSkills.isNotEmpty()) {
                         db.classSkillDao().insertClassSkills(restoredSkills)
                     }
 
-                    val restoredHSkills = backup.highlightedSkills.mapNotNull { hs ->
-                        activityIdMap[hs.activityId]?.let { newAid ->
-                            hs.copy(activityId = newAid, firestoreId = UUID.randomUUID().toString())
+                    val restoredHighlightedSkills = backup.highlightedSkills.mapNotNull { highlightedSkill ->
+                        activityIdMap[highlightedSkill.activityId]?.let { newActivityId ->
+                            highlightedSkill.copy(activityId = newActivityId, firestoreId = UUID.randomUUID().toString())
                         }
                     }
-                    if (restoredHSkills.isNotEmpty()) db.activityHighlightedSkillDao().insertAll(restoredHSkills)
+                    if (restoredHighlightedSkills.isNotEmpty()) {
+                        db.activityHighlightedSkillDao().insertAll(restoredHighlightedSkills)
+                    }
 
-                    val restoredAssessments = backup.assessments.mapNotNull { a ->
-                        studentIdMap[a.studentId]?.let { newStid ->
-                            a.copy(id = 0, studentId = newStid, firestoreId = UUID.randomUUID().toString())
+                    val restoredAssessments = backup.assessments.mapNotNull { assessment ->
+                        studentIdMap[assessment.studentId]?.let { newStudentId ->
+                            assessment.copy(id = 0, studentId = newStudentId, firestoreId = UUID.randomUUID().toString())
                         }
                     }
-                    if (restoredAssessments.isNotEmpty()) db.skillAssessmentDao().insertAll(restoredAssessments)
+                    if (restoredAssessments.isNotEmpty()) {
+                        db.skillAssessmentDao().insertAll(restoredAssessments)
+                    }
 
-                    val restoredStudentSkills = backup.studentSkills.mapNotNull { ss ->
-                        studentIdMap[ss.studentId]?.let { newStid ->
-                            ss.copy(studentId = newStid, firestoreId = UUID.randomUUID().toString())
+                    val restoredStudentSkills = backup.studentSkills.mapNotNull { studentSkill ->
+                        studentIdMap[studentSkill.studentId]?.let { newStudentId ->
+                            studentSkill.copy(studentId = newStudentId, firestoreId = UUID.randomUUID().toString())
                         }
                     }
-                    if (restoredStudentSkills.isNotEmpty()) db.skillDao().insertOrUpdateSkills(restoredStudentSkills)
+                    if (restoredStudentSkills.isNotEmpty()) {
+                        db.skillDao().insertOrUpdateSkills(restoredStudentSkills)
+                    }
                 }
 
-                // 3. Cloud Sync (outside transaction)
-                if (email != null) {
-                    val userClassesRef = Firebase.firestore.collection("users").document(email).collection("classes")
-                    
-                    // Sync class
-                    userClassesRef.document(newClassId).set(restoredClass)
+                // 3. Cloud Synchronization
+                val userClassesRef = Firebase.firestore.collection("users").document(email).collection("classes")
 
-                    // Sync students
+                // 3.1 Sync Class
+                userClassesRef.document(newClassId).set(restoredClass).await()
+
+                // 3.2 Sync Students Subcollection
+                if (restoredStudents.isNotEmpty()) {
+                    val studentBatch = Firebase.firestore.batch()
+                    val studentsRef = userClassesRef.document(newClassId).collection("students")
                     restoredStudents.forEach { student ->
-                        userClassesRef.document(newClassId).collection("students").document(student.studentId).set(student)
+                        val studentMap = mapOf(
+                            "studentId" to student.studentId,
+                            "name" to student.name,
+                            "displayName" to student.displayName,
+                            "studentNumber" to student.studentNumber,
+                            "classId" to student.classId,
+                            "status" to student.status.name
+                        )
+                        studentBatch.set(studentsRef.document(student.studentId), studentMap)
                     }
+                    studentBatch.commit().await()
+                }
 
-                    // Sync activities
+                // 3.3 Sync Activities Subcollection
+                if (restoredActivities.isNotEmpty()) {
+                    val activityBatch = Firebase.firestore.batch()
+                    val activitiesRef = userClassesRef.document(newClassId).collection("activities")
                     restoredActivities.forEach { activity ->
-                        userClassesRef.document(newClassId).collection("activities").document(activity.activityId).set(activity)
+                        activityBatch.set(activitiesRef.document(activity.activityId), activity)
                     }
+                    activityBatch.commit().await()
+                }
 
-                    // Sync sessions to Firestore
+                // 3.4 Sync Sessions and Attendance Subcollection
+                if (restoredSessions.isNotEmpty()) {
+                    val sessionBatch = Firebase.firestore.batch()
+                    val sessionsRef = userClassesRef.document(newClassId).collection("sessions")
+
                     restoredSessions.forEachIndexed { index, session ->
                         val oldSessionId = backup.sessions[index].sessionId
-                        val records = backup.attendance.filter { it.sessionId == oldSessionId }
-                        val attendanceMap = records.mapNotNull { r ->
-                            studentIdMap[r.studentId]?.let { it to r.status }
+                        val records = backup.attendance.filter { record -> record.sessionId == oldSessionId }
+                        val attendanceMap = records.mapNotNull { record ->
+                            studentIdMap[record.studentId]?.let { newStudentId ->
+                                newStudentId to record.status.name
+                            }
                         }.toMap()
 
                         val firestoreSession = mapOf(
                             "sessionId" to session.sessionId,
                             "classId" to newClassId,
                             "timestamp" to session.timestamp,
-                            "attendance" to attendanceMap.mapValues { it.value.name }
+                            "attendance" to attendanceMap
                         )
-                        
-                        userClassesRef.document(newClassId).collection("sessions").document(session.sessionId).set(firestoreSession)
-                    }
 
-                    // Reconstruction and persist groups for sync
-                    activityIdMap.values.forEach { newAid ->
-                        val membersForActivity = db.groupMemberDao().getGroupMembersForActivityList(newAid)
-                        val groups = membersForActivity.groupBy { it.groupNumber }.values.map { groupList ->
-                            groupList.mapNotNull { member -> restoredStudents.find { it.studentId == member.studentId } }
-                        }
-                        if (groups.isNotEmpty()) {
-                            classRepository.persistGroups(newAid, groups)
-                        }
+                        sessionBatch.set(sessionsRef.document(session.sessionId), firestoreSession)
                     }
-                    
-                    // Sync skills
-                    val skillsToSync = db.classSkillDao().getSkillsForClass(newClassId)
-                    skillsToSync.forEach { skill ->
-                         val firestoreId = skill.firestoreId ?: UUID.randomUUID().toString()
-                         userClassesRef.document(newClassId).collection("skills").document(firestoreId).set(skill)
+                    sessionBatch.commit().await()
+                }
+
+                // 3.5 Sync Class Skills Subcollection
+                val restoredSkills = backup.skills.map { skill ->
+                    skill.copy(classId = newClassId, firestoreId = UUID.randomUUID().toString())
+                }
+                if (restoredSkills.isNotEmpty()) {
+                    val skillBatch = Firebase.firestore.batch()
+                    val skillsRef = userClassesRef.document(newClassId).collection("skills")
+                    restoredSkills.forEach { skill ->
+                        val docId = skill.firestoreId ?: UUID.randomUUID().toString()
+                        skillBatch.set(skillsRef.document(docId), skill)
                     }
+                    skillBatch.commit().await()
+                }
+
+                // 3.6 Sync Highlighted Skills Subcollection
+                val restoredHighlightedSkills = backup.highlightedSkills.mapNotNull { highlightedSkill ->
+                    activityIdMap[highlightedSkill.activityId]?.let { newActivityId ->
+                        highlightedSkill.copy(activityId = newActivityId, firestoreId = UUID.randomUUID().toString())
+                    }
+                }
+                if (restoredHighlightedSkills.isNotEmpty()) {
+                    val highlightedSkillBatch = Firebase.firestore.batch()
+                    val highlightedSkillsRef = userClassesRef.document(newClassId).collection("highlightedSkills")
+                    restoredHighlightedSkills.forEach { highlightedSkill ->
+                        val docId = highlightedSkill.firestoreId ?: UUID.randomUUID().toString()
+                        highlightedSkillBatch.set(highlightedSkillsRef.document(docId), highlightedSkill)
+                    }
+                    highlightedSkillBatch.commit().await()
+                }
+
+                // 3.7 Sync Skill Assessments Subcollection
+                val restoredAssessments = backup.assessments.mapNotNull { assessment ->
+                    studentIdMap[assessment.studentId]?.let { newStudentId ->
+                        assessment.copy(id = 0, studentId = newStudentId, firestoreId = UUID.randomUUID().toString())
+                    }
+                }
+                if (restoredAssessments.isNotEmpty()) {
+                    val assessmentBatch = Firebase.firestore.batch()
+                    val assessmentsRef = userClassesRef.document(newClassId).collection("assessments")
+                    restoredAssessments.forEach { assessment ->
+                        val docId = assessment.firestoreId ?: UUID.randomUUID().toString()
+                        assessmentBatch.set(assessmentsRef.document(docId), assessment)
+                    }
+                    assessmentBatch.commit().await()
+                }
+
+                // 3.8 Sync Student Skills Subcollection
+                val restoredStudentSkills = backup.studentSkills.mapNotNull { studentSkill ->
+                    studentIdMap[studentSkill.studentId]?.let { newStudentId ->
+                        studentSkill.copy(studentId = newStudentId, firestoreId = UUID.randomUUID().toString())
+                    }
+                }
+                if (restoredStudentSkills.isNotEmpty()) {
+                    val studentSkillBatch = Firebase.firestore.batch()
+                    val studentSkillsRef = userClassesRef.document(newClassId).collection("studentSkills")
+                    restoredStudentSkills.forEach { studentSkill ->
+                        val docId = studentSkill.firestoreId ?: UUID.randomUUID().toString()
+                        studentSkillBatch.set(studentSkillsRef.document(docId), studentSkill)
+                    }
+                    studentSkillBatch.commit().await()
                 }
 
                 withContext(Dispatchers.Main) {
@@ -1655,9 +1742,10 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     val studentsCount = restoredStudents.size
                     val summary = "Importado e sincronizado: $studentsCount alunos, $activitiesCount atividades."
                     showMessage(summary)
-                    if (email != null) refreshAllData(email)
+                    refreshAllData(email)
                 }
             } catch (e: Exception) {
+                Log.e("ClassViewModel", "Error executing importClassBackup", e)
                 withContext(Dispatchers.Main) {
                     showMessage("Erro na importação: ${e.localizedMessage}")
                 }
