@@ -105,8 +105,19 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     private val _selectedActivity = MutableStateFlow<Activity?>(null)
     val selectedActivity: StateFlow<Activity?> = _selectedActivity.asStateFlow()
 
-    private val _studentsForClass = MutableStateFlow<List<Student>>(emptyList())
-    val studentsForClass: StateFlow<List<Student>> = _studentsForClass.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val _studentsForClass = _selectedClass.flatMapLatest { academicClass ->
+        if (academicClass != null) {
+            studentRepository.getStudentsForClass(academicClass.classId)
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+    val studentsForClass: StateFlow<List<Student>> = _studentsForClass
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val _classSessions = _selectedClass.flatMapLatest { academicClass ->
@@ -134,8 +145,19 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     private val _studentAttendancePercentage = MutableStateFlow<Float?>(null)
     val studentAttendancePercentage: StateFlow<Float?> = _studentAttendancePercentage.asStateFlow()
 
-    private val _activities = MutableStateFlow<List<Activity>>(emptyList())
-    val activities: StateFlow<List<Activity>> = _activities.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val _activities = _selectedClass.flatMapLatest { academicClass ->
+        if (academicClass != null) {
+            classRepository.getActivitiesForClass(academicClass.classId)
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+    val activities: StateFlow<List<Activity>> = _activities
 
     private val _skillAssessmentLog = MutableStateFlow<List<SkillAssessment>>(emptyList())
     val skillAssessmentLog: StateFlow<List<SkillAssessment>> = _skillAssessmentLog.asStateFlow()
@@ -145,8 +167,19 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     val studentSkillSummaries: StateFlow<Map<String, SkillAssessmentsSummary>> =
         _studentSkillSummaries.asStateFlow()
 
-    private val _classSkills = MutableStateFlow<List<ClassSkill>>(emptyList())
-    val classSkills: StateFlow<List<ClassSkill>> = _classSkills.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val _classSkills = _selectedClass.flatMapLatest { academicClass ->
+        if (academicClass != null) {
+            skillRepository.getSkillsFlowForClass(academicClass.classId)
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+    val classSkills: StateFlow<List<ClassSkill>> = _classSkills
 
     private val _generatedGroups = MutableStateFlow<List<List<Student>>>(emptyList())
     val generatedGroups: StateFlow<List<List<Student>>> = _generatedGroups.asStateFlow()
@@ -256,29 +289,11 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             skillRepository.startListeningToClassSkills(email, classId)
         }
 
-        // Launch coroutines to collect Flows from Room (they will emit initial data and updates)
+        // Launch coroutine to load the selected class.
+        // Reactive flows (students, activities, skills, sessions) will automatically
+        // react to the change in _selectedClass.
         viewModelScope.launch {
-            // Get the selected class (one-shot)
             _selectedClass.value = classRepository.getClassById(classId)
-
-            // Collect students (real-time)
-            studentRepository.getStudentsForClass(classId).collect { studentsList ->
-                _studentsForClass.value = studentsList
-            }
-        }
-
-        viewModelScope.launch {
-            // Collect activities (real-time)
-            classRepository.getActivitiesForClass(classId).collect { activitiesList ->
-                _activities.value = activitiesList
-            }
-        }
-
-        viewModelScope.launch {
-            // Collect class skills (real-time via the new Flow from SkillRepository)
-            skillRepository.getSkillsFlowForClass(classId).collect { skillsList ->
-                _classSkills.value = skillsList
-            }
         }
     }
 
@@ -292,10 +307,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         currentClassId = null
 
         _selectedClass.value = null
-        _studentsForClass.value = emptyList()
-        _activities.value = emptyList()
         editingSession = null
-        _classSkills.value = emptyList()
         _studentSkillStatuses.value = emptyList()
     }
 
@@ -334,10 +346,6 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     fun loadStudentDetails(studentId: String) {
         viewModelScope.launch {
             _selectedStudentDetails.value = studentRepository.getStudentById(studentId)
-
-            val classId = _selectedClass.value?.classId ?: return@launch
-            val classSkills = skillRepository.getSkillsForClass(classId)
-            _classSkills.value = classSkills
 
             attendanceRepository.countStudentAbsencesFlow(studentId).collect { absences ->
                 val totalClasses = _selectedClass.value?.numberOfSession ?: 0
@@ -389,9 +397,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Fetches skills associated with a class.
      */
     fun loadSkillsForClass(classId: String) {
-        viewModelScope.launch {
-            _classSkills.value = skillRepository.getSkillsForClass(classId)
-        }
+        // Redundant with reactive classSkills flow
     }
 
     /**
@@ -422,7 +428,6 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 skillRepository.insertClassSkills(email, classId, listOf(newSkill))
 
                 skillName = ""
-                loadSkillsForClass(classId)
                 onSkillAdded()
             }
         }
@@ -437,7 +442,6 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
         viewModelScope.launch {
             skillRepository.deleteClassSkill(email, classId, skill)
-            loadSkillsForClass(classId)
         }
     }
 
@@ -583,7 +587,6 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 activityType = "Grupo"
                 activityHighlightedSkills = emptySet()
 
-                loadActivitiesForClass(classId)
                 onActivityAdded()
                 showMessage("Atividade '$savedTitle' adicionada.")
             }
@@ -594,11 +597,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Fetches all activities for a class.
      */
     fun loadActivitiesForClass(classId: String) {
-        viewModelScope.launch {
-            classRepository.getActivitiesForClass(classId).collect { activitiesList ->
-                _activities.value = activitiesList
-            }
-        }
+        // Redundant with reactive activities flow
     }
 
     /**
@@ -996,7 +995,6 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
                 // Step 5: Reset UI and memory state
                 _selectedClass.value = null
-                _studentsForClass.value = emptyList()
                 _generatedGroups.value = emptyList()
 
                 // Clear additional state flows if necessary
