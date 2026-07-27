@@ -21,7 +21,7 @@ import java.time.Year
 
 /**
  * Screen that provides a form to add a new class to the system.
- * * @param viewModel The state holder for class data.
+ * @param viewModel The state holder for class data.
  * @param onClassAdded Callback executed after successful class creation.
  * @param onNavigateBack Callback to return to the previous screen.
  */
