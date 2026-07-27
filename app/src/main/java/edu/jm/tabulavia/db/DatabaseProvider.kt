@@ -57,9 +57,9 @@ object DatabaseProvider {
              * Apply destructive migration only for the development environment
              * to facilitate rapid schema changes
              */
-//            if (BuildConfig.FLAVOR == "dev") {
-//                builder.fallbackToDestructiveMigration()
-//            }
+            if (BuildConfig.FLAVOR == "dev") {
+                builder.fallbackToDestructiveMigration()
+            }
 
             val newInstance = builder.build()
             instance = newInstance
