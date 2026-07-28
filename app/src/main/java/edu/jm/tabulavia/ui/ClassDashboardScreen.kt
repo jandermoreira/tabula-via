@@ -93,13 +93,13 @@ fun ClassDashboardScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    val titleText = selectedClass?.let {
-                        "${it.className} ${it.academicYear}/${it.period}"
-                    } ?: "Carregando..."
-                    Text(titleText)
-                },
+            val titleText = selectedClass?.let {
+                "${it.className} ${it.academicYear}/${it.period}"
+            } ?: "Carregando..."
+
+            TabulaTopBar(
+                title = titleText,
+                viewModel = viewModel,
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -119,11 +119,7 @@ fun ClassDashboardScreen(
                             )
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                )
+                }
             )
         }
     ) { paddingValues ->

@@ -371,12 +371,20 @@ class ClassRepository(
 
     /**
      * Starts a real-time listener for students of a specific class.
+     *
+     * @param email The authenticated user email.
+     * @param classId The unique identifier of the class.
+     * @param onSyncActivity Callback triggered when a remote change is detected.
      */
-    fun startStudentsSync(email: String, classId: String) {
+    fun startStudentsSync(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
         stopStudentsSync()
 
         studentsListener = userStudentsRef(email, classId).addSnapshotListener { snapshot, error ->
             if (error != null) return@addSnapshotListener
+
+            if (snapshot != null && !snapshot.isEmpty) {
+                onSyncActivity()
+            }
 
             snapshot?.let {
                 val students = it.toObjects(Student::class.java).filterNotNull()

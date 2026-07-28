@@ -70,8 +70,9 @@ fun AttendanceScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(if (editingSession != null) "Editar Frequência" else "Registrar Frequência") },
+            TabulaTopBar(
+                title = if (editingSession != null) "Editar Frequência" else "Registrar Frequência",
+                viewModel = viewModel,
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")

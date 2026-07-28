@@ -39,8 +39,9 @@ fun ClassSkillsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Habilidades") },
+            TabulaTopBar(
+                title = "Habilidades",
+                viewModel = viewModel,
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")

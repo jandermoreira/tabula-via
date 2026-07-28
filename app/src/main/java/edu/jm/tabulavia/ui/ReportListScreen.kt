@@ -34,8 +34,9 @@ fun ReportListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Relatórios") },
+            TabulaTopBar(
+                title = "Relatórios",
+                viewModel = viewModel,
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -43,11 +44,7 @@ fun ReportListScreen(
                             contentDescription = "Voltar"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                )
+                }
             )
         }
     ) { paddingValues ->

@@ -60,13 +60,13 @@ fun StudentListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    val titleText = selectedClass?.let {
-                        "${it.className} ${it.academicYear}/${it.period} - Alunos"
-                    } ?: ""
-                    Text(titleText)
-                },
+            val titleText = selectedClass?.let {
+                "${it.className} ${it.academicYear}/${it.period} - Alunos"
+            } ?: ""
+
+            TabulaTopBar(
+                title = titleText,
+                viewModel = viewModel,
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -74,11 +74,7 @@ fun StudentListScreen(
                             contentDescription = "Back"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                )
+                }
             )
         },
         floatingActionButton = {

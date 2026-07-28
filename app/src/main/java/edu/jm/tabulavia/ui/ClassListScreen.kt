@@ -73,7 +73,6 @@ fun ClassListScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val authenticatedUser by authViewModel.user.collectAsState()
-    val isInitialSyncing by viewModel.isInitialSyncing.collectAsState()
 
     var showBackupDialog by remember { mutableStateOf(false) }
     var isBackupLoading by remember { mutableStateOf(false) }
@@ -352,8 +351,6 @@ fun ClassListScreen(
             }
         )
     }
-
-    SyncingOverlay(isVisible = isInitialSyncing)
 }
 
 /**

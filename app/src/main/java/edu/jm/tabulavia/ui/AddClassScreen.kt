@@ -36,11 +36,15 @@ fun AddClassScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Adicionar Nova Turma") }, navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+            TabulaTopBar(
+                title = "Adicionar Nova Turma",
+                viewModel = viewModel,
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                    }
                 }
-            })
+            )
         }) { paddingValues ->
         // Main form layout
         Column(

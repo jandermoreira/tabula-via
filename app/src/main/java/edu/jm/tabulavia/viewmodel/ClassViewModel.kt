@@ -357,10 +357,10 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
         // Start real-time sync for all related data
         Firebase.auth.currentUser?.email?.let { email ->
-            studentRepository.startStudentsSync(email, classId)
-            classRepository.startActivitiesSync(email, classId)
-            attendanceRepository.startAttendanceSync(classId)
-            skillRepository.startListeningToClassSkills(email, classId)
+            studentRepository.startStudentsSync(email, classId, onSyncActivity = { notifySyncActivity() })
+            classRepository.startActivitiesSync(email, classId, onSyncActivity = { notifySyncActivity() })
+            attendanceRepository.startAttendanceSync(classId, onSyncActivity = { notifySyncActivity() })
+            skillRepository.startListeningToClassSkills(email, classId, onSyncActivity = { notifySyncActivity() })
         }
 
         // Launch coroutine to load the selected class.

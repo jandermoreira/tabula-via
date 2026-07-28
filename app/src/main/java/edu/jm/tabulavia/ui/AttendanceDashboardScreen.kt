@@ -50,22 +50,18 @@ fun AttendanceDashboardScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    val titleText = selectedClass?.let {
-                        "${it.className} ${it.academicYear}/${it.period} - Frequência"
-                    } ?: ""
-                    Text(titleText)
-                },
+            val titleText = selectedClass?.let {
+                "${it.className} ${it.academicYear}/${it.period} - Frequência"
+            } ?: ""
+
+            TabulaTopBar(
+                title = titleText,
+                viewModel = viewModel,
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                )
+                }
             )
         },
         floatingActionButton = {
