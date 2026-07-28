@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class StudentRepository(
     private val studentDao: StudentDao,
@@ -153,6 +154,22 @@ class StudentRepository(
      */
     suspend fun studentExistsInClass(studentNumber: String, classId: String): Boolean {
         return studentDao.getStudentByNumberInClass(studentNumber, classId) != null
+    }
+
+    /**
+     * One-shot fetch of all students for a specific class from Firestore.
+     */
+    suspend fun syncStudentsFromCloud(email: String, classId: String) {
+        val snapshot = firestore.collection("users")
+            .document(email)
+            .collection("classes")
+            .document(classId)
+            .collection("students")
+            .get().await()
+        val students = snapshot.toObjects(Student::class.java).filterNotNull()
+        if (students.isNotEmpty()) {
+            studentDao.insertAll(students)
+        }
     }
 
     /**

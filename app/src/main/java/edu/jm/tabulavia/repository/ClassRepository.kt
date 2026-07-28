@@ -306,6 +306,20 @@ class ClassRepository(
     }
 
     /**
+     * One-shot fetch of all activities for a specific class from Firestore.
+     */
+    suspend fun syncActivitiesFromCloud(email: String, classId: String) {
+        val snapshot = userClassesRef(email)
+            .document(classId)
+            .collection("activities")
+            .get().await()
+        val activities = snapshot.toObjects(Activity::class.java).filterNotNull()
+        if (activities.isNotEmpty()) {
+            activityDao.insertAll(activities)
+        }
+    }
+
+    /**
      * Starts a real-time listener for the user's classes in Firestore.
      * Uses documentChanges to synchronize additions, updates, and deletions with Room.
      *

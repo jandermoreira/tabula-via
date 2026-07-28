@@ -17,6 +17,7 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkManager
 import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
@@ -35,6 +36,7 @@ import java.util.UUID
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -232,6 +234,24 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     var groupFormationType by mutableStateOf("Número de grupos")
     var groupFormationValue by mutableStateOf("")
 
+    private val _isInitialSyncing = MutableStateFlow(false)
+    val isInitialSyncing: StateFlow<Boolean> = _isInitialSyncing.asStateFlow()
+
+    private var syncJob: Job? = null
+    private var lastSyncedEmail: String? = null
+
+    private val authStateListener = FirebaseAuth.AuthStateListener { auth ->
+        val email = auth.currentUser?.email
+        if (email != null) {
+            startInitialSync(email)
+        } else {
+            lastSyncedEmail = null
+            classRepository.stopClassesSync()
+            syncJob?.cancel()
+            _isInitialSyncing.value = false
+        }
+    }
+
     // --- Loading and Clearing Logic ---
 
     val classes: StateFlow<List<AcademicClass>> = classRepository.getAllClassesFlow().stateIn(
@@ -241,9 +261,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     )
 
     init {
-        Firebase.auth.currentUser?.email?.let { email ->
-            classRepository.startClassesSync(email)
-        }
+        Firebase.auth.addAuthStateListener(authStateListener)
     }
 
     /**
@@ -251,11 +269,56 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      */
     override fun onCleared() {
         super.onCleared()
+        Firebase.auth.removeAuthStateListener(authStateListener)
         classRepository.stopClassesSync()
         studentRepository.stopStudentsSync()
         classRepository.stopActivitiesSync()
         attendanceRepository.stopAttendanceSync()
         skillRepository.stopAllListeners()
+    }
+
+    /**
+     * Starts the initial data synchronization from Firestore.
+     */
+    private fun startInitialSync(email: String) {
+        if (lastSyncedEmail == email) return
+        lastSyncedEmail = email
+
+        syncJob?.cancel()
+        syncJob = viewModelScope.launch {
+            _isInitialSyncing.value = true
+            try {
+                // 1. Sync classes first
+                classRepository.syncClassesFromCloud(email)
+                
+                // 2. Fetch all classes to sync their sub-collections
+                val allClasses = classRepository.getAllClasses()
+                
+                // 3. Deep sync for each class
+                allClasses.forEach { academicClass ->
+                    val classId = academicClass.classId
+                    // We run these in parallel for efficiency
+                    val studentsJob = launch { studentRepository.syncStudentsFromCloud(email, classId) }
+                    val activitiesJob = launch { classRepository.syncActivitiesFromCloud(email, classId) }
+                    val sessionsJob = launch { attendanceRepository.syncSessionsFromCloud(email, classId) }
+                    val skillsJob = launch { skillRepository.syncSkillsFromCloud(email, classId) }
+                    
+                    // Wait for all sub-data of this class to be synced
+                    studentsJob.join()
+                    activitiesJob.join()
+                    sessionsJob.join()
+                    skillsJob.join()
+                }
+
+                // 4. Start real-time sync for classes list
+                classRepository.startClassesSync(email)
+
+            } catch (e: Exception) {
+                Log.e("ClassViewModel", "Initial sync failed: ${e.message}")
+            } finally {
+                _isInitialSyncing.value = false
+            }
+        }
     }
 
     /**

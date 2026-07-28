@@ -297,6 +297,22 @@
         fun countStudentAbsencesFlow(studentId: String): Flow<Int> {
             return attendanceDao.countStudentAbsencesFlow(studentId)
         }
+
+        /**
+         * One-shot fetch of all sessions for a specific class from Firestore.
+         */
+        suspend fun syncSessionsFromCloud(email: String, classId: String) {
+            val snapshot = firestore.collection("users")
+                .document(email)
+                .collection("classes")
+                .document(classId)
+                .collection("sessions")
+                .get().await()
+            val remoteSessions = snapshot.toObjects(FirestoreSession::class.java).filterNotNull()
+            if (remoteSessions.isNotEmpty()) {
+                processRemoteSessions(remoteSessions)
+            }
+        }
     
         /**
          * Retrieves attendance records for a specific session as a reactive flow.

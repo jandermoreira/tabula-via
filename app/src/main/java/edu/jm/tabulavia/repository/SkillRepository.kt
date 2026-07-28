@@ -106,6 +106,19 @@ class SkillRepository(
         classSkillsListeners.clear()
     }
 
+    /**
+     * One-shot fetch of all skills for a specific class from Firestore.
+     */
+    suspend fun syncSkillsFromCloud(email: String, classId: String) {
+        val snapshot = firestore
+            .collection("users/$email/classes/$classId/skills")
+            .get().await()
+        val skills = snapshot.toObjects(ClassSkill::class.java).filterNotNull()
+        if (skills.isNotEmpty()) {
+            classSkillDao.insertClassSkills(skills)
+        }
+    }
+
     // ---------- Write operations (local + Firestore sync) ----------
 
     /**
