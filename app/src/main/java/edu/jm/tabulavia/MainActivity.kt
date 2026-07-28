@@ -96,6 +96,7 @@ class MainActivity : ComponentActivity() {
 
                     val navController = rememberNavController()
                     val authenticatedUser by authViewModel.user.collectAsState()
+                    val isInitialSyncing by classViewModel.isInitialSyncing.collectAsState()
 
                     // Global observer to enforce login
                     LaunchedEffect(authenticatedUser) {
@@ -262,6 +263,8 @@ class MainActivity : ComponentActivity() {
                                 onNavigateBack = { navController.popBackStack() })
                         }
                     }
+
+                    SyncingOverlay(isVisible = isInitialSyncing)
                 }
             }
         }
