@@ -58,8 +58,12 @@ class SkillRepository(
     /**
      * Starts listening to real-time changes for skills of a specific class.
      * Any change in Firestore will be reflected in the local database.
+     *
+     * @param email The authenticated user email.
+     * @param classId The class unique identifier.
+     * @param onSyncActivity Callback triggered when a remote change is detected.
      */
-    fun startListeningToClassSkills(email: String, classId: String) {
+    fun startListeningToClassSkills(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
         stopListeningToClassSkills(classId)
 
         val listenerRegistration = firestore
@@ -69,6 +73,11 @@ class SkillRepository(
                     // Log error if needed (optional)
                     return@addSnapshotListener
                 }
+
+                if (snapshot != null && !snapshot.isEmpty) {
+                    onSyncActivity()
+                }
+
                 snapshot?.documentChanges?.forEach { change ->
                     when (change.type) {
                         com.google.firebase.firestore.DocumentChange.Type.ADDED,

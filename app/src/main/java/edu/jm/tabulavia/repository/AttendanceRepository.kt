@@ -131,8 +131,11 @@
         /**
          * Starts a real-time listener for attendance of a specific class for the current user.
          * Synchronizes remote changes (additions and deletions) with the local database.
+         *
+         * @param classId The class unique identifier.
+         * @param onSyncActivity Callback triggered when a remote change is detected.
          */
-        fun startAttendanceSync(classId: String) {
+        fun startAttendanceSync(classId: String, onSyncActivity: () -> Unit = {}) {
             val userEmail = currentUserEmail ?: return
             stopAttendanceSync()
     
@@ -144,6 +147,10 @@
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) return@addSnapshotListener
     
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        onSyncActivity()
+                    }
+
                     snapshot?.documentChanges?.forEach { change ->
                         val remote = change.document.toObject(FirestoreSession::class.java)
     

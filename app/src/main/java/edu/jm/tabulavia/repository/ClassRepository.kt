@@ -324,14 +324,19 @@ class ClassRepository(
      * Uses documentChanges to synchronize additions, updates, and deletions with Room.
      *
      * @param email The authenticated user email.
+     * @param onSyncActivity Callback triggered when a remote change is detected.
      */
-    fun startClassesSync(email: String) {
+    fun startClassesSync(email: String, onSyncActivity: () -> Unit = {}) {
         stopClassesSync()
 
         classesListener = userClassesRef(email).addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e("ClassRepository", "Firestore listener error: ${error.message}")
                 return@addSnapshotListener
+            }
+
+            if (snapshot != null && !snapshot.isEmpty) {
+                onSyncActivity()
             }
 
             snapshot?.documentChanges?.forEach { change ->
@@ -392,8 +397,12 @@ class ClassRepository(
 
     /**
      * Starts a real-time listener for activities of a specific class.
+     *
+     * @param email The authenticated user email.
+     * @param classId The class unique identifier.
+     * @param onSyncActivity Callback triggered when a remote change is detected.
      */
-    fun startActivitiesSync(email: String, classId: String) {
+    fun startActivitiesSync(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
         stopActivitiesSync()
 
         activitiesListener = userClassesRef(email)
@@ -401,6 +410,10 @@ class ClassRepository(
             .collection("activities")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
+
+                if (snapshot != null && !snapshot.isEmpty) {
+                    onSyncActivity()
+                }
 
                 snapshot?.let {
                     val activities = it.toObjects(Activity::class.java).filterNotNull()

@@ -11,12 +11,19 @@ package edu.jm.tabulavia.ui
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -148,10 +155,37 @@ fun ClassListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    if (BuildConfig.FLAVOR == "dev")
-                        Text("Tabula Via (beta)", color = Color.Red)
-                    else
-                        Text("Tabula Via")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val baseTitle = if (BuildConfig.FLAVOR == "dev") "Tabula Via (beta)" else "Tabula Via"
+                        val titleColor = if (BuildConfig.FLAVOR == "dev") Color.Red else MaterialTheme.colorScheme.primary
+                        Text(baseTitle, color = titleColor)
+
+                        val isSyncing by viewModel.isSyncing.collectAsState()
+                        if (isSyncing) {
+                            val infiniteTransition = rememberInfiniteTransition(label = "syncPulse")
+                            val alpha by infiniteTransition.animateFloat(
+                                initialValue = 0.3f,
+                                targetValue = 1f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(800, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "alpha"
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .padding(start = 4.dp)
+                                    .size(6.dp)
+                                    .align(Alignment.Top)
+                                    .offset(y = 4.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                                        shape = CircleShape
+                                    )
+                            )
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,

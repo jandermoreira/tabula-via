@@ -187,10 +187,11 @@ class StudentRepository(
          * Uses documentChanges to specifically handle ADDED, MODIFIED, and REMOVED events,
          * ensuring the local Room database stays perfectly in sync with Firestore.
          *
-         * @param uid The authenticated user ID.
+         * @param email The authenticated user email.
          * @param classId The unique identifier of the class.
+         * @param onSyncActivity Callback triggered when a remote change is detected.
          */
-        fun startStudentsSync(email: String, classId: String) {
+        fun startStudentsSync(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
             stopStudentsSync()
 
             studentsListener = firestore.collection("users")
@@ -202,6 +203,10 @@ class StudentRepository(
                     if (error != null) {
                         Log.e("StudentRepository", "Firestore listener error: ${error.message}")
                         return@addSnapshotListener
+                    }
+
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        onSyncActivity()
                     }
 
                     snapshot?.documentChanges?.forEach { change ->

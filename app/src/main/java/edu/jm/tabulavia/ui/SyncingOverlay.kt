@@ -53,6 +53,12 @@ fun SyncingOverlay(isVisible: Boolean) {
                     color = Color.White,
                     style = MaterialTheme.typography.bodyLarge
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Seja paciente :-)",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         }
     }

@@ -237,8 +237,24 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     private val _isInitialSyncing = MutableStateFlow(false)
     val isInitialSyncing: StateFlow<Boolean> = _isInitialSyncing.asStateFlow()
 
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
     private var syncJob: Job? = null
+    private var syncActivityJob: Job? = null
     private var lastSyncedEmail: String? = null
+
+    /**
+     * Activates the sync indicator for 2 seconds to notify real-time activity.
+     */
+    private fun notifySyncActivity() {
+        syncActivityJob?.cancel()
+        syncActivityJob = viewModelScope.launch {
+            _isSyncing.value = true
+            kotlinx.coroutines.delay(2000)
+            _isSyncing.value = false
+        }
+    }
 
     private val authStateListener = FirebaseAuth.AuthStateListener { auth ->
         val email = auth.currentUser?.email
@@ -307,7 +323,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     skillsJob.join()
                 }
 
-                classRepository.startClassesSync(email)
+                classRepository.startClassesSync(email, onSyncActivity = { notifySyncActivity() })
             } catch (e: Exception) {
                 Log.e("ClassViewModel", "Initial sync failed: ${e.message}")
             } finally {
