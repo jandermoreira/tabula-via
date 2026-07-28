@@ -232,8 +232,11 @@ class ClassRepository(
         val email = currentUser?.email ?: throw IllegalStateException("User not logged in. Cannot persist groups.")
 
         try {
-            val groupDocumentRef = Firebase.firestore.collection("users")
-                .document(email)
+            val activity = activityDao.getActivityById(activityId)
+            val classId = activity?.classId ?: throw IllegalStateException("Activity not found locally: $activityId")
+
+            val groupDocumentRef = userClassesRef(email)
+                .document(classId)
                 .collection("activities")
                 .document(activityId)
                 .collection("groups")
