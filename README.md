@@ -1,17 +1,56 @@
 # Tabula Via
 
-Tabula Via is an Android app designed to help teachers track the progress of classroom assignments.
+Tabula Via is a comprehensive Android application designed to help educators manage their classrooms, track student progress, and maintain records efficiently. Built with modern Android development practices, it offers a seamless experience with offline support and cloud synchronization.
 
-The project’s focus is to provide highly specific support, with no intention of becoming a general-purpose or widely used application. So, when I say “teachers,” I really mean “myself.” :simple_smile:
+## Features
 
-## Description
+- **Authentication**: Secure login using Google Sign-In integrated with Firebase Authentication.
+- **Class Management**: Create and manage multiple classes.
+- **Student Tracking**: Maintain detailed lists of students for each class.
+- **Skill Assessment**: Define and track specific skills or competencies for students and classes.
+- **Attendance Management**: A dedicated dashboard for recording and editing student attendance sessions.
+- **Activity Logging**: Track both individual and group activities, with specialized views for each.
+- **Reporting**: Generate and view reports based on student performance and attendance.
+- **Cloud Sync**: Robust background synchronization using WorkManager to keep local data in sync with Firebase Cloud Storage, ensuring data is safe and accessible across devices.
+- **Offline First**: Full offline capability allowing educators to work in environments without internet connectivity.
 
-The Tabula Via application is a comprehensive educational tool designed to assist teachers in managing their classes and activities. It empowers educators to:
+## Tech Stack
 
-- Manage Classes: Teachers can create new classes, specifying details such as the class name, academic year, and period. They can view a list of all their created classes and select one to access its specific dashboard, which serves as a central hub for that class.
-- Manage Students: Within each class, teachers can add students individually or import multiple students in bulk. For each student, they can view a detailed profile, including their display name and student number. This allows for easy tracking and management of the student roster.
-- Record Attendance: The application facilitates marking student attendance for class sessions. Teachers can create new attendance sessions, record each student's status (present, absent, late), and review past attendance records for individual students or the class as a whole.
-- Organize Activities and Groups: Teachers can create various activities for their classes. For collaborative tasks, the system supports both random group generation (based on predefined criteria like number of groups or students per group) and manual group formation using an interactive drag-and-drop editor. Students can be moved between "unassigned" status, new groups, or existing groups.
-- Assess Skills: The platform allows teachers to define a set of core skills for each class. During activities, teachers can assign skill assessments to individual students or to entire groups, recording their proficiency levels (e.g., Low, Medium, High). The application tracks these assessments, potentially showing trends in student skill development over time.
-- Backup and Restore Data: All application data, including class details, student records, attendance, activities, groups, and skill assessments, can be securely backed up to and restored from cloud storage (Firebase). This ensures data safety and allows for seamless migration or recovery.
-- User Authentication: Teachers can securely access the application by signing in with their Google accounts, utilizing Firebase Authentication for user management.
+- **Language**: [Kotlin](https://kotlinlang.org/)
+- **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose)
+- **Architecture**: MVVM (Model-View-ViewModel)
+- **Local Database**: [Room](https://developer.android.com/training/data-storage/room)
+- **Backend/Auth**: [Firebase](https://firebase.google.com/) (Authentication & Cloud Storage)
+- **Background Tasks**: [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager)
+- **Navigation**: [Compose Navigation](https://developer.android.com/jetpack/compose/navigation)
+- **Dependency Injection**: standard Android ViewModel and Repository patterns.
+
+## Project Structure
+
+- `db/`: Database configuration and Room migration logic.
+- `dao/`: Data Access Objects for Room.
+- `model/`: Data entities and domain models.
+- `repository/`: Single source of truth for data, handling local and remote data operations.
+- `viewmodel/`: UI logic and state management.
+- `ui/`: Composable screens, components, and themes.
+- `worker/`: Background workers for handling data synchronization.
+- `utils/`: Common helper functions and extensions.
+
+## Setup
+
+1. **Firebase Configuration**:
+   - Create a project in the [Firebase Console](https://console.firebase.google.com/).
+   - Add an Android app with the package name `edu.jm.tabulavia`.
+   - Download the `google-services.json` file and place it in the `app/` directory.
+   - Enable Google Sign-In in the Firebase Authentication settings.
+
+2. **Google Cloud Console**:
+   - Ensure you have the `default_web_client_id` configured in your resources for Credential Manager to work correctly with Google Sign-In.
+
+3. **Build**:
+   - Open the project in Android Studio.
+   - Sync Gradle and build the application.
+
+## License
+
+This project's license information is MIT.
