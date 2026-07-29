@@ -71,7 +71,6 @@ class SkillRepository(
             .collection("users/$email/classes/$classId/skills")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    // Log error if needed (optional)
                     return@addSnapshotListener
                 }
 
