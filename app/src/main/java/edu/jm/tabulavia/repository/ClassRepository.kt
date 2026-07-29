@@ -437,8 +437,8 @@ class ClassRepository(
      * @param classId The unique identifier of the class.
      * @param onSyncActivity Callback triggered when a remote change is detected.
      */
-    fun startStudentsSync(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
-        stopStudentsSync()
+    private fun startStudentsSyncInternal(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
+        stopStudentsSyncInternal()
         var isInitialSnapshot = true
 
         studentsListener = userStudentsRef(email, classId).addSnapshotListener { snapshot, error ->
@@ -479,7 +479,7 @@ class ClassRepository(
     /**
      * Stops the active students listener.
      */
-    fun stopStudentsSync() {
+    private fun stopStudentsSyncInternal() {
         studentsListener?.remove()
         studentsListener = null
     }
