@@ -341,7 +341,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             try {
                 classRepository.syncClassesFromCloud(email)
             } catch (e: Exception) {
-                showMessage("Sync failed: ${e.message}")
+                showMessage("Falha na sincronização: ${e.message}")
             }
         }
     }
@@ -351,6 +351,10 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Initiates real-time synchronization and observes database changes via Flow.
      */
     fun loadClassDetails(classId: String) {
+        if (currentClassId == classId && _selectedClass.value != null) {
+            return
+        }
+
         resetClassState()
 
         // Store the current class ID to manage listener cleanup later
@@ -378,6 +382,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     fun resetClassState() {
         // Stop listeners
         studentRepository.stopStudentsSync()
+        classRepository.stopActivitiesSync()
+        attendanceRepository.stopAttendanceSync()
         currentClassId?.let { skillRepository.stopListeningToClassSkills(it) }
         currentClassId = null
 
@@ -742,10 +748,10 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         _selectedGroupDetails.value = emptyList()
     }
 
-// --- Frequency Management Logic ---
+    // --- Frequency Management Logic ---
 
     /**
-     * Identifica e carrega registros de frequência para a sessão mais recente de hoje.
+     * Identifies and loads attendance records for the most recent session today.
      */
     private fun loadTodaysAttendance(sessions: List<ClassSession>) {
         viewModelScope.launch {
@@ -761,11 +767,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     }
 
     /**
-     * Carrega detalhes de frequência para uma sessão específica.
-     */
-    /**
      * Loads the attendance records for a given session and maps them to student names.
-     * * @param session The class session to load details for.
+     *
+     * @param session The class session to load details for.
      */
     fun loadAttendanceDetails(session: ClassSession) {
         viewModelScope.launch {
@@ -1265,9 +1269,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
                 loadClassDetails(student.classId)
 
-                showMessage("Student ${student.displayName} removed.")
+                showMessage("Aluno ${student.displayName} removido.")
             } catch (e: Exception) {
-                showMessage("Error removing student: ${e.message}")
+                showMessage("Erro ao remover aluno: ${e.message}")
             }
         }
     }
