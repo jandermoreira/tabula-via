@@ -22,7 +22,7 @@ import java.util.UUID
             entity = AcademicClass::class,
             parentColumns = ["classId"],
             childColumns = ["classId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.NO_ACTION
         )
     ],
     indices = [Index(value = ["classId"])]

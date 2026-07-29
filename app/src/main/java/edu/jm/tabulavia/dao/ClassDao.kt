@@ -56,12 +56,4 @@ interface ClassDao {
      */
     @Query("SELECT * FROM classes ORDER BY className ASC")
     suspend fun getAllClasses(): List<AcademicClass>
-
-    /**
-     * Deletes a class record from the database.
-     *
-     * @param clazz The class entity to be deleted.
-     */
-    @Delete
-    suspend fun deleteClass(clazz: AcademicClass)
 }

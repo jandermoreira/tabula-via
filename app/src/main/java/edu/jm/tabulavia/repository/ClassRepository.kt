@@ -72,57 +72,6 @@ class ClassRepository(
     /**
      * Exposes the stream of classes from the local database.
      */
-    fun getAllClassesFlow(): Flow<List<AcademicClass>> = classDao.getAllClassesFlow()
-
-    /**
-     * Retrieves a single class by its persistent String identifier.
-     */
-    suspend fun getClassById(classId: String): AcademicClass? = classDao.getClassById(classId)
-
-    /**
-     * Saves a class locally and triggers an immediate Firestore sync with background fallback.
-     */
-    suspend fun insertClass(academicClass: AcademicClass, email: String): String {
-        // Immediate local persistence
-        classDao.insertClass(academicClass)
-
-        try {
-            // Direct write to Firestore for instant propagation
-            userClassesRef(email)
-                .document(academicClass.classId)
-                .set(academicClass)
-                .await()
-        } catch (e: Exception) {
-            Log.w("ClassRepository", "Direct class sync failed, falling back to Worker: ${e.message}")
-            val syncRequest = OneTimeWorkRequestBuilder<SyncClassWorker>()
-                .setInputData(SyncClassWorker.buildInputData(email, academicClass.classId))
-                .build()
-            WorkManager.getInstance(context).enqueue(syncRequest)
-        }
-
-        return academicClass.classId
-    }
-
-    /**
-     * Deletes a class locally and from Firestore with background fallback.
-     */
-    suspend fun deleteClass(academicClass: AcademicClass, email: String) {
-        withContext(Dispatchers.IO) {
-            classDao.deleteClass(academicClass)
-            try {
-                userClassesRef(email)
-                    .document(academicClass.classId)
-                    .delete()
-                    .await()
-            } catch (e: Exception) {
-                Log.w("ClassRepository", "Direct class delete failed, falling back to Worker: ${e.message}")
-                val syncWorkRequest = OneTimeWorkRequestBuilder<SyncDeleteClassWorker>()
-                    .setInputData(SyncDeleteClassWorker.buildInputData(email, academicClass.classId))
-                    .build()
-                WorkManager.getInstance(context).enqueue(syncWorkRequest)
-            }
-        }
-    }
 
     /**
      * Bulk inserts a list of classes into the local database.
@@ -230,29 +179,6 @@ class ClassRepository(
                 ExistingWorkPolicy.REPLACE,
                 syncWorkRequest
             )
-        }
-    }
-
-    /**
-     * Deletes an activity locally and from Firestore with background fallback.
-     */
-    suspend fun deleteActivity(activity: Activity, email: String) {
-        withContext(Dispatchers.IO) {
-            activityDao.delete(activity)
-            try {
-                userClassesRef(email)
-                    .document(activity.classId)
-                    .collection("activities")
-                    .document(activity.activityId)
-                    .delete()
-                    .await()
-            } catch (e: Exception) {
-                Log.w("ClassRepository", "Direct activity delete failed, falling back to Worker: ${e.message}")
-                val syncWorkRequest = OneTimeWorkRequestBuilder<SyncDeleteActivityWorker>()
-                    .setInputData(SyncDeleteActivityWorker.buildInputData(email, activity.classId, activity.activityId))
-                    .build()
-                WorkManager.getInstance(context).enqueue(syncWorkRequest)
-            }
         }
     }
 
@@ -411,7 +337,8 @@ class ClassRepository(
                                 classDao.insertClass(clazz)
                             }
                             DocumentChange.Type.REMOVED -> {
-                                classDao.deleteClass(clazz)
+                                // Removal of classes is no longer supported to maintain data integrity.
+                                Log.d("ClassRepository", "Remote removal of class ignored: ${change.document.id}")
                             }
                         }
                     } catch (e: Exception) {
@@ -465,7 +392,12 @@ class ClassRepository(
                                 studentDao.insertStudent(student.copy(studentId = docId))
                             }
                             DocumentChange.Type.REMOVED -> {
-                                studentDao.deleteStudent(Student(studentId = docId))
+                                // If a student is physically removed from Firestore,
+                                // we mark them as CANCELLED locally to maintain integrity.
+                                val existingStudent = studentDao.getStudentById(docId)
+                                existingStudent?.let {
+                                    studentDao.insertStudent(it.copy(status = edu.jm.tabulavia.model.StudentStatus.CANCELLED))
+                                }
                             }
                         }
                     } catch (e: Exception) {
@@ -522,7 +454,8 @@ class ClassRepository(
                                     activityDao.insert(activity.copy(activityId = docId))
                                 }
                                 DocumentChange.Type.REMOVED -> {
-                                    activityDao.delete(Activity(activityId = docId))
+                                    // Removal of activities is no longer supported to maintain data integrity.
+                                    Log.d("ClassRepository", "Remote removal of activity ignored: $docId")
                                 }
                             }
                         } catch (e: Exception) {
