@@ -51,6 +51,12 @@ interface ActivityDao {
      */
     @Query("SELECT * FROM activities")
     suspend fun getAllActivities(): List<Activity>
+
+    /**
+     * Deletes a specific activity from the database.
+     */
+    @androidx.room.Delete
+    suspend fun delete(activity: Activity)
 }
 
 @Dao
