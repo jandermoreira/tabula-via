@@ -29,12 +29,16 @@ import edu.jm.tabulavia.model.AcademicClass
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.worker.SyncActivityWorker
+import edu.jm.tabulavia.worker.SyncClassWorker
+import edu.jm.tabulavia.worker.SyncDeleteActivityWorker
+import edu.jm.tabulavia.worker.SyncDeleteClassWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class ClassRepository(
     private val context: Context,
@@ -75,18 +79,48 @@ class ClassRepository(
     suspend fun getClassById(classId: String): AcademicClass? = classDao.getClassById(classId)
 
     /**
-     * Saves a class locally and triggers a non-blocking cloud synchronization.
+     * Saves a class locally and triggers an immediate Firestore sync with background fallback.
      */
     suspend fun insertClass(academicClass: AcademicClass, email: String): String {
         // Immediate local persistence
         classDao.insertClass(academicClass)
 
-        // Asynchronous Firestore update managed by the SDK's internal queue
-        userClassesRef(email)
-            .document(academicClass.classId)
-            .set(academicClass)
+        try {
+            // Direct write to Firestore for instant propagation
+            userClassesRef(email)
+                .document(academicClass.classId)
+                .set(academicClass)
+                .await()
+        } catch (e: Exception) {
+            Log.w("ClassRepository", "Direct class sync failed, falling back to Worker: ${e.message}")
+            val syncRequest = OneTimeWorkRequestBuilder<SyncClassWorker>()
+                .setInputData(SyncClassWorker.buildInputData(email, academicClass.classId))
+                .build()
+            WorkManager.getInstance(context).enqueue(syncRequest)
+        }
 
         return academicClass.classId
+    }
+
+    /**
+     * Deletes a class locally and from Firestore with background fallback.
+     */
+    suspend fun deleteClass(academicClass: AcademicClass, email: String) {
+        withContext(Dispatchers.IO) {
+            classDao.deleteClass(academicClass)
+            try {
+                userClassesRef(email)
+                    .document(academicClass.classId)
+                    .delete()
+                    .await()
+            } catch (e: Exception) {
+                Log.w("ClassRepository", "Direct class delete failed, falling back to Worker: ${e.message}")
+                val syncWorkRequest = OneTimeWorkRequestBuilder<SyncDeleteClassWorker>()
+                    .setInputData(SyncDeleteClassWorker.buildInputData(email, academicClass.classId))
+                    .build()
+                WorkManager.getInstance(context).enqueue(syncWorkRequest)
+            }
+        }
     }
 
     /**
@@ -166,32 +200,59 @@ class ClassRepository(
     suspend fun getAllActivities(): List<Activity> = activityDao.getAllActivities()
 
     /**
-     * Persists a single activity record locally and schedules a background sync to Firestore.
+     * Persists a single activity record locally and attempts direct sync to Firestore.
      */
     suspend fun insertActivity(activity: Activity, email: String) {
         activityDao.insert(activity)
 
-        val syncWorkRequest = OneTimeWorkRequestBuilder<SyncActivityWorker>()
-            .setInputData(
-                workDataOf(
-                    "ACTIVITY_ID" to activity.activityId,
-                    "CLASS_ID" to activity.classId,
-                    "USER_ID" to email
+        try {
+            userClassesRef(email)
+                .document(activity.classId)
+                .collection("activities")
+                .document(activity.activityId)
+                .set(activity)
+                .await()
+        } catch (e: Exception) {
+            Log.w("ClassRepository", "Direct activity sync failed, falling back to Worker: ${e.message}")
+            val syncWorkRequest = OneTimeWorkRequestBuilder<SyncActivityWorker>()
+                .setInputData(SyncActivityWorker.buildInputData(email, activity.classId, activity.activityId))
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
                 )
-            )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
-            .build()
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
+                .build()
 
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            "sync_activity_${activity.activityId}",
-            ExistingWorkPolicy.REPLACE,
-            syncWorkRequest
-        )
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "sync_activity_${activity.activityId}",
+                ExistingWorkPolicy.REPLACE,
+                syncWorkRequest
+            )
+        }
+    }
+
+    /**
+     * Deletes an activity locally and from Firestore with background fallback.
+     */
+    suspend fun deleteActivity(activity: Activity, email: String) {
+        withContext(Dispatchers.IO) {
+            activityDao.delete(activity)
+            try {
+                userClassesRef(email)
+                    .document(activity.classId)
+                    .collection("activities")
+                    .document(activity.activityId)
+                    .delete()
+                    .await()
+            } catch (e: Exception) {
+                Log.w("ClassRepository", "Direct activity delete failed, falling back to Worker: ${e.message}")
+                val syncWorkRequest = OneTimeWorkRequestBuilder<SyncDeleteActivityWorker>()
+                    .setInputData(SyncDeleteActivityWorker.buildInputData(email, activity.classId, activity.activityId))
+                    .build()
+                WorkManager.getInstance(context).enqueue(syncWorkRequest)
+            }
+        }
     }
 
     /**
@@ -251,13 +312,8 @@ class ClassRepository(
                 "lastUpdated" to Timestamp.now()
             )
 
-            groupDocumentRef.set(documentData)
-                .addOnSuccessListener {
-                    Log.d("ClassRepository", "Groups queued for Firestore sync for activity: $activityId")
-                }
-                .addOnFailureListener { e ->
-                    Log.e("ClassRepository", "Failed to queue groups for Firestore sync (will retry): ${e.message}", e)
-                }
+            groupDocumentRef.set(documentData).await()
+            Log.d("ClassRepository", "Groups synchronized with Firestore for activity: $activityId")
         } catch (e: Exception) {
             Log.e("ClassRepository", "Error preparing groups for Firestore sync: ${e.message}", e)
             throw e
@@ -385,7 +441,10 @@ class ClassRepository(
         var isInitialSnapshot = true
 
         studentsListener = userStudentsRef(email, classId).addSnapshotListener { snapshot, error ->
-            if (error != null) return@addSnapshotListener
+            if (error != null) {
+                Log.e("ClassRepository", "Firestore listener error: ${error.message}")
+                return@addSnapshotListener
+            }
 
             if (snapshot != null) {
                 if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
@@ -394,10 +453,23 @@ class ClassRepository(
             }
             isInitialSnapshot = false
 
-            snapshot?.let {
-                val students = it.toObjects(Student::class.java).filterNotNull()
+            snapshot?.documentChanges?.forEach { change ->
+                val docId = change.document.id
                 CoroutineScope(Dispatchers.IO).launch {
-                    studentDao.insertAll(students)
+                    try {
+                        when (change.type) {
+                            DocumentChange.Type.ADDED,
+                            DocumentChange.Type.MODIFIED -> {
+                                val student = change.document.toObject(Student::class.java)
+                                studentDao.insertStudent(student.copy(studentId = docId))
+                            }
+                            DocumentChange.Type.REMOVED -> {
+                                studentDao.deleteStudent(Student(studentId = docId))
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ClassRepository", "Local database student sync failed: ${e.message}")
+                    }
                 }
             }
         }
@@ -426,7 +498,10 @@ class ClassRepository(
             .document(classId)
             .collection("activities")
             .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
+                if (error != null) {
+                    Log.e("ClassRepository", "Firestore listener error: ${error.message}")
+                    return@addSnapshotListener
+                }
 
                 if (snapshot != null) {
                     if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
@@ -435,10 +510,23 @@ class ClassRepository(
                 }
                 isInitialSnapshot = false
 
-                snapshot?.let {
-                    val activities = it.toObjects(Activity::class.java).filterNotNull()
+                snapshot?.documentChanges?.forEach { change ->
+                    val docId = change.document.id
                     CoroutineScope(Dispatchers.IO).launch {
-                        activityDao.insertAll(activities)
+                        try {
+                            when (change.type) {
+                                DocumentChange.Type.ADDED,
+                                DocumentChange.Type.MODIFIED -> {
+                                    val activity = change.document.toObject(Activity::class.java)
+                                    activityDao.insert(activity.copy(activityId = docId))
+                                }
+                                DocumentChange.Type.REMOVED -> {
+                                    activityDao.delete(Activity(activityId = docId))
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ClassRepository", "Local database activity sync failed: ${e.message}")
+                        }
                     }
                 }
             }
