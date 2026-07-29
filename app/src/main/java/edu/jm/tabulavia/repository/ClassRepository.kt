@@ -505,7 +505,7 @@ class ClassRepository(
                 }
 
                 if (snapshot != null) {
-                    if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                    if (snapshot.shouldNotifySync(isInitialSnapshot)) {
                         onSyncActivity()
                     }
                 }
