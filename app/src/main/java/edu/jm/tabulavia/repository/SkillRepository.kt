@@ -63,7 +63,7 @@ class SkillRepository(
      * @param classId The class unique identifier.
      * @param onSyncActivity Callback triggered when a remote change is detected.
      */
-    fun startListeningToClassSkills(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
+    fun startClassSkillsSync(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
         stopListeningToClassSkills(classId)
         var isInitialSnapshot = true
 
