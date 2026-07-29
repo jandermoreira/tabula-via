@@ -94,7 +94,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         classSkillDao = db.classSkillDao(),
         skillAssessmentDao = db.skillAssessmentDao(),
         firestore = Firebase.firestore,
-        scope = viewModelScope
+        applicationContext = application.applicationContext
     )
 
     private val cloudStorageRepository = CloudStorageRepository(
