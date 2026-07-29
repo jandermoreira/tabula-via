@@ -55,14 +55,15 @@ fun AttendanceScreen(
     val timeOptions = (0..23).toList()
 
     // Sync ViewModel data when screen loads
-    LaunchedEffect(students, editingSession) {
-        if (students.isNotEmpty() && attendanceMap.isEmpty()) {
+    LaunchedEffect(students) {
+        if (students.isNotEmpty()) {
             if (editingSession != null) {
                 viewModel.prepareToEditFrequencySession(editingSession)
             } else {
-                // Initialize default presence for new sessions
                 students.forEach { student ->
-                    attendanceMap[student.studentId] = AttendanceStatus.PRESENT
+                    if (!attendanceMap.containsKey(student.studentId)) {
+                        attendanceMap[student.studentId] = AttendanceStatus.PRESENT
+                    }
                 }
             }
         }

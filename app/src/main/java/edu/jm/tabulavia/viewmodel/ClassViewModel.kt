@@ -81,7 +81,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         firestore = Firebase.firestore
     )
     private val attendanceRepository = AttendanceRepository(
-        attendanceDao = db.attendanceDao()
+        attendanceDao = db.attendanceDao(),
+        applicationContext = application.applicationContext
     )
     private val studentRepository = StudentRepository(
         studentDao = db.studentDao(),
@@ -819,6 +820,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * initializing the session timestamp, and marking all students as present by default.
      */
     fun prepareNewSession() {
+        stopAttendanceObservation()
         editingSession = null
         attendanceMap.clear()
 
@@ -839,26 +841,39 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         }
     }
 
+    private var attendanceObservationJob: Job? = null
+
+    private fun stopAttendanceObservation() {
+        attendanceObservationJob?.cancel()
+        attendanceObservationJob = null
+    }
+
     /**
      * Prepares the state to edit an existing session.
      * Launches a coroutine to fetch records and updates the observable UI state.
      */
     fun prepareToEditFrequencySession(session: ClassSession) {
-        viewModelScope.launch {
-            editingSession = session
+        stopAttendanceObservation()
+        editingSession = session
+        newSessionCalendar = java.util.Calendar.getInstance().apply {
+            timeInMillis = session.timestamp
+        }
 
-            newSessionCalendar = java.util.Calendar.getInstance().apply {
-                timeInMillis = session.timestamp
-            }
+        attendanceObservationJob = viewModelScope.launch {
+            attendanceRepository.observeRecordsForSession(session.sessionId).collect { records ->
+                val statusMap = records.associate { it.studentId to it.status }
 
-            val records = attendanceRepository.getRecordsForSession(session.sessionId)
-            val statusMap = records.associate { it.studentId to it.status }
+                // Synchronize existing records into the map
+                statusMap.forEach { (studentId, status) ->
+                    attendanceMap[studentId] = status
+                }
 
-            attendanceMap.clear()
-
-            studentsForClass.value.forEach { student ->
-                attendanceMap[student.studentId] =
-                    statusMap[student.studentId] ?: AttendanceStatus.PRESENT
+                // Ensure all current students in class have an entry
+                studentsForClass.value.forEach { student ->
+                    if (!attendanceMap.containsKey(student.studentId)) {
+                        attendanceMap[student.studentId] = AttendanceStatus.PRESENT
+                    }
+                }
             }
         }
     }
@@ -930,6 +945,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
             when (result) {
                 is SaveAttendanceResult.Success -> {
+                    stopAttendanceObservation()
                     resetFrequencyState()
                     onSelectionConfirmed()
                 }

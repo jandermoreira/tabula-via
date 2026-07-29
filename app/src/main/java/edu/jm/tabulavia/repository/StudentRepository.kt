@@ -36,15 +36,28 @@ class StudentRepository(
      * Inserts or updates a student locally and enqueues a synchronization job with Firestore.
      *
      * @param student The student to insert or update.
-     * @param uid The authenticated user ID.
+     * @param email The authenticated user email.
      */
     suspend fun insertStudent(student: Student, email: String) {
         studentDao.insertStudent(student)
 
-        val syncRequest = OneTimeWorkRequestBuilder<SyncStudentWorker>()
-            .setInputData(SyncStudentWorker.buildInputData(email, student.classId, student.studentId))
-            .build()
-        WorkManager.getInstance(applicationContext).enqueue(syncRequest)
+        try {
+            // Direct write to Firestore for instant propagation
+            firestore.collection("users")
+                .document(email)
+                .collection("classes")
+                .document(student.classId)
+                .collection("students")
+                .document(student.studentId)
+                .set(student)
+                .await()
+        } catch (e: Exception) {
+            Log.w("StudentRepository", "Direct sync failed, falling back to Worker: ${e.message}")
+            val syncRequest = OneTimeWorkRequestBuilder<SyncStudentWorker>()
+                .setInputData(SyncStudentWorker.buildInputData(email, student.classId, student.studentId))
+                .build()
+            WorkManager.getInstance(applicationContext).enqueue(syncRequest)
+        }
     }
 
     /**
