@@ -247,13 +247,17 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     /**
      * Activates the sync indicator for 2 seconds to notify real-time activity.
+     * Cancels any existing sync job to ensure the pulse duration is reset on new activity.
      */
     private fun notifySyncActivity() {
         syncActivityJob?.cancel()
         syncActivityJob = viewModelScope.launch {
             _isSyncing.value = true
-            kotlinx.coroutines.delay(2000)
-            _isSyncing.value = false
+            try {
+                kotlinx.coroutines.delay(2000)
+            } finally {
+                _isSyncing.value = false
+            }
         }
     }
 
@@ -264,6 +268,10 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         } else {
             lastSyncedEmail = null
             classRepository.stopClassesSync()
+            studentRepository.stopStudentsSync()
+            classRepository.stopActivitiesSync()
+            attendanceRepository.stopAttendanceSync()
+            skillRepository.stopAllListeners()
             syncJob?.cancel()
             _isInitialSyncing.value = false
         }
@@ -390,6 +398,10 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         _selectedClass.value = null
         editingSession = null
         _studentSkillStatuses.value = emptyList()
+
+        // Ensure sync indicator is reset
+        syncActivityJob?.cancel()
+        _isSyncing.value = false
     }
 
     // --- Student Management Logic ---

@@ -1,28 +1,28 @@
-/**
- * File: FirestoreExt.kt
- * Description: Extension functions for Firestore components to centralize business logic 
- * and reduce boilerplate.
- */
-
 package edu.jm.tabulavia.utils
 
+import android.util.Log
 import com.google.firebase.firestore.QuerySnapshot
 
 /**
  * Determines if a QuerySnapshot represents a real-time change that should trigger 
  * a sync activity notification (e.g., a visual pulse).
- *
- * @param isInitialSnapshot A flag indicating if this is the first snapshot received by the listener.
- * @return True if the change is from a local write or if it's a remote update with actual data changes.
  */
 fun QuerySnapshot.shouldNotifySync(isInitialSnapshot: Boolean): Boolean {
-    // 1. Always notify on local pending writes for immediate feedback
-    if (this.metadata.hasPendingWrites()) return true
+    val hasPendingWrites = this.metadata.hasPendingWrites()
+    val isFromCache = this.metadata.isFromCache
+    val hasChanges = !this.documentChanges.isEmpty()
+    
+    // Log for debugging sync issues
+    Log.d("FirestoreSync", "Snapshot received: isInitial=$isInitialSnapshot, pending=$hasPendingWrites, cache=$isFromCache, changes=$hasChanges")
 
-    // 2. Ignore the very first snapshot (initial load) to avoid pulsing on screen entry
+    // 1. Local writes always pulse for immediate feedback
+    if (hasPendingWrites) return true
+
+    // 2. Ignore the initial load snapshot
     if (isInitialSnapshot) return false
 
-    // 3. Notify only if there are actual document changes and it's coming from the server
-    // This prevents redundant pulses from metadata-only changes or cache-to-server transitions.
-    return !this.metadata.isFromCache && !this.documentChanges.isEmpty()
+    // 3. For remote changes, pulse if there are actual document changes.
+    // We removed the strict !isFromCache check as some devices might report 
+    // cache updates during the sync process.
+    return hasChanges
 }
