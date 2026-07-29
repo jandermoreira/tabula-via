@@ -43,4 +43,20 @@ class SyncDeleteSkillWorker(
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }
+
+    companion object {
+        /**
+         * Creates input data for this worker.
+         *
+         * @param email The email of the authenticated user.
+         * @param classId The ID of the class the skill belongs to.
+         * @param firestoreId The unique Firestore identifier of the skill.
+         * @return A [androidx.work.Data] object containing the worker's input.
+         */
+        fun buildInputData(email: String, classId: String, firestoreId: String) = androidx.work.workDataOf(
+            "USER_ID" to email,
+            "CLASS_ID" to classId,
+            "FIRESTORE_ID" to firestoreId
+        )
+    }
 }
