@@ -37,16 +37,17 @@ interface StudentDao {
     suspend fun updateStudent(student: Student)
 
     /**
-     * Retrieves all students for a given class ordered by name.
+     * Retrieves all active and inactive students for a given class ordered by name.
+     * Excludes students with CANCELLED status.
      * Returns a Flow to provide real-time updates when the table changes.
      */
-    @Query("SELECT * FROM students WHERE classId = :classId ORDER BY name ASC")
+    @Query("SELECT * FROM students WHERE classId = :classId AND status != 'CANCELLED' ORDER BY name ASC")
     fun getStudentsForClass(classId: String): Flow<List<Student>>
 
     /**
-     * Retrieves all students for a given class as a list.
+     * Retrieves all non-cancelled students for a given class as a list.
      */
-    @Query("SELECT * FROM students WHERE classId = :classId ORDER BY name ASC")
+    @Query("SELECT * FROM students WHERE classId = :classId AND status != 'CANCELLED' ORDER BY name ASC")
     suspend fun getStudentsForClassList(classId: String): List<Student>
 
     /**
@@ -62,29 +63,27 @@ interface StudentDao {
     suspend fun getStudentByNumberInClass(studentNumber: String, classId: String): Student?
 
     /**
-     * Retrieves all student numbers for a specific class.
+     * Retrieves all student numbers for a specific class, excluding cancelled students.
      */
-    @Query("SELECT studentNumber FROM students WHERE classId = :classId")
+    @Query("SELECT studentNumber FROM students WHERE classId = :classId AND status != 'CANCELLED'")
     suspend fun getStudentNumbersForClass(classId: String): List<String>
 
     /**
-     * Retrieves all students from the database as a flow.
+     * Retrieves all non-cancelled students from the database as a flow.
      */
-    @Query("SELECT * FROM students")
+    @Query("SELECT * FROM students WHERE status != 'CANCELLED'")
     fun getAllStudentsFlow(): Flow<List<Student>>
 
     /**
-     * Retrieves all students from the database as a list.
+     * Retrieves all non-cancelled students from the database as a list.
      */
-    @Query("SELECT * FROM students")
+    @Query("SELECT * FROM students WHERE status != 'CANCELLED'")
     fun getAllStudents(): List<Student>
 
     /**
-     * Deletes a student record from the database.
-     *
-     * @param student The student entity to be deleted. This must represent an
-     * existing entry in the database for the operation to succeed.
+     * Performs a physical deletion of a student record from the database.
+     * Internal use only; soft delete (status = CANCELLED) is preferred for UI operations.
      */
     @Delete
-    suspend fun deleteStudent(student: Student)
+    suspend fun deleteStudentPhysical(student: Student)
 }

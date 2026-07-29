@@ -124,54 +124,36 @@ class StudentRepository(
     fun getAllStudents(): List<Student> = studentDao.getAllStudents()
 
     /**
-     * Deletes a student from local and remote storage.
-     * Prioritizes local deletion and attempts direct remote deletion, falling back to 
-     * background workers to ensure the UI updates immediately and changes are eventually synced.
+     * Performs a soft delete by updating the student status to CANCELLED.
+     * This preserves historical data and avoids cascading deletions.
      *
-     * @param student The student entity to delete.
+     * @param student The student entity to cancel.
      * @param email The authenticated user email.
      */
     suspend fun deleteStudent(student: Student, email: String) {
         withContext(Dispatchers.IO) {
-            try {
-                // Remove local attendance records first to maintain integrity
-                attendanceRepository.removeStudentFromAttendanceSessions(
-                    studentId = student.studentId,
-                    classId = student.classId,
-                    email = email
-                )
-            } catch (e: Exception) {
-                // Logs failure but allows student deletion to proceed
-                Log.e("StudentRepository", "Failed to clear attendance: ${e.message}")
-            }
-
-            // Perform local deletion from Room
-            studentDao.deleteStudent(student)
+            val cancelledStudent = student.copy(status = StudentStatus.CANCELLED)
+            
+            // Update local Room database
+            studentDao.insertStudent(cancelledStudent)
 
             try {
-                // Direct remote deletion for instant propagation
+                // Direct remote update for instant propagation
                 firestore.collection("users")
                     .document(email)
                     .collection("classes")
                     .document(student.classId)
                     .collection("students")
                     .document(student.studentId)
-                    .delete()
+                    .set(cancelledStudent)
                     .await()
             } catch (e: Exception) {
-                Log.w("StudentRepository", "Direct delete failed, falling back to Worker: ${e.message}")
-                // Enqueue worker for remote Firestore student document deletion
-                val syncWorkRequest = OneTimeWorkRequestBuilder<SyncDeleteStudentWorker>()
-                    .setInputData(
-                        SyncDeleteStudentWorker.buildInputData(
-                            email = email,
-                            classId = student.classId,
-                            studentId = student.studentId
-                        )
-                    )
+                Log.w("StudentRepository", "Direct soft delete sync failed, falling back to Worker: ${e.message}")
+                // Fallback to the standard sync worker to update the status remotely
+                val syncRequest = OneTimeWorkRequestBuilder<SyncStudentWorker>()
+                    .setInputData(SyncStudentWorker.buildInputData(email, student.classId, student.studentId))
                     .build()
-
-                WorkManager.getInstance(applicationContext).enqueue(syncWorkRequest)
+                WorkManager.getInstance(applicationContext).enqueue(syncRequest)
             }
         }
     }
@@ -254,8 +236,12 @@ class StudentRepository(
                                     studentDao.insertStudent(studentToSync)
                                 }
                                 DocumentChange.Type.REMOVED -> {
-                                    val studentToDelete = Student(studentId = docId)
-                                    studentDao.deleteStudent(studentToDelete)
+                                    // If a student is physically removed from Firestore, 
+                                    // we mark them as CANCELLED locally to maintain integrity.
+                                    val existingStudent = studentDao.getStudentById(docId)
+                                    existingStudent?.let {
+                                        studentDao.insertStudent(it.copy(status = StudentStatus.CANCELLED))
+                                    }
                                 }
                             }
                         }
