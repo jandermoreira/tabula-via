@@ -4,14 +4,22 @@
  */
 package edu.jm.tabulavia.repository
 
+import android.content.Context
+import android.util.Log
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.firebase.firestore.FirebaseFirestore
 import edu.jm.tabulavia.dao.ClassSkillDao
 import edu.jm.tabulavia.model.ClassSkill
 import edu.jm.tabulavia.model.SkillAssessment
+import edu.jm.tabulavia.worker.SyncClassSkillWorker
+import edu.jm.tabulavia.worker.SyncDeleteSkillWorker
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 /**
@@ -27,8 +35,9 @@ class SkillRepository(
     private val classSkillDao: ClassSkillDao,
     private val skillAssessmentDao: edu.jm.tabulavia.dao.SkillAssessmentDao,
     private val firestore: FirebaseFirestore,
-    private val scope: CoroutineScope
+    private val applicationContext: Context
 ) {
+    private val scope = CoroutineScope(Dispatchers.IO)
     // Active Firestore listeners per class ID
     private val classSkillsListeners = mutableMapOf<String, () -> Unit>()
 
@@ -134,62 +143,64 @@ class SkillRepository(
     // ---------- Write operations (local + Firestore sync) ----------
 
     /**
-     * Inserts a list of skills for a class.
+     * Inserts a list of skills for a class with direct Firestore sync and background fallback.
      */
     suspend fun insertClassSkills(email: String, classId: String, skills: List<ClassSkill>) {
-        // 1. Local insert
-        classSkillDao.insertClassSkills(skills)
+        // 1. Prepare skills with IDs
+        val skillsWithIds = skills.map { skill ->
+            if (skill.firestoreId == null) skill.copy(firestoreId = UUID.randomUUID().toString()) else skill
+        }
 
-        // 2. Background sync to Firestore
-        scope.launch {
-            try {
-                skills.forEach { skill ->
-                    val firestoreId = skill.firestoreId ?: UUID.randomUUID().toString()
-                    val skillWithId = if (skill.firestoreId == null) {
-                        skill.copy(firestoreId = firestoreId)
-                    } else {
-                        skill
-                    }
-                    val docRef = firestore
-                        .collection("users/$email/classes/$classId/skills")
-                        .document(firestoreId)
-                    docRef.set(skillWithId).await()
+        // 2. Local insert
+        classSkillDao.insertClassSkills(skillsWithIds)
 
-                    // If we generated a new firestoreId, update the local record to have it
-                    if (skill.firestoreId == null) {
-                        classSkillDao.insertClassSkills(listOf(skillWithId))
-                    }
-                }
-            } catch (e: Exception) {
-                // Handle error (e.g., log, notify via a central error channel)
+        // 3. Attempt direct remote sync
+        try {
+            val batch = firestore.batch()
+            skillsWithIds.forEach { skill ->
+                val docRef = firestore
+                    .collection("users")
+                    .document(email)
+                    .collection("classes")
+                    .document(classId)
+                    .collection("skills")
+                    .document(skill.firestoreId!!)
+                batch.set(docRef, skill)
             }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.w("SkillRepository", "Direct skill sync failed, falling back to Worker: ${e.message}")
+            val syncRequest = OneTimeWorkRequestBuilder<SyncClassSkillWorker>()
+                .setInputData(SyncClassSkillWorker.buildInputData(email, classId))
+                .build()
+            WorkManager.getInstance(applicationContext).enqueue(syncRequest)
         }
     }
 
     /**
-     * Deletes a single class skill.
-     *
-     * Steps:
-     * 1. Deletes locally from Room.
-     * 2. Launches a background coroutine to delete the corresponding Firestore document
-     *    (if it has a firestoreId).
+     * Deletes a single class skill with direct Firestore sync and background fallback.
      */
     suspend fun deleteClassSkill(email: String, classId: String, skill: ClassSkill) {
         // 1. Local delete
         classSkillDao.deleteClassSkill(skill)
 
-        // 2. Background Firestore delete
-        scope.launch {
-            try {
-                skill.firestoreId?.let { firestoreId ->
-                    firestore.collection("users/$email/classes/$classId/skills")
-                        .document(firestoreId)
-                        .delete()
-                        .await()
-                }
-            } catch (e: Exception) {
-                // Handle error
-            }
+        // 2. Remote delete
+        val firestoreId = skill.firestoreId ?: return
+        try {
+            firestore.collection("users")
+                .document(email)
+                .collection("classes")
+                .document(classId)
+                .collection("skills")
+                .document(firestoreId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            Log.w("SkillRepository", "Direct skill delete failed, falling back to Worker: ${e.message}")
+            val syncRequest = OneTimeWorkRequestBuilder<SyncDeleteSkillWorker>()
+                .setInputData(SyncDeleteSkillWorker.buildInputData(email, classId, firestoreId))
+                .build()
+            WorkManager.getInstance(applicationContext).enqueue(syncRequest)
         }
     }
 }
