@@ -124,11 +124,11 @@ class StudentRepository(
 
     /**
      * Deletes a student from local and remote storage.
-     * Prioritizes local deletion and enqueues background workers for remote cleanup
-     * to ensure the UI updates immediately even if offline.
+     * Prioritizes local deletion and attempts direct remote deletion, falling back to 
+     * background workers to ensure the UI updates immediately and changes are eventually synced.
      *
      * @param student The student entity to delete.
-     * @param uid The authenticated user ID.
+     * @param email The authenticated user email.
      */
     suspend fun deleteStudent(student: Student, email: String) {
         withContext(Dispatchers.IO) {
@@ -147,18 +147,31 @@ class StudentRepository(
             // Perform local deletion from Room
             studentDao.deleteStudent(student)
 
-            // Enqueue worker for remote Firestore student document deletion
-            val syncWorkRequest = OneTimeWorkRequestBuilder<SyncDeleteStudentWorker>()
-                .setInputData(
-                    SyncDeleteStudentWorker.buildInputData(
-                        email =  email,
-                        classId = student.classId,
-                        studentId = student.studentId
+            try {
+                // Direct remote deletion for instant propagation
+                firestore.collection("users")
+                    .document(email)
+                    .collection("classes")
+                    .document(student.classId)
+                    .collection("students")
+                    .document(student.studentId)
+                    .delete()
+                    .await()
+            } catch (e: Exception) {
+                Log.w("StudentRepository", "Direct delete failed, falling back to Worker: ${e.message}")
+                // Enqueue worker for remote Firestore student document deletion
+                val syncWorkRequest = OneTimeWorkRequestBuilder<SyncDeleteStudentWorker>()
+                    .setInputData(
+                        SyncDeleteStudentWorker.buildInputData(
+                            email = email,
+                            classId = student.classId,
+                            studentId = student.studentId
+                        )
                     )
-                )
-                .build()
+                    .build()
 
-            WorkManager.getInstance(applicationContext).enqueue(syncWorkRequest)
+                WorkManager.getInstance(applicationContext).enqueue(syncWorkRequest)
+            }
         }
     }
 
