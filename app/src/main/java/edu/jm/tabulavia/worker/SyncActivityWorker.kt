@@ -49,4 +49,20 @@ class SyncActivityWorker(
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }
+
+    companion object {
+        /**
+         * Creates input data for this worker.
+         *
+         * @param email The email of the authenticated user.
+         * @param classId The ID of the class the activity belongs to.
+         * @param activityId The ID of the activity to sync.
+         * @return A [androidx.work.Data] object containing the worker's input.
+         */
+        fun buildInputData(email: String, classId: String, activityId: String) = workDataOf(
+            "USER_ID" to email,
+            "CLASS_ID" to classId,
+            "ACTIVITY_ID" to activityId
+        )
+    }
 }
