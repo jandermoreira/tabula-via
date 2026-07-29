@@ -72,6 +72,37 @@ class ClassRepository(
     /**
      * Exposes the stream of classes from the local database.
      */
+    fun getAllClassesFlow(): Flow<List<AcademicClass>> = classDao.getAllClassesFlow()
+
+    /**
+     * Retrieves a single class by its persistent String identifier.
+     */
+    suspend fun getClassById(classId: String): AcademicClass? = classDao.getClassById(classId)
+
+    /**
+     * Saves a class locally and triggers an immediate Firestore sync with background fallback.
+     */
+    suspend fun insertClass(academicClass: AcademicClass, email: String): String {
+        // Immediate local persistence
+        classDao.insertClass(academicClass)
+
+        try {
+            // Direct write to Firestore for instant propagation
+            userClassesRef(email)
+                .document(academicClass.classId)
+                .set(academicClass)
+                .await()
+        } catch (e: Exception) {
+            Log.w("ClassRepository", "Direct class sync failed, falling back to Worker: ${e.message}")
+            val syncRequest = OneTimeWorkRequestBuilder<SyncClassWorker>()
+                .setInputData(SyncClassWorker.buildInputData(email, academicClass.classId))
+                .build()
+            WorkManager.getInstance(context).enqueue(syncRequest)
+        }
+
+        return academicClass.classId
+    }
+
 
     /**
      * Bulk inserts a list of classes into the local database.
