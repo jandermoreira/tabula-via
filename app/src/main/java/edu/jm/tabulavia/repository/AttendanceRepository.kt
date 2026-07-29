@@ -15,6 +15,7 @@ import edu.jm.tabulavia.dao.AttendanceDao
 import edu.jm.tabulavia.model.AttendanceRecord
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassSession
+import edu.jm.tabulavia.utils.shouldNotifySync
 import edu.jm.tabulavia.worker.SyncAttendanceWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -168,7 +169,7 @@ class AttendanceRepository(
                 }
 
                 if (snapshot != null) {
-                    if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                    if (snapshot.shouldNotifySync(isInitialSnapshot)) {
                         onSyncActivity()
                     }
                 }

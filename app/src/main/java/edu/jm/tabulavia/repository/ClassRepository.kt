@@ -28,6 +28,7 @@ import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.AcademicClass
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.utils.shouldNotifySync
 import edu.jm.tabulavia.worker.SyncActivityWorker
 import edu.jm.tabulavia.worker.SyncClassWorker
 import edu.jm.tabulavia.worker.SyncDeleteActivityWorker
@@ -393,7 +394,7 @@ class ClassRepository(
             }
 
             if (snapshot != null) {
-                if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                if (snapshot.shouldNotifySync(isInitialSnapshot)) {
                     onSyncActivity()
                 }
             }
@@ -447,7 +448,7 @@ class ClassRepository(
             }
 
             if (snapshot != null) {
-                if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                if (snapshot.shouldNotifySync(isInitialSnapshot)) {
                     onSyncActivity()
                 }
             }

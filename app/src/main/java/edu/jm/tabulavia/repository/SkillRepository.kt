@@ -12,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import edu.jm.tabulavia.dao.ClassSkillDao
 import edu.jm.tabulavia.model.ClassSkill
 import edu.jm.tabulavia.model.SkillAssessment
+import edu.jm.tabulavia.utils.shouldNotifySync
 import edu.jm.tabulavia.worker.SyncClassSkillWorker
 import edu.jm.tabulavia.worker.SyncDeleteSkillWorker
 import kotlinx.coroutines.CoroutineScope
@@ -84,7 +85,7 @@ class SkillRepository(
                 }
 
                 if (snapshot != null) {
-                    if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                    if (snapshot.shouldNotifySync(isInitialSnapshot)) {
                         onSyncActivity()
                     }
                 }

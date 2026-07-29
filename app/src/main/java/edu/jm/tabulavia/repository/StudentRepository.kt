@@ -13,6 +13,7 @@ import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import edu.jm.tabulavia.dao.StudentDao
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.utils.shouldNotifySync
 import edu.jm.tabulavia.worker.SyncDeleteStudentWorker
 import edu.jm.tabulavia.worker.SyncStudentWorker
 import kotlinx.coroutines.flow.Flow
@@ -234,7 +235,7 @@ class StudentRepository(
 
                     if (snapshot != null) {
                         // Pulse only for local writes (pending) or remote changes (ignoring initial load)
-                        if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                        if (snapshot.shouldNotifySync(isInitialSnapshot)) {
                             onSyncActivity()
                         }
                     }
