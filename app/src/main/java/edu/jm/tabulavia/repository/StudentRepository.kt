@@ -193,6 +193,7 @@ class StudentRepository(
          */
         fun startStudentsSync(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
             stopStudentsSync()
+            var isInitialSnapshot = true
 
             studentsListener = firestore.collection("users")
                 .document(email)
@@ -205,9 +206,13 @@ class StudentRepository(
                         return@addSnapshotListener
                     }
 
-                    if (snapshot != null && !snapshot.isEmpty) {
-                        onSyncActivity()
+                    if (snapshot != null) {
+                        // Pulse only for local writes (pending) or remote changes (ignoring initial load)
+                        if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                            onSyncActivity()
+                        }
                     }
+                    isInitialSnapshot = false
 
                     snapshot?.documentChanges?.forEach { change ->
                         // The document ID is the primary key (studentId)

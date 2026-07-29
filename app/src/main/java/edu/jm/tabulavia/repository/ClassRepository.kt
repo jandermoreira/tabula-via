@@ -328,6 +328,7 @@ class ClassRepository(
      */
     fun startClassesSync(email: String, onSyncActivity: () -> Unit = {}) {
         stopClassesSync()
+        var isInitialSnapshot = true
 
         classesListener = userClassesRef(email).addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -335,9 +336,12 @@ class ClassRepository(
                 return@addSnapshotListener
             }
 
-            if (snapshot != null && !snapshot.isEmpty) {
-                onSyncActivity()
+            if (snapshot != null) {
+                if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                    onSyncActivity()
+                }
             }
+            isInitialSnapshot = false
 
             snapshot?.documentChanges?.forEach { change ->
                 val clazz = change.document.toObject(AcademicClass::class.java)
@@ -378,13 +382,17 @@ class ClassRepository(
      */
     fun startStudentsSync(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
         stopStudentsSync()
+        var isInitialSnapshot = true
 
         studentsListener = userStudentsRef(email, classId).addSnapshotListener { snapshot, error ->
             if (error != null) return@addSnapshotListener
 
-            if (snapshot != null && !snapshot.isEmpty) {
-                onSyncActivity()
+            if (snapshot != null) {
+                if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                    onSyncActivity()
+                }
             }
+            isInitialSnapshot = false
 
             snapshot?.let {
                 val students = it.toObjects(Student::class.java).filterNotNull()
@@ -412,6 +420,7 @@ class ClassRepository(
      */
     fun startActivitiesSync(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
         stopActivitiesSync()
+        var isInitialSnapshot = true
 
         activitiesListener = userClassesRef(email)
             .document(classId)
@@ -419,9 +428,12 @@ class ClassRepository(
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
 
-                if (snapshot != null && !snapshot.isEmpty) {
-                    onSyncActivity()
+                if (snapshot != null) {
+                    if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                        onSyncActivity()
+                    }
                 }
+                isInitialSnapshot = false
 
                 snapshot?.let {
                     val activities = it.toObjects(Activity::class.java).filterNotNull()

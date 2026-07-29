@@ -138,6 +138,7 @@
         fun startAttendanceSync(classId: String, onSyncActivity: () -> Unit = {}) {
             val userEmail = currentUserEmail ?: return
             stopAttendanceSync()
+            var isInitialSnapshot = true
     
             attendanceListener = firestore.collection("users")
                 .document(userEmail)
@@ -147,9 +148,12 @@
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) return@addSnapshotListener
     
-                    if (snapshot != null && !snapshot.isEmpty) {
-                        onSyncActivity()
+                    if (snapshot != null) {
+                        if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                            onSyncActivity()
+                        }
                     }
+                    isInitialSnapshot = false
 
                     snapshot?.documentChanges?.forEach { change ->
                         val remote = change.document.toObject(FirestoreSession::class.java)

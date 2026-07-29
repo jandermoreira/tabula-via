@@ -65,6 +65,7 @@ class SkillRepository(
      */
     fun startListeningToClassSkills(email: String, classId: String, onSyncActivity: () -> Unit = {}) {
         stopListeningToClassSkills(classId)
+        var isInitialSnapshot = true
 
         val listenerRegistration = firestore
             .collection("users/$email/classes/$classId/skills")
@@ -74,9 +75,12 @@ class SkillRepository(
                     return@addSnapshotListener
                 }
 
-                if (snapshot != null && !snapshot.isEmpty) {
-                    onSyncActivity()
+                if (snapshot != null) {
+                    if (snapshot.metadata.hasPendingWrites() || !isInitialSnapshot) {
+                        onSyncActivity()
+                    }
                 }
+                isInitialSnapshot = false
 
                 snapshot?.documentChanges?.forEach { change ->
                     when (change.type) {
