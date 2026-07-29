@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.model.StudentStatus
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToColor
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToEmoji
 

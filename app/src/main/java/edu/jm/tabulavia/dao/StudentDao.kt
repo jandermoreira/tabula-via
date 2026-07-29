@@ -41,7 +41,7 @@ interface StudentDao {
      * Excludes students with CANCELLED status.
      * Returns a Flow to provide real-time updates when the table changes.
      */
-    @Query("SELECT * FROM students WHERE classId = :classId AND status != 'CANCELLED' ORDER BY name ASC")
+    @Query("SELECT * FROM students WHERE classId = :classId ORDER BY name ASC")
     fun getStudentsForClass(classId: String): Flow<List<Student>>
 
     /**
