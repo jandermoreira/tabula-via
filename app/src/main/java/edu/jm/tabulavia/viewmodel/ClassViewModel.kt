@@ -360,7 +360,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
             studentRepository.startStudentsSync(email, classId, onSyncActivity = { notifySyncActivity() })
             classRepository.startActivitiesSync(email, classId, onSyncActivity = { notifySyncActivity() })
             attendanceRepository.startAttendanceSync(classId, onSyncActivity = { notifySyncActivity() })
-            skillRepository.startListeningToClassSkills(email, classId, onSyncActivity = { notifySyncActivity() })
+            skillRepository.startClassSkillsSync(email, classId, onSyncActivity = { notifySyncActivity() })
         }
 
         // Launch coroutine to load the selected class.
