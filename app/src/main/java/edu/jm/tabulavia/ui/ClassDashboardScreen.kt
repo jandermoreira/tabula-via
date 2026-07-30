@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -123,33 +124,36 @@ fun ClassDashboardScreen(
             )
         }
     ) { paddingValues ->
-        // Main layout container with vertical spacing
-        Column(
+        // Main layout container as a single scrollable grid
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
             modifier = Modifier
                 .padding(paddingValues)
-                .padding(16.dp)
                 .fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Primary management cards (Students, Attendance, Activities)
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            // Primary management cards (Full width)
+            item(span = { GridItemSpan(2) }) {
                 DashboardCard(
                     title = "Alunos",
                     subtitle = "${students.size} alunos cadastrados",
                     icon = Icons.Default.Group,
                     onClick = { navController.navigate("studentList/$classId") }
                 )
+            }
 
+            item(span = { GridItemSpan(2) }) {
                 DashboardCard(
                     title = "Frequência",
                     subtitle = "Histórico de frequência",
                     icon = Icons.AutoMirrored.Filled.FactCheck,
                     onClick = { navController.navigate("frequencyDashboard/$classId") }
                 )
+            }
 
+            item(span = { GridItemSpan(2) }) {
                 DashboardCard(
                     title = "Atividades",
                     subtitle = "${activities.size} atividades criadas",
@@ -158,34 +162,23 @@ fun ClassDashboardScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Secondary grid for Skills and Reports (Half width)
+            item {
+                DashboardCard(
+                    title = "Habilidades",
+                    subtitle = "${classSkills.size} habilidades definidas",
+                    icon = Icons.Default.Psychology,
+                    onClick = { navController.navigate("classSkills/$classId") }
+                )
+            }
 
-            // Secondary grid for Skills and Reports
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 300.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    DashboardCard(
-                        title = "Habilidades",
-                        subtitle = "${classSkills.size} habilidades definidas",
-                        icon = Icons.Default.Psychology,
-                        onClick = { navController.navigate("classSkills/$classId") }
-                    )
-                }
-
-                item {
-                    DashboardCard(
-                        title = "Relatórios",
-                        subtitle = "Análise e desempenho",
-                        icon = Icons.Default.Assessment,
-                        onClick = { navController.navigate("reportList/$classId") }
-                    )
-                }
+            item {
+                DashboardCard(
+                    title = "Relatórios",
+                    subtitle = "Análise e desempenho",
+                    icon = Icons.Default.Assessment,
+                    onClick = { navController.navigate("reportList/$classId") }
+                )
             }
         }
     }
