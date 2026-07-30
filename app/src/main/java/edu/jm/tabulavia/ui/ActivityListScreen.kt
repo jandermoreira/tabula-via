@@ -321,10 +321,9 @@ fun ActivityListScreen(
  */
 @Composable
 fun ActivityItem(activity: Activity, onActivityClicked: (Activity) -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onActivityClicked(activity) }
+    TabulaCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onActivityClicked(activity) }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = activity.title, style = MaterialTheme.typography.titleMedium)

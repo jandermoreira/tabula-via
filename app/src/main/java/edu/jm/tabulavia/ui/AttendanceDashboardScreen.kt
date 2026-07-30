@@ -88,7 +88,7 @@ fun AttendanceDashboardScreen(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(classSessions) { session ->
-                        Card(
+                        TabulaCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .combinedClickable(

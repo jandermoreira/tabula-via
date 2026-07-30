@@ -1,25 +1,51 @@
 /**
- * Palette definitions for the application theme.
+ * File: Color.kt
+ * Description: Defines the color palette and constants for the TabulaVia application theme.
  */
 package edu.jm.tabulavia.ui.theme
-
 import androidx.compose.ui.graphics.Color
 
-// Light Theme Colors
-val DarkBlue = Color(0xFF654EAB)
-val DarkGray = Color(0xFF615B73)
-val DarkRed = Color(0xFFA72C10)
+/**
+ * Brand
+ */
+val ForestGreen = Color(0xFF14532D)
+val EmeraldGreen = Color(0xFF2E7D32)
+val MintGreen = Color(0xFF81C784)
 
-// Dark Theme Colors
-val LightBlue = Color(0xFFD0BCFF)
-val LightGray = Color(0xFFCCC2DC)
-val LightRed = Color(0xFFFFB4AB)
+/**
+ * Green shades
+ */
+val MossGreen = Color(0xFF1B5E20)
+val PineGreen = Color(0xFF2F6B43)
+val SageGreen = Color(0xFFDDEEDF)
+val MistGreen = Color(0xFFEAF6EC)
+val FrostGreen = Color(0xFFF3F8F4)
 
-// Default Material Colors
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+/**
+ * Neutral light
+ */
+val SnowWhite = Color(0xFFFFFFFF)
+val CloudWhite = Color(0xFFF8FBF9)
+val PearlGray = Color(0xFFF2F5F3)
+val SilverGray = Color(0xFFE4EAE6)
 
-val Purple40 = Color(0xFF6650A4)
-val PurpleGrey40 = Color(0xFF625B71)
-val Pink40 = Color(0xFF7D5260)
+/**
+ * Neutral dark
+ */
+val Charcoal = Color(0xFF1A1F1C)
+val Graphite = Color(0xFF36403A)
+val Slate = Color(0xFF58635C)
+val Stone = Color(0xFF97A39B)
+
+/**
+ * Semantic
+ */
+val Crimson = Color(0xFFBA1A1A)
+val Rose = Color(0xFFFFDAD6)
+val Amber = Color(0xFFE6A700)
+val SkyBlue = Color(0xFF1976D2)
+
+/**
+ * Misc
+ */
+val BlackScrim = Color(0x66000000)

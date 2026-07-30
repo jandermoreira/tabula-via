@@ -78,7 +78,7 @@ fun ClassSkillsScreen(
 
 @Composable
 private fun ClassSkillItem(skill: ClassSkill, onDelete: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    TabulaCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically

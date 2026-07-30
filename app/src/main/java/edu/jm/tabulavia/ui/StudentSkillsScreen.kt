@@ -79,7 +79,7 @@ fun SkillItemRow(
     skillSummary: SkillAssessmentsSummary,
     onAssessmentChange: (SkillLevel, AssessmentSource) -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    TabulaCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = skillSummary.skillName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
 

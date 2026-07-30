@@ -89,9 +89,9 @@ class MainActivity : ComponentActivity() {
         credentialManager = CredentialManager.create(this)
 
         setContent {
-            TabulaViaTheme {
+            TabulaViaTheme(vibrant = true) {
                 Surface(
-                    modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
+                    modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background,
                 ) {
 
                     val navController = rememberNavController()

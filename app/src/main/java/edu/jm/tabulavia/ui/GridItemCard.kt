@@ -14,15 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GridItemCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        modifier = modifier.aspectRatio(1.25f),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    TabulaCard(
+        modifier = modifier.aspectRatio(1.25f)
     ) {
         Column(
             modifier = Modifier

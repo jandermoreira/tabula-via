@@ -40,22 +40,23 @@ import edu.jm.tabulavia.viewmodel.AuthViewModel
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 import kotlinx.coroutines.launch
 import edu.jm.tabulavia.BuildConfig
+//import edu.jm.tabulavia.ui.theme.TabulaColorScheme
 import java.io.InputStreamReader
 import java.io.BufferedReader
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-/**
- * Displays the main class list screen.
- *
- * @param viewModel ViewModel responsible for class data and backup/restore operations.
- * @param authViewModel ViewModel responsible for authentication state.
- * @param onAddClassClicked Callback triggered when add class is requested.
- * @param onClassClicked Callback triggered when a class is selected.
- * @param onLoginClicked Callback triggered when login is requested.
- * @param onLogoutClicked Callback triggered when logout is requested.
- */
+        /**
+         * Displays the main class list screen.
+         *
+         * @param viewModel ViewModel responsible for class data and backup/restore operations.
+         * @param authViewModel ViewModel responsible for authentication state.
+         * @param onAddClassClicked Callback triggered when add class is requested.
+         * @param onClassClicked Callback triggered when a class is selected.
+         * @param onLoginClicked Callback triggered when login is requested.
+         * @param onLogoutClicked Callback triggered when logout is requested.
+         */
 fun ClassListScreen(
     viewModel: ClassViewModel,
     authViewModel: AuthViewModel,
@@ -126,11 +127,14 @@ fun ClassListScreen(
                 try {
                     context.contentResolver.openInputStream(it)?.use { inputStream ->
                         val content = BufferedReader(InputStreamReader(inputStream)).readText()
-                        
+
                         // Try to extract original name for suggestion
                         val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                        val backup = json.decodeFromString(edu.jm.tabulavia.model.ClassBackup.serializer(), content)
-                        
+                        val backup = json.decodeFromString(
+                            edu.jm.tabulavia.model.ClassBackup.serializer(),
+                            content
+                        )
+
                         importJsonContent = content
                         suggestedClassName = "${backup.clazz.className} (Recuperado)"
                         showImportDialog = true
@@ -203,13 +207,15 @@ fun ClassListScreen(
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.background)
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
 
                 items(classesInYear) { clazz ->
-                    Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                    ) {
                         ClassItem(
                             clazz = clazz,
                             onClick = { onClassClicked(clazz) }
@@ -299,9 +305,6 @@ fun ClassListScreen(
                                 showBackupDialog = false
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary
-                            )
                         ) {
                             Icon(
                                 Icons.Filled.FileUpload,
@@ -364,12 +367,11 @@ fun ClassItem(
     clazz: AcademicClass,
     onClick: () -> Unit
 ) {
-    Card(
+    TabulaCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .padding(vertical = 4.dp),
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

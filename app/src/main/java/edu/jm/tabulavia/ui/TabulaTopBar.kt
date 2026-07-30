@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.BuildConfig
 import edu.jm.tabulavia.viewmodel.ClassViewModel
+import edu.jm.tabulavia.ui.theme.*
 
 /**
  * A custom top app bar that displays a synchronization indicator when active.
@@ -36,9 +37,10 @@ fun TabulaTopBar(
     viewModel: ClassViewModel,
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
+//    todo: check colors
     colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(
         containerColor = MaterialTheme.colorScheme.primaryContainer,
-        titleContentColor = MaterialTheme.colorScheme.primary
+        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
     )
 ) {
     TopAppBar(
@@ -46,13 +48,13 @@ fun TabulaTopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Determine the title color based on flavor and title content
                 val isMainTitle = title.startsWith("Tabula Via")
-                val titleColor = if (isMainTitle && BuildConfig.FLAVOR == "dev") {
-                    Color.Red
-                } else {
-                    colors.titleContentColor
-                }
+                val titleColor = if (isMainTitle && BuildConfig.FLAVOR == "dev")
+                    Color.Yellow else MaterialTheme.colorScheme.onPrimaryContainer
 
-                Text(text = title, color = titleColor)
+                Text(
+                    text = title,
+                    color = titleColor
+                )
 
                 // Sync indicator state
                 val isSyncing by viewModel.isSyncing.collectAsState()

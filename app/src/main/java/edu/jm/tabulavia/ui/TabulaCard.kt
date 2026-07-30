@@ -31,25 +31,25 @@ fun TabulaCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val cardColors = CardDefaults.cardColors(
+        containerColor = Color.White,
+        contentColor = Color.Black
+    )
+    val cardElevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+
     if (onClick != null) {
         Card(
             onClick = onClick,
             modifier = modifier,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.White,
-                contentColor = Color.Black // Ensuring high contrast on white
-            ),
+            elevation = cardElevation,
+            colors = cardColors,
             content = content
         )
     } else {
         Card(
             modifier = modifier,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.White,
-                contentColor = Color.Black
-            ),
+            elevation = cardElevation,
+            colors = cardColors,
             content = content
         )
     }

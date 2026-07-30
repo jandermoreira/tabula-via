@@ -256,7 +256,7 @@ fun AttendanceItem(
     val isExcused = status == AttendanceStatus.EXCUSED
     val isPresent = status == AttendanceStatus.PRESENT
 
-    Card(
+    TabulaCard(
         onClick = {
             // Cycle through PRESENT -> ABSENT -> EXCUSED -> PRESENT
             val nextStatus = when (status) {
@@ -269,15 +269,7 @@ fun AttendanceItem(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = when (status) {
-                AttendanceStatus.ABSENT -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                AttendanceStatus.EXCUSED -> Color(0xFFFFF8E1) // Light Amber
-                else -> MaterialTheme.colorScheme.surface
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isPresent) 2.dp else 0.dp)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
         Row(
             modifier = Modifier

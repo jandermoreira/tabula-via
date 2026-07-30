@@ -59,6 +59,7 @@ import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.grouping.Location
+//import edu.jm.tabulavia.ui.theme.TabulaColorScheme
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 import edu.jm.tabulavia.utils.MessageHandler
 import kotlinx.coroutines.Dispatchers
@@ -136,10 +137,11 @@ fun ActivityGroupScreen(
                         Icon(Icons.Default.Edit, null)
                     }
                 }
-            }, colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                titleContentColor = MaterialTheme.colorScheme.primary,
-            )
+            },
+//            colors = TopAppBarDefaults.topAppBarColors(
+//                containerColor = TabulaColorScheme.primary,
+//                titleContentColor = TabulaColorScheme.onPrimary,
+//            )
         )
     }, floatingActionButton = {
         val isConfiguring = uiState == GroupUiState.CONFIGURE || uiState == GroupUiState.NO_GROUPS
@@ -152,8 +154,9 @@ fun ActivityGroupScreen(
                             viewModel.exitManualMode()
                             uiState = GroupUiState.SHOW_GROUPS
                         },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+//                        todo: fix colors
+//                        containerColor = MaterialTheme.colorScheme.primary,
+//                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check, contentDescription = "Finish"
@@ -172,8 +175,9 @@ fun ActivityGroupScreen(
                                     uiState = GroupUiState.SHOW_GROUPS
                                 }
                             },
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+//                        todo: fix colors
+//                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+//                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close, contentDescription = "Cancel"
@@ -186,8 +190,9 @@ fun ActivityGroupScreen(
                                 viewModel.enterManualMode(forceRefresh = true)
                                 uiState = GroupUiState.SHOW_GROUPS
                             },
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+//                        todo: fix colors
+//                            containerColor = MaterialTheme.colorScheme.primary,
+//                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check, contentDescription = "Create"
@@ -301,10 +306,7 @@ private fun GroupsExpandedView(
         modifier = Modifier.fillMaxSize()
     ) {
         itemsIndexed(groups) { index, groupStudents ->
-            Card(
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-            ) {
+            TabulaCard {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -567,14 +569,12 @@ private fun ManualGroupEditorView(
                             }
                         }
 
-                        Card(
+                        TabulaCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .onGloballyPositioned { coordinates ->
                                     groupBounds[group.id] = coordinates.boundsInRoot()
-                                }, colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                            )
+                                }
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(

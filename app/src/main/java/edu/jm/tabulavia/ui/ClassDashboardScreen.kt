@@ -200,11 +200,9 @@ fun ClassDashboardScreen(
  */
 @Composable
 fun DashboardCard(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    TabulaCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
