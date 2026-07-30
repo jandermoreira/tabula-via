@@ -60,13 +60,13 @@ Stores class information.
 
 ### Fields
 
-| Field | Type | Description                                       |
-|------|------|---------------------------------------------------|
-| classId | String | Unique class identifier.                          |
-| className | String | Course or class name.                             |
-| academicYear | String | Academic year (e.g. `"2026"`).                    |
-| period | String | Academic period/semester (e.g. `"1st Semester"`). |
-| numberOfSessions | Number | Total number of planned sessions. |
+| Field            | Type    | Description                                       |
+|------------------|---------|---------------------------------------------------|
+| classId          | String  | Unique class identifier.                          |
+| name             | String  | Course or class name.                             |
+| academicYear     | String  | Academic year (e.g. `"2026"`).                    |
+| period           | String  | Academic period/semester (e.g. `"1st Semester"`). |
+| numberOfSessions | Number  | Total number of planned sessions.                 |
 ---
 
 ## Collection: `students`
@@ -94,9 +94,9 @@ Stores students associated with a specific class.
 | Field         | Type   | Description                                            |
 |---------------|--------|--------------------------------------------------------|
 | studentId     | String | Unique student identifier.                             |
-| studentName   | String | Student's full legal name.                             |
+| name          | String | Student's name.                                        |
 | displayName   | String | Display name or preferred name.                        |
-| studentNumber | String | Registration or attendance number.                     |
+| studentNumber | String | Institutional student number.                          |
 | classId       | String | Reference to the parent class.                         |
 | status        | String | Possible values: `ACTIVE`, `INACTIVE`, or `CANCELLED`. |
 
@@ -124,12 +124,12 @@ Stores assessment criteria defined for the class.
 
 ### Fields
 
-| Field | Type | Description |
-|------|------|-------------|
-| skillId | String | Unique skill identifier. |
-| name | String | Name of the assessed competency. |
+| Field       | Type   | Description                                       |
+|-------------|--------|---------------------------------------------------|
+| skillId     | String | Unique skill identifier.                          |
+| name        | String | Name of the assessed competency.                  |
 | description | String | Detailed description of the assessment criterion. |
-| classId | String | Reference to the parent class. |
+| classId     | String | Reference to the parent class.                    |
 
 ---
 
@@ -155,13 +155,13 @@ Stores records of activities or class sessions.
 
 ### Fields
 
-| Field | Type | Description |
-|------|------|-------------|
-| activityId | String | Unique activity identifier. |
-| name | String | Activity or lesson title. |
-| date | Number | Activity date in milliseconds. |
+| Field       | Type   | Description                                  |
+|-------------|--------|----------------------------------------------|
+| activityId  | String | Unique activity identifier.                  |
+| name        | String | Activity or lesson title.                    |
+| date        | Number | Activity date in milliseconds.               |
 | description | String | Classification: `"Individual"` or `"Group"`. |
-| classId | String | Reference to the parent class. |
+| classId     | String | Reference to the parent class.               |
 
 ---
 
@@ -183,12 +183,12 @@ The document name must be the `evidenceId`.
 
 ### Fields
 
-| Field | Type | Description |
-|------|------|-------------|
-| evidenceId | String | Unique ID (UUID or Moodle ID). |
-| classId | String | Class ID. |
-| name | String | Evidence source name (e.g. `"Conditional List"` or `"Exam 1"`). |
-| deadline | Number | Activity date (ensures consistent chronology across all records). |
-| type | String | `"MONITORING"` or `"CONSOLIDATION"`. |
-| scores | Map | Evidence scores for each student in the format `{ studentId: score }`. |
+| Field      | Type   | Description                                                            |
+|------------|--------|------------------------------------------------------------------------|
+| evidenceId | String | Unique ID (UUID or Moodle ID).                                         |
+| classId    | String | Class ID.                                                              |
+| name       | String | Evidence source name (e.g. `"Conditional List"` or `"Exam 1"`).        |
+| deadline   | Number | Submission deadline in milliseconds since the Unix Epoch.              |
+| type       | String | `"MONITORING"` or `"CONSOLIDATION"`.                                   |
+| scores     | Map    | Evidence scores for each student in the format `{ studentId: score }`. |
 
