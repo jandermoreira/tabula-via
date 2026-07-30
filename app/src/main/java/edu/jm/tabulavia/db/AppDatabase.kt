@@ -7,8 +7,29 @@ package edu.jm.tabulavia.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import edu.jm.tabulavia.dao.*
-import edu.jm.tabulavia.model.*
+import edu.jm.tabulavia.dao.ActivityDao
+import edu.jm.tabulavia.dao.ActivityHighlightedSkillDao
+import edu.jm.tabulavia.dao.AttendanceDao
+import edu.jm.tabulavia.dao.ClassDao
+import edu.jm.tabulavia.dao.ClassSkillDao
+import edu.jm.tabulavia.dao.GroupMemberDao
+import edu.jm.tabulavia.dao.SkillAssessmentDao
+import edu.jm.tabulavia.dao.SkillDao
+import edu.jm.tabulavia.dao.StudentDao
+import edu.jm.tabulavia.model.AcademicClass
+import edu.jm.tabulavia.model.Activity
+import edu.jm.tabulavia.model.ActivityHighlightedSkill
+import edu.jm.tabulavia.model.AssessmentSource
+import edu.jm.tabulavia.model.AttendanceRecord
+import edu.jm.tabulavia.model.AttendanceStatus
+import edu.jm.tabulavia.model.ClassSession
+import edu.jm.tabulavia.model.ClassSkill
+import edu.jm.tabulavia.model.GroupMember
+import edu.jm.tabulavia.model.SkillAssessment
+import edu.jm.tabulavia.model.SkillLevel
+import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.model.StudentSkill
+import edu.jm.tabulavia.model.StudentStatus
 
 @Database(
     entities = [

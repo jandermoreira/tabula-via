@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
 import androidx.work.WorkManager
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -22,18 +23,30 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
 import edu.jm.tabulavia.db.DatabaseProvider
-import edu.jm.tabulavia.model.*
+import edu.jm.tabulavia.model.AcademicClass
+import edu.jm.tabulavia.model.Activity
+import edu.jm.tabulavia.model.ActivityHighlightedSkill
+import edu.jm.tabulavia.model.AssessmentSource
+import edu.jm.tabulavia.model.AttendanceRecord
 import edu.jm.tabulavia.model.AttendanceStatus
+import edu.jm.tabulavia.model.ClassBackup
 import edu.jm.tabulavia.model.ClassSession
+import edu.jm.tabulavia.model.ClassSkill
+import edu.jm.tabulavia.model.GroupMember
+import edu.jm.tabulavia.model.SkillAssessment
+import edu.jm.tabulavia.model.SkillAssessmentsSummary
+import edu.jm.tabulavia.model.SkillLevel
+import edu.jm.tabulavia.model.SkillStatus
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.grouping.Location
-import edu.jm.tabulavia.repository.*
 import edu.jm.tabulavia.repository.AttendanceRepository
-import java.util.Calendar
-import java.util.UUID
-import androidx.room.withTransaction
+import edu.jm.tabulavia.repository.ClassRepository
+import edu.jm.tabulavia.repository.CloudStorageRepository
+import edu.jm.tabulavia.repository.SaveAttendanceResult
+import edu.jm.tabulavia.repository.SkillRepository
+import edu.jm.tabulavia.repository.StudentRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -51,6 +64,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.util.Calendar
+import java.util.UUID
 
 /**
  * Represents a student's attendance status for display.

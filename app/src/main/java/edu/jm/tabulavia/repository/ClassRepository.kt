@@ -12,34 +12,29 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.workDataOf
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import edu.jm.tabulavia.dao.ActivityDao
 import edu.jm.tabulavia.dao.ClassDao
 import edu.jm.tabulavia.dao.GroupMemberDao
 import edu.jm.tabulavia.dao.StudentDao
-import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.AcademicClass
+import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.utils.shouldNotifySync
 import edu.jm.tabulavia.worker.SyncActivityWorker
 import edu.jm.tabulavia.worker.SyncClassWorker
-import edu.jm.tabulavia.worker.SyncDeleteActivityWorker
-import edu.jm.tabulavia.worker.SyncDeleteClassWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
 
 class ClassRepository(
     private val context: Context,

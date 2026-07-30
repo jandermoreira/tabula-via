@@ -10,9 +10,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.WriteBatch
 import edu.jm.tabulavia.db.DatabaseProvider
-import edu.jm.tabulavia.model.ClassSkill
 import kotlinx.coroutines.tasks.await
 
 /**

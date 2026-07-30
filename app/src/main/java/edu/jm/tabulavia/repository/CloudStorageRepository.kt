@@ -10,9 +10,8 @@ import edu.jm.tabulavia.model.BackupData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 
 /**
  * Repository for uploading and downloading backup data to Firebase Storage.

@@ -21,14 +21,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.UUID
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.DocumentChange
-import kotlinx.coroutines.tasks.await
 
 /**
  * Data class representing a class session and its attendance for Firestore synchronization.
