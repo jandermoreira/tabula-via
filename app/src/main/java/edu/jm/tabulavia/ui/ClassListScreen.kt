@@ -111,7 +111,7 @@ fun ClassListScreen(
 
     var showImportDialog by remember { mutableStateOf(false) }
     var importJsonContent by remember { mutableStateOf("") }
-    var suggestedClassName by remember { mutableStateOf("") }
+    var suggestedName by remember { mutableStateOf("") }
 
     if (showImportDialog) {
         AlertDialog(
@@ -122,9 +122,9 @@ fun ClassListScreen(
                     Text("Deseja importar esta turma? Você pode alterar o nome abaixo:")
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
-                        value = suggestedClassName,
-                        onValueChange = { suggestedClassName = it },
-                        label = { Text("Class Name") },
+                        value = suggestedName,
+                        onValueChange = { suggestedName = it },
+                        label = { Text("Nome da Turma") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -132,7 +132,7 @@ fun ClassListScreen(
             },
             confirmButton = {
                 Button(onClick = {
-                    viewModel.importClassBackup(importJsonContent, suggestedClassName)
+                    viewModel.importClassBackup(importJsonContent, suggestedName)
                     showImportDialog = false
                 }) {
                     Text("Importar")
@@ -164,7 +164,7 @@ fun ClassListScreen(
                         )
 
                         importJsonContent = content
-                        suggestedClassName = "${backup.clazz.className} (Recuperado)"
+                        suggestedName = "${backup.clazz.name} (Recuperado)"
                         showImportDialog = true
                     }
                 } catch (e: Exception) {
@@ -413,7 +413,7 @@ fun ClassItem(
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = clazz.className,
+                    text = clazz.name,
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(

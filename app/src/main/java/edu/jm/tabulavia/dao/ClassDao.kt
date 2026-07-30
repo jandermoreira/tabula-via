@@ -47,13 +47,13 @@ interface ClassDao {
      * Retrieves all classes from the database.
      * Results are ordered alphabetically by class name.
      */
-    @Query("SELECT * FROM classes ORDER BY className ASC")
+    @Query("SELECT * FROM classes ORDER BY name ASC")
     fun getAllClassesFlow(): Flow<List<AcademicClass>>
 
     /**
      * Retrieves all classes from the database as a one-time list.
      * Results are ordered alphabetically by class name.
      */
-    @Query("SELECT * FROM classes ORDER BY className ASC")
+    @Query("SELECT * FROM classes ORDER BY name ASC")
     suspend fun getAllClasses(): List<AcademicClass>
 }

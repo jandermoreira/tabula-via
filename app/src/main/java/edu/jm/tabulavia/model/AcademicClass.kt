@@ -27,8 +27,8 @@ data class AcademicClass(
     /**
      * Name of the class. Default empty string allows Firestore serialization.
      */
-    @JsonNames("courseName")
-    val className: String = "",
+    @JsonNames("courseName", "className")
+    val name: String = "",
 
     /**
      * Academic year associated with the class. Default empty string allows Firestore serialization.

@@ -80,7 +80,7 @@ fun AttendanceDashboardScreen(
     Scaffold(
         topBar = {
             val titleText = selectedClass?.let {
-                "${it.className} ${it.academicYear}/${it.period} - Frequência"
+                "${it.name} ${it.academicYear}/${it.period} - Frequência"
             } ?: ""
 
             TabulaTopBar(

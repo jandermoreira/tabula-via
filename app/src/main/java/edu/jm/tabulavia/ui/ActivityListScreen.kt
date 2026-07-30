@@ -99,7 +99,7 @@ fun ActivityListScreen(
     Scaffold(
         topBar = {
             val titleText = selectedClass?.let {
-                "${it.className} ${it.academicYear}/${it.period} - Atividades"
+                "${it.name} ${it.academicYear}/${it.period} - Atividades"
             } ?: ""
 
             TabulaTopBar(

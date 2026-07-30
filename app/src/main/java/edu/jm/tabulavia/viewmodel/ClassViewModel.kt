@@ -231,7 +231,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     val groupsLoaded: StateFlow<Boolean> = _groupsLoaded.asStateFlow()
 
     // --- Compose-driven Form State ---
-    var className by mutableStateOf("")
+    var name by mutableStateOf("")
     var academicYear by mutableStateOf("")
     var period by mutableStateOf("")
     var numberOfSessions by mutableIntStateOf(15)
@@ -1186,7 +1186,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     fun addClass(onClassAdded: () -> Unit) {
         if (isAddingClass) return
 
-        if (className.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
+        if (name.isNotBlank() && academicYear.isNotBlank() && period.isNotBlank()) {
             val email = Firebase.auth.currentUser?.email ?: return
             isAddingClass = true
 
@@ -1196,7 +1196,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
                     val newClass = AcademicClass(
                         classId = generatedClassId,
-                        className = className,
+                        name = name,
                         academicYear = academicYear,
                         period = period,
                         numberOfSessions = numberOfSessions
@@ -1229,7 +1229,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      * Resets the input fields for class creation.
      */
     private fun resetClassForm() {
-        className = ""
+        name = ""
         academicYear = ""
         period = ""
         numberOfSessions = 0
@@ -1586,7 +1586,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 if (jsonString.isNotBlank()) {
                     withContext(Dispatchers.Main) {
                         onBackupReady(jsonString)
-                        showMessage("Backup de ${academicClass.className} gerado com sucesso!")
+                        showMessage("Backup de ${academicClass.name} gerado com sucesso!")
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -1629,7 +1629,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                 val newClassId = UUID.randomUUID().toString()
                 val restoredClass = backup.clazz.copy(
                     classId = newClassId,
-                    className = customName ?: "${backup.clazz.className} (Importado)"
+                    name = customName ?: "${backup.clazz.name} (Importado)"
                 )
 
                 val studentIdMap = mutableMapOf<String, String>()

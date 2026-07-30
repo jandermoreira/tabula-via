@@ -80,7 +80,7 @@ fun StudentListScreen(
     Scaffold(
         topBar = {
             val titleText = selectedClass?.let {
-                "${it.className} ${it.academicYear}/${it.period} - Alunos"
+                "${it.name} ${it.academicYear}/${it.period} - Alunos"
             } ?: ""
 
             TabulaTopBar(

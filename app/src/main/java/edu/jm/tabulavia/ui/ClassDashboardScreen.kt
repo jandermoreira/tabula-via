@@ -115,7 +115,7 @@ fun ClassDashboardScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             val titleText = selectedClass?.let {
-                "${it.className} ${it.academicYear}/${it.period}"
+                "${it.name} ${it.academicYear}/${it.period}"
             } ?: "Carregando..."
 
             TabulaTopBar(
@@ -132,7 +132,7 @@ fun ClassDashboardScreen(
                 actions = {
                     selectedClass?.let { clazz ->
                         IconButton(onClick = {
-                            exportLauncher.launch("${clazz.className}_backup.json")
+                            exportLauncher.launch("${clazz.name}_backup.json")
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Share,

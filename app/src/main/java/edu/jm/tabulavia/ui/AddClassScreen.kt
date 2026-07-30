@@ -68,8 +68,8 @@ fun AddClassScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedTextField(
-                value = viewModel.className,
-                onValueChange = { viewModel.className = it },
+                value = viewModel.name,
+                onValueChange = { viewModel.name = it },
                 label = { Text("Nome da Turma (ex: CAP)") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
