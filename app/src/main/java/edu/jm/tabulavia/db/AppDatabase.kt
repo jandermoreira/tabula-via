@@ -44,7 +44,7 @@ import edu.jm.tabulavia.model.StudentStatus
         SkillAssessment::class,
         ActivityHighlightedSkill::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
