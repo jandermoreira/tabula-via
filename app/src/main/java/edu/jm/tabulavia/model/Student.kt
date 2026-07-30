@@ -27,7 +27,7 @@ import kotlinx.serialization.json.JsonNames
             entity = AcademicClass::class,
             parentColumns = ["classId"],
             childColumns = ["classId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.NO_ACTION
         )
     ],
     indices = [Index(value = ["classId"])]
@@ -70,9 +70,13 @@ data class Student(
     /**
      * Returns the name to be displayed in the UI.
      * Uses displayName if it is not blank; otherwise, falls back to the full name.
+     * Appends "(CANCELADO)" if the status is CANCELLED.
      */
     @get:Exclude
     @Transient
     val effectiveName: String
-        get() = displayName.ifBlank { name }
+        get() {
+            val baseName = displayName.ifBlank { name }
+            return if (status == StudentStatus.CANCELLED) "$baseName (CANCELADO)" else baseName
+        }
 }
