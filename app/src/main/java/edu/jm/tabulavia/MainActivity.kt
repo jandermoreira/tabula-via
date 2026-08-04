@@ -237,7 +237,19 @@ class MainActivity : ComponentActivity() {
                             ReportListScreen(
                                 classId = classId,
                                 viewModel = classViewModel,
-                                onNavigateBack = { navController.popBackStack() }
+                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateToTracking = { navController.navigate("trackingDashboard/$classId") }
+                            )
+                        }
+
+                        composable(
+                            route = "trackingDashboard/{classId}",
+                            arguments = listOf(navArgument("classId") { type = NavType.StringType })
+                        ) {
+                            StudentTrackingDashboardScreen(
+                                viewModel = classViewModel,
+                                onNavigateBack = { navController.popBackStack() },
+                                onStudentClick = { /* TODO: Navigate to student details if implemented */ }
                             )
                         }
 
