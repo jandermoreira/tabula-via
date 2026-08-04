@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Share
@@ -131,6 +132,14 @@ fun ClassDashboardScreen(
                 },
                 actions = {
                     selectedClass?.let { clazz ->
+                        IconButton(onClick = {
+                            viewModel.logAllEvidencesAndScores(clazz.classId)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport,
+                                contentDescription = "Gerar logs de diagnóstico"
+                            )
+                        }
                         IconButton(onClick = {
                             exportLauncher.launch("${clazz.name}_backup.json")
                         }) {

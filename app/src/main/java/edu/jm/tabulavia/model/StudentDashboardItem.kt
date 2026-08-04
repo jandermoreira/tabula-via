@@ -2,38 +2,25 @@ package edu.jm.tabulavia.model
 
 /**
  * UI model representing a student's diagnostic status in the class dashboard.
- *
- * Consolidates student identification with calculated pedagogical indicators
- * derived from evidence analysis.
  */
 data class StudentDashboardItem(
-    /**
-     * The student entity containing identification and status.
-     */
     val student: Student,
-
-    /**
-     * The calculated tracking state (Normal, Revision, Prioritized, Recovery).
-     */
     val state: StudentTrackingState,
-
-    /**
-     * The performance trend compared to the previous evidence.
-     */
     val trend: EvidenceTrend,
-
-    /**
-     * Indicates if the student's performance is stable across recent evidences.
-     */
     val isConsistent: Boolean,
-
-    /**
-     * The current proficiency level (Low, Medium, High).
-     */
     val currentLevel: SkillState,
-
+    val lastScore: Double? = null,
     /**
-     * The score obtained in the most recent evidence.
+     * Historical list of evidences and scores for the student.
      */
-    val lastScore: Double? = null
+    val evidenceHistory: List<EvidenceHistoryItem> = emptyList()
+)
+
+/**
+ * Represents a single evidence entry in the student's history.
+ */
+data class EvidenceHistoryItem(
+    val evidenceName: String,
+    val deadline: Long,
+    val score: Double
 )

@@ -1,69 +1,98 @@
 package edu.jm.tabulavia.repository
 
 import android.util.Log
+import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import edu.jm.tabulavia.dao.EvidenceDao
 import edu.jm.tabulavia.model.Evidence
 import edu.jm.tabulavia.model.EvidenceScore
 import edu.jm.tabulavia.model.EvidenceType
 import edu.jm.tabulavia.model.FirestoreEvidence
-import kotlinx.coroutines.tasks.await
+import edu.jm.tabulavia.utils.shouldNotifySync
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Repository responsible for synchronizing evidence data from Firestore to the local database.
+ * Uses real-time listeners to keep local Room database in sync with Firestore.
  */
 class EvidenceRepository(
     private val firestore: FirebaseFirestore,
     private val evidenceDao: EvidenceDao
 ) {
+    private var evidencesListener: ListenerRegistration? = null
+
     /**
-     * Syncs all evidences for a specific class from Firestore to Room.
+     * Starts a Firestore snapshot listener for a specific class's evidences.
+     * Synchronizes evidences and their scores in real-time.
+     *
      * @param userEmail The email of the authenticated user.
      * @param classId The ID of the class to sync.
+     * @param onSyncActivity Optional callback for sync notifications.
      */
-    suspend fun syncEvidences(userEmail: String, classId: String) {
-        try {
-            val snapshot = firestore.collection("users")
-                .document(userEmail)
-                .collection("classes")
-                .document(classId)
-                .collection("evidences")
-                .get()
-                .await()
+    fun startEvidencesSync(userEmail: String, classId: String, onSyncActivity: () -> Unit = {}) {
+        stopEvidencesSync()
+        var isInitialSnapshot = true
 
-            val firestoreEvidences = snapshot.toObjects(FirestoreEvidence::class.java)
-            Log.d("EvidenceSync", "Sincronizando ${firestoreEvidences.size} evidências para a turma $classId")
-            
-            // Fetch existing student IDs to ensure referential integrity
-            val existingStudentIds = evidenceDao.getExistingStudentIds(classId).toSet()
+        evidencesListener = firestore.collection("users")
+            .document(userEmail)
+            .collection("classes")
+            .document(classId)
+            .collection("evidences")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("EvidenceSync", "Firestore listener error: ${error.message}")
+                    return@addSnapshotListener
+                }
 
-            firestoreEvidences.forEach { dto ->
-                val evidence = Evidence(
-                    evidenceId = dto.evidenceId,
-                    classId = dto.classId,
-                    name = dto.name,
-                    deadline = dto.deadline,
-                    type = EvidenceType.valueOf(dto.type)
-                )
-                
-                val scores = dto.scores.mapNotNull { (studentId, score) ->
-                    if (score != null && studentId in existingStudentIds) {
-                        EvidenceScore(dto.evidenceId, studentId, score)
-                    } else {
-                        if (score == null && studentId in existingStudentIds) {
-                            Log.w("EvidenceSync", "Nota nula ignorada para aluno $studentId na evidência ${dto.evidenceId}")
-                        } else if (studentId !in existingStudentIds) {
-                            Log.w("EvidenceSync", "Ignorando nota para aluno $studentId (não encontrado na turma $classId)")
-                        }
-                        null
+                if (snapshot != null) {
+                    if (snapshot.shouldNotifySync(isInitialSnapshot)) {
+                        onSyncActivity()
                     }
                 }
-                
-                evidenceDao.syncEvidence(evidence, scores)
+                isInitialSnapshot = false
+
+                snapshot?.documentChanges?.forEach { change ->
+                    val docId = change.document.id
+                    CoroutineScope(Dispatchers.IO).launch {
+                        when (change.type) {
+                            DocumentChange.Type.ADDED,
+                            DocumentChange.Type.MODIFIED -> {
+                                val dto = change.document.toObject(FirestoreEvidence::class.java)
+                                val evidence = Evidence(
+                                    evidenceId = docId,
+                                    classId = classId,
+                                    name = dto.name,
+                                    deadline = dto.deadline,
+                                    type = EvidenceType.valueOf(dto.type)
+                                )
+
+                                // Map scores without student existence filtering as requested
+                                val scores = dto.scores.mapNotNull { (studentId, score) ->
+                                    if (score != null) {
+                                        EvidenceScore(docId, studentId, score)
+                                    } else null
+                                }
+                                evidenceDao.syncEvidence(evidence, scores)
+                            }
+                            DocumentChange.Type.REMOVED -> {
+                                // Cascade delete is handled by Room if evidence is deleted
+                                evidenceDao.deleteEvidenceById(docId)
+                            }
+                        }
+                    }
+                }
             }
-        } catch (e: Exception) {
-            Log.e("EvidenceSync", "Erro ao sincronizar evidências: ${e.message}", e)
-        }
+    }
+
+    /**
+     * Stops the active Firestore listener for evidences to prevent leaks.
+     */
+    fun stopEvidencesSync() {
+        evidencesListener?.remove()
+        evidencesListener = null
     }
 
     /**
@@ -71,6 +100,12 @@ class EvidenceRepository(
      */
     fun getStudentScores(studentId: String, classId: String) = 
         evidenceDao.getStudentScoresByClass(studentId, classId)
+
+    /**
+     * Provides a stream of all local evidence scores for a class.
+     */
+    fun getAllScoresByClass(classId: String) = 
+        evidenceDao.getAllScoresByClass(classId)
 
     /**
      * Retrieves all evidences for a class from local storage.

@@ -60,6 +60,22 @@ interface EvidenceDao {
     fun getStudentScoresByClass(studentId: String, classId: String): Flow<List<EvidenceScore>>
 
     /**
+     * Retrieves all scores for all students in a specific class.
+     */
+    @Query("""
+        SELECT es.* FROM evidence_scores es
+        JOIN evidences e ON es.evidenceId = e.evidenceId
+        WHERE e.classId = :classId
+    """)
+    fun getAllScoresByClass(classId: String): Flow<List<EvidenceScore>>
+
+    /**
+     * Deletes a specific evidence and cascading scores.
+     */
+    @Query("DELETE FROM evidences WHERE evidenceId = :evidenceId")
+    suspend fun deleteEvidenceById(evidenceId: String)
+
+    /**
      * Deletes all evidences and cascading scores for a class.
      */
     @Query("DELETE FROM evidences WHERE classId = :classId")

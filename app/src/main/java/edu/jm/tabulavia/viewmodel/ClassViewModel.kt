@@ -32,12 +32,15 @@ import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassBackup
 import edu.jm.tabulavia.model.ClassSession
 import edu.jm.tabulavia.model.ClassSkill
+import edu.jm.tabulavia.model.Evidence
+import edu.jm.tabulavia.model.EvidenceScore
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.SkillAssessment
 import edu.jm.tabulavia.model.SkillAssessmentsSummary
 import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.model.SkillStatus
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.model.StudentDashboardItem
 import edu.jm.tabulavia.model.grouping.DropTarget
 import edu.jm.tabulavia.model.grouping.Group
 import edu.jm.tabulavia.model.grouping.Location
@@ -48,6 +51,7 @@ import edu.jm.tabulavia.repository.EvidenceRepository
 import edu.jm.tabulavia.repository.SaveAttendanceResult
 import edu.jm.tabulavia.repository.SkillRepository
 import edu.jm.tabulavia.repository.StudentRepository
+import edu.jm.tabulavia.utils.TrackingCalculator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -59,6 +63,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -156,6 +161,33 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         initialValue = emptyList()
     )
     val classSessions: StateFlow<List<ClassSession>> = _classSessions
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val dashboardItems: StateFlow<List<StudentDashboardItem>> =
+        _selectedClass.flatMapLatest { academicClass ->
+            if (academicClass != null) {
+                combine(
+                    studentRepository.getStudentsForClass(academicClass.classId),
+                    evidenceRepository.getEvidences(academicClass.classId),
+                    evidenceRepository.getAllScoresByClass(academicClass.classId)
+                ) { students, evidences, allScores ->
+                    val scoresByStudent = allScores.groupBy { it.studentId }
+                    students.map { student ->
+                        TrackingCalculator.calculateDashboardItem(
+                            student = student,
+                            evidences = evidences,
+                            scores = scoresByStudent[student.studentId] ?: emptyList()
+                        )
+                    }
+                }
+            } else {
+                kotlinx.coroutines.flow.flowOf(emptyList())
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     private val _userMessage = MutableSharedFlow<String>()
     val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
@@ -346,13 +378,11 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     val sessionsJob =
                         launch { attendanceRepository.syncSessionsFromCloud(email, classId) }
                     val skillsJob = launch { skillRepository.syncSkillsFromCloud(email, classId) }
-                    val evidencesJob = launch { evidenceRepository.syncEvidences(email, classId) }
 
                     studentsJob.join()
                     activitiesJob.join()
                     sessionsJob.join()
                     skillsJob.join()
-                    evidencesJob.join()
                 }
 
                 classRepository.startClassesSync(email, onSyncActivity = { notifySyncActivity() })
@@ -393,10 +423,25 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
         // Start real-time sync for all related data
         Firebase.auth.currentUser?.email?.let { email ->
-            studentRepository.startStudentsSync(email, classId, onSyncActivity = { notifySyncActivity() })
-            classRepository.startActivitiesSync(email, classId, onSyncActivity = { notifySyncActivity() })
-            attendanceRepository.startAttendanceSync(classId, onSyncActivity = { notifySyncActivity() })
-            skillRepository.startClassSkillsSync(email, classId, onSyncActivity = { notifySyncActivity() })
+            studentRepository.startStudentsSync(
+                email,
+                classId,
+                onSyncActivity = { notifySyncActivity() })
+            classRepository.startActivitiesSync(
+                email,
+                classId,
+                onSyncActivity = { notifySyncActivity() })
+            attendanceRepository.startAttendanceSync(
+                classId,
+                onSyncActivity = { notifySyncActivity() })
+            skillRepository.startClassSkillsSync(
+                email,
+                classId,
+                onSyncActivity = { notifySyncActivity() })
+            evidenceRepository.startEvidencesSync(
+                email,
+                classId,
+                onSyncActivity = { notifySyncActivity() })
         }
 
         // Launch coroutine to load the selected class.
@@ -404,6 +449,44 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         // react to the change in _selectedClass.
         viewModelScope.launch {
             _selectedClass.value = classRepository.getClassById(classId)
+
+            // Logs para diagnóstico solicitados pelo usuário no momento do clique
+            try {
+                val students = studentRepository.getStudentsForClass(classId).first()
+                val evidences = evidenceRepository.getEvidences(classId).first()
+                val scores = evidenceRepository.getAllScoresByClass(classId).first()
+
+                Log.d("EvidenceDebug", "--- CLIQUE NA TURMA: DADOS DO BANCO LOCAL ($classId) ---")
+                Log.d("EvidenceDebug", "Alunos no banco: ${students.size}")
+                students.forEach {
+                    Log.d(
+                        "EvidenceDebug",
+                        "  Student: id=${it.studentId}, name=${it.effectiveName}, number=${it.studentNumber}"
+                    )
+                }
+
+                Log.d("EvidenceDebug", "Evidências no banco: ${evidences.size}")
+                evidences.forEach {
+                    Log.d(
+                        "EvidenceDebug",
+                        "  Evidence: id=${it.evidenceId}, name=${it.name}, type=${it.type}"
+                    )
+                }
+
+                Log.d("EvidenceDebug", "Notas (Scores) no banco: ${scores.size}")
+                scores.forEach {
+                    Log.d(
+                        "EvidenceDebug",
+                        "  Score: studentId=${it.studentId}, evidenceId=${it.evidenceId}, value=${it.score}"
+                    )
+                }
+                Log.d(
+                    "EvidenceDebug",
+                    "-------------------------------------------------------------"
+                )
+            } catch (e: Exception) {
+                Log.e("EvidenceDebug", "Erro ao buscar dados para log no clique: ${e.message}")
+            }
         }
     }
 
@@ -415,6 +498,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         studentRepository.stopStudentsSync()
         classRepository.stopActivitiesSync()
         attendanceRepository.stopAttendanceSync()
+        evidenceRepository.stopEvidencesSync()
         currentClassId?.let { skillRepository.stopListeningToClassSkills(it) }
         currentClassId = null
 
@@ -714,6 +798,35 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      */
     fun loadActivitiesForClass(classId: String) {
         // Redundant with reactive activities flow
+    }
+
+    /**
+     * Diagnostic tool to log all evidences and scores for the current class.
+     */
+    fun logAllEvidencesAndScores(classId: String) {
+        viewModelScope.launch {
+            try {
+                Log.d("EvidenceDebug", "=== MANUAL LOG TRIGGERED for classId: $classId ===")
+
+                val evidences = evidenceRepository.getEvidences(classId).first()
+                Log.d("EvidenceDebug", "Evidences count: ${evidences.size}")
+                evidences.forEach { e ->
+                    Log.d("EvidenceDebug", "Evidence: evidenceId=${e.evidenceId}, classId=${e.classId}, name=${e.name}, deadline=${e.deadline}, type=${e.type}")
+                }
+
+                val allScores = evidenceRepository.getAllScoresByClass(classId).first()
+                Log.d("EvidenceDebug", "Scores count: ${allScores.size}")
+                allScores.forEach { s ->
+                    Log.d("EvidenceDebug", "EvidenceScore: evidenceId=${s.evidenceId}, studentId=${s.studentId}, score=${s.score}")
+                }
+
+                Log.d("EvidenceDebug", "=== END MANUAL LOG ===")
+                _userMessage.emit("Logs gerados no Logcat (EvidenceDebug)")
+            } catch (e: Exception) {
+                Log.e("EvidenceDebug", "Erro ao gerar logs manuais", e)
+                _userMessage.emit("Erro ao gerar logs: ${e.message}")
+            }
+        }
     }
 
     /**

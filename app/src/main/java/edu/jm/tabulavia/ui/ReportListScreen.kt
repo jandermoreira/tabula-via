@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.AlertDialog
@@ -40,12 +41,77 @@ import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 import kotlinx.coroutines.launch
 
+/**
+ * Screen that lists available reports for a class.
+ *
+ * @param classId The unique identifier for the class.
+ * @param viewModel The shared ClassViewModel instance.
+ * @param onNavigateBack Callback to navigate back to the previous screen.
+ * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
+ */
+/**
+ * Screen that lists available reports for a class.
+ *
+ * @param classId The unique identifier for the class.
+ * @param viewModel The shared ClassViewModel instance.
+ * @param onNavigateBack Callback to navigate back to the previous screen.
+ * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
+ */
+/**
+ * Screen that lists available reports for a class.
+ *
+ * @param classId The unique identifier for the class.
+ * @param viewModel The shared ClassViewModel instance.
+ * @param onNavigateBack Callback to navigate back to the previous screen.
+ * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
+ */
+/**
+ * Screen that lists available reports for a class.
+ *
+ * @param classId The unique identifier for the class.
+ * @param viewModel The shared ClassViewModel instance.
+ * @param onNavigateBack Callback to navigate back to the previous screen.
+ * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
+ */
+/**
+ * Screen that lists available reports for a class.
+ *
+ * @param classId The unique identifier for the class.
+ * @param viewModel The shared ClassViewModel instance.
+ * @param onNavigateBack Callback to navigate back to the previous screen.
+ * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
+ */
+/**
+ * Screen that lists available reports for a class.
+ *
+ * @param classId The unique identifier for the class.
+ * @param viewModel The shared ClassViewModel instance.
+ * @param onNavigateBack Callback to navigate back to the previous screen.
+ * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
+ */
+/**
+ * Screen that lists available reports for a class.
+ *
+ * @param classId The unique identifier for the class.
+ * @param viewModel The shared ClassViewModel instance.
+ * @param onNavigateBack Callback to navigate back to the previous screen.
+ * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
+ */
+/**
+ * Screen that lists available reports for a class.
+ *
+ * @param classId The unique identifier for the class.
+ * @param viewModel The shared ClassViewModel instance.
+ * @param onNavigateBack Callback to navigate back to the previous screen.
+ * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportListScreen(
     classId: String,
     viewModel: ClassViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToTracking: () -> Unit
 ) {
     var reportContent by remember { mutableStateOf<String?>(null) }
     var showDialog by remember { mutableStateOf(false) }
@@ -85,6 +151,13 @@ fun ReportListScreen(
                     }
                 }
             )
+
+            DashboardCard(
+                title = "Acompanhamento Pedagógico",
+                subtitle = "Diagnóstico inteligente de evidências",
+                icon = Icons.Default.Analytics,
+                onClick = onNavigateToTracking
+            )
         }
     }
 
@@ -96,6 +169,54 @@ fun ReportListScreen(
     }
 }
 
+/**
+ * Dialog displaying the generated attendance report with a copy-to-clipboard option.
+ *
+ * @param content The text content of the report.
+ * @param onDismiss Callback when the dialog is dismissed.
+ */
+/**
+ * Dialog displaying the generated attendance report with a copy-to-clipboard option.
+ *
+ * @param content The text content of the report.
+ * @param onDismiss Callback when the dialog is dismissed.
+ */
+/**
+ * Dialog displaying the generated attendance report with a copy-to-clipboard option.
+ *
+ * @param content The text content of the report.
+ * @param onDismiss Callback when the dialog is dismissed.
+ */
+/**
+ * Dialog displaying the generated attendance report with a copy-to-clipboard option.
+ *
+ * @param content The text content of the report.
+ * @param onDismiss Callback when the dialog is dismissed.
+ */
+/**
+ * Dialog displaying the generated attendance report with a copy-to-clipboard option.
+ *
+ * @param content The text content of the report.
+ * @param onDismiss Callback when the dialog is dismissed.
+ */
+/**
+ * Dialog displaying the generated attendance report with a copy-to-clipboard option.
+ *
+ * @param content The text content of the report.
+ * @param onDismiss Callback when the dialog is dismissed.
+ */
+/**
+ * Dialog displaying the generated attendance report with a copy-to-clipboard option.
+ *
+ * @param content The text content of the report.
+ * @param onDismiss Callback when the dialog is dismissed.
+ */
+/**
+ * Dialog displaying the generated attendance report with a copy-to-clipboard option.
+ *
+ * @param content The text content of the report.
+ * @param onDismiss Callback when the dialog is dismissed.
+ */
 @Composable
 fun AttendanceReportDialog(
     content: String,
