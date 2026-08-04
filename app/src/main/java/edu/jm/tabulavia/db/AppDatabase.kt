@@ -34,6 +34,7 @@ import edu.jm.tabulavia.model.SkillLevel
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.StudentSkill
 import edu.jm.tabulavia.model.StudentStatus
+import edu.jm.tabulavia.model.StudentTrackingState
 
 @Database(
     entities = [
@@ -172,4 +173,17 @@ class Converters {
      */
     @androidx.room.TypeConverter
     fun toEvidenceType(value: String) = EvidenceType.valueOf(value)
+
+    /**
+     * Converts StudentTrackingState enum to String for storage.
+     */
+    @androidx.room.TypeConverter
+    fun fromStudentTrackingState(value: StudentTrackingState) = value.name
+
+    /**
+     * Converts String back to StudentTrackingState enum.
+     */
+    @androidx.room.TypeConverter
+    fun toStudentTrackingState(value: String) = StudentTrackingState.valueOf(value)
 }
+
