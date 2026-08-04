@@ -44,6 +44,7 @@ import edu.jm.tabulavia.model.grouping.Location
 import edu.jm.tabulavia.repository.AttendanceRepository
 import edu.jm.tabulavia.repository.ClassRepository
 import edu.jm.tabulavia.repository.CloudStorageRepository
+import edu.jm.tabulavia.repository.EvidenceRepository
 import edu.jm.tabulavia.repository.SaveAttendanceResult
 import edu.jm.tabulavia.repository.SkillRepository
 import edu.jm.tabulavia.repository.StudentRepository
@@ -114,6 +115,11 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
 
     private val cloudStorageRepository = CloudStorageRepository(
         storage = Firebase.storage, auth = Firebase.auth
+    )
+
+    private val evidenceRepository = EvidenceRepository(
+        firestore = Firebase.firestore,
+        evidenceDao = db.evidenceDao()
     )
 
     // --- UI State Streams ---
@@ -340,11 +346,13 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     val sessionsJob =
                         launch { attendanceRepository.syncSessionsFromCloud(email, classId) }
                     val skillsJob = launch { skillRepository.syncSkillsFromCloud(email, classId) }
+                    val evidencesJob = launch { evidenceRepository.syncEvidences(email, classId) }
 
                     studentsJob.join()
                     activitiesJob.join()
                     sessionsJob.join()
                     skillsJob.join()
+                    evidencesJob.join()
                 }
 
                 classRepository.startClassesSync(email, onSyncActivity = { notifySyncActivity() })

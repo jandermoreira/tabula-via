@@ -1,5 +1,6 @@
 package edu.jm.tabulavia.repository
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import edu.jm.tabulavia.dao.EvidenceDao
 import edu.jm.tabulavia.model.Evidence
@@ -31,7 +32,11 @@ class EvidenceRepository(
                 .await()
 
             val firestoreEvidences = snapshot.toObjects(FirestoreEvidence::class.java)
+            Log.d("EvidenceSync", "Sincronizando ${firestoreEvidences.size} evidências para a turma $classId")
             
+            // Fetch existing student IDs to ensure referential integrity
+            val existingStudentIds = evidenceDao.getExistingStudentIds(classId).toSet()
+
             firestoreEvidences.forEach { dto ->
                 val evidence = Evidence(
                     evidenceId = dto.evidenceId,
@@ -41,14 +46,23 @@ class EvidenceRepository(
                     type = EvidenceType.valueOf(dto.type)
                 )
                 
-                val scores = dto.scores.map { (studentId, score) ->
-                    EvidenceScore(dto.evidenceId, studentId, score)
+                val scores = dto.scores.mapNotNull { (studentId, score) ->
+                    if (score != null && studentId in existingStudentIds) {
+                        EvidenceScore(dto.evidenceId, studentId, score)
+                    } else {
+                        if (score == null && studentId in existingStudentIds) {
+                            Log.w("EvidenceSync", "Nota nula ignorada para aluno $studentId na evidência ${dto.evidenceId}")
+                        } else if (studentId !in existingStudentIds) {
+                            Log.w("EvidenceSync", "Ignorando nota para aluno $studentId (não encontrado na turma $classId)")
+                        }
+                        null
+                    }
                 }
                 
                 evidenceDao.syncEvidence(evidence, scores)
             }
         } catch (e: Exception) {
-            // Failure in sync is handled by the caller or logged
+            Log.e("EvidenceSync", "Erro ao sincronizar evidências: ${e.message}", e)
         }
     }
 

@@ -64,4 +64,10 @@ interface EvidenceDao {
      */
     @Query("DELETE FROM evidences WHERE classId = :classId")
     suspend fun deleteEvidencesByClass(classId: String)
+
+    /**
+     * Retrieves all existing student IDs for a specific class to ensure referential integrity.
+     */
+    @Query("SELECT studentId FROM students WHERE classId = :classId")
+    suspend fun getExistingStudentIds(classId: String): List<String>
 }

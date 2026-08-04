@@ -12,5 +12,5 @@ data class FirestoreEvidence(
     val name: String = "",
     val deadline: Long = 0L,
     val type: String = "MONITORING",
-    val scores: Map<String, Double> = emptyMap()
+    val scores: Map<String, Double?> = emptyMap()
 )
