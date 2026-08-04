@@ -12,6 +12,7 @@ import edu.jm.tabulavia.dao.ActivityHighlightedSkillDao
 import edu.jm.tabulavia.dao.AttendanceDao
 import edu.jm.tabulavia.dao.ClassDao
 import edu.jm.tabulavia.dao.ClassSkillDao
+import edu.jm.tabulavia.dao.EvidenceDao
 import edu.jm.tabulavia.dao.GroupMemberDao
 import edu.jm.tabulavia.dao.SkillAssessmentDao
 import edu.jm.tabulavia.dao.SkillDao
@@ -24,6 +25,9 @@ import edu.jm.tabulavia.model.AttendanceRecord
 import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassSession
 import edu.jm.tabulavia.model.ClassSkill
+import edu.jm.tabulavia.model.Evidence
+import edu.jm.tabulavia.model.EvidenceScore
+import edu.jm.tabulavia.model.EvidenceType
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.SkillAssessment
 import edu.jm.tabulavia.model.SkillLevel
@@ -42,9 +46,11 @@ import edu.jm.tabulavia.model.StudentStatus
         GroupMember::class,
         ClassSkill::class,
         SkillAssessment::class,
-        ActivityHighlightedSkill::class
+        ActivityHighlightedSkill::class,
+        Evidence::class,
+        EvidenceScore::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -94,6 +100,11 @@ abstract class AppDatabase : RoomDatabase() {
      * Provides access to Highlighted Skill database operations within activities.
      */
     abstract fun activityHighlightedSkillDao(): ActivityHighlightedSkillDao
+
+    /**
+     * Provides access to Evidence and Score database operations.
+     */
+    abstract fun evidenceDao(): EvidenceDao
 }
 
 /**
@@ -149,4 +160,16 @@ class Converters {
      */
     @androidx.room.TypeConverter
     fun toStudentStatus(value: String) = StudentStatus.valueOf(value)
+
+    /**
+     * Converts EvidenceType enum to String for storage.
+     */
+    @androidx.room.TypeConverter
+    fun fromEvidenceType(value: EvidenceType) = value.name
+
+    /**
+     * Converts String back to EvidenceType enum.
+     */
+    @androidx.room.TypeConverter
+    fun toEvidenceType(value: String) = EvidenceType.valueOf(value)
 }
