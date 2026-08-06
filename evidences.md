@@ -42,31 +42,10 @@ O nome do documento deve ser o `evidenceId`
 | `type`       | String | "MONITORING" (acompanhamento) ou "CONSOLIDATION" (consolidação).     |
 | `scores`     | Map    | Lista de notas da evidência para cada aluno `{ studentId: nota }`.   |
 
----
-
-## 4. Lógica de Acompanhamento (Os Quatro Registros)
-
-Para cada estudante, o aplicativo mantém quatro registros processados a cada nova evidência:
-
-1.  **Domínio por Conteúdo:** Nível de desempenho atual (Baixo, Médio, Alto).
-2.  **Evolução:** Tendência comparativa entre a evidência atual e a anterior (Melhorou, Estável, Piorou).
-3.  **Consistência:** Estabilidade do desempenho em duas ou mais evidências de acompanhamento.
-4.  **Necessidade de Intervenção:** Decisão automática baseada nos indicadores acima.
 
 ---
 
-## 5. Estados de Acompanhamento (Output Final)
-
-O resultado final exibido ao professor no Dashboard é o **Estado do Aluno**:
-
-*   **Acompanhamento Normal:** Aprendizagem compatível com o esperado.
-*   **Revisão Dirigida:** Dificuldade localizada em uma evidência de acompanhamento.
-*   **Acompanhamento Prioritário:** Dificuldades persistentes ou falhas de ritmo (ausência de notas) detectadas pela cronologia.
-*   **Recuperação:** Lacunas confirmadas pela evidência de consolidação (prova).
-
----
-
-## 6. Considerações de Implementação
+## 4. Considerações de Implementação
 
 *   **Cronologia:** É ditada pelo campo `deadline`. O app ordena as atividades por esta data para calcular a evolução e consistência.
 *   **Reatividade:** O aplicativo não armazena o "Estado" no Firestore; ele o calcula sob demanda (com apoio do cache no Room), garantindo que o diagnóstico esteja sempre sincronizado com os dados mais recentes do scraper.
