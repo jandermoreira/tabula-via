@@ -1,26 +1,21 @@
 package edu.jm.tabulavia.model
 
 /**
- * Represents the diagnostic state of a student based on evidence analysis.
+ * Categorizes students based on their work rhythm and required pedagogical intervention.
  */
 enum class MonitoringState {
     /**
-     * Learning is compatible with expectations.
+     * Indicates the student maintains the expected work rhythm.
      */
-    NORMAL,
+    ON_TRACK,
 
     /**
-     * Localized difficulty detected in a monitoring evidence.
+     * Indicates the student shows initial signals of rhythm interruption or low performance.
      */
-    REVIEW,
+    ATTENTION,
 
     /**
-     * Persistent difficulties or rhythm failures detected.
+     * Indicates the student shows critical interruption of work rhythm or persistent low performance.
      */
-    PRIORITY,
-
-    /**
-     * Knowledge gaps confirmed by consolidation evidence.
-     */
-    RECOVERY
+    CRITICAL
 }

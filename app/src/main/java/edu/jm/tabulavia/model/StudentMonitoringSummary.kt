@@ -1,15 +1,15 @@
 package edu.jm.tabulavia.model
 
 /**
- * Holds the calculated monitoring indicators for a student in a specific class.
- * These values are derived from the chronological analysis of EvidenceScore records.
+ * Holds the calculated monitoring indicators for a student in a specific class
+ * according to the Student Work Rhythm Monitoring guidelines.
  */
 data class StudentMonitoringSummary(
     val studentId: String,
     val classId: String,
-    val currentLevel: SkillLevel,
-    val trend: EvidenceTrend,
-    val isConsistent: Boolean,
-    val needsIntervention: Boolean,
+    val regularity: Int,
+    val performance: Double?,
+    val attendance: Double,
+    val discrepancy: Double?,
     val state: MonitoringState
 )
