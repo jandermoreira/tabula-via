@@ -1,116 +1,180 @@
 package edu.jm.tabulavia.logic
 
-import edu.jm.tabulavia.model.*
-import edu.jm.tabulavia.utils.toSkillLevel
+import edu.jm.tabulavia.model.AttendanceRecord
+import edu.jm.tabulavia.model.AttendanceStatus
+import edu.jm.tabulavia.model.ClassSession
+import edu.jm.tabulavia.model.Evidence
+import edu.jm.tabulavia.model.EvidenceScore
+import edu.jm.tabulavia.model.EvidenceType
+import edu.jm.tabulavia.model.MonitoringState
+import edu.jm.tabulavia.model.StudentMonitoringSummary
 
 /**
- * The "Brain" of the monitoring system.
- * Processes raw evidence scores to derive diagnostic indicators.
+ * Computes pedagogical monitoring indicators based on student work rhythm.
+ *
+ * This calculator processes evidence scores and attendance records to determine
+ * a student's operational status and identifies potential risks in their
+ * learning progression according to the established institutional guidelines.
  */
 object MonitoringCalculator {
 
+    private const val MINIMUM_PASSING_GRADE = 6.0
+    private const val ATTENDANCE_ATTENTION_THRESHOLD = 15.0
+    private const val ATTENDANCE_CRITICAL_THRESHOLD = 20.0
+
     /**
-     * Calculates the monitoring summary for a student based on their historical performance.
+     * Calculates the monitoring summary for a specific student within a class.
+     *
+     * @param studentId The unique identifier for the student.
+     * @param classId The unique identifier for the academic class.
+     * @param evidences All evidences defined for the class, used to identify learning cycles.
+     * @param scores All scores recorded for the student across different evidences.
+     * @param sessions All class sessions held to date for the given class.
+     * @param attendance The student's individual attendance records.
+     * @return A [StudentMonitoringSummary] containing the derived metrics and operational status.
      */
     fun calculate(
         studentId: String,
         classId: String,
         evidences: List<Evidence>,
-        scores: List<EvidenceScore>
+        scores: List<EvidenceScore>,
+        sessions: List<ClassSession>,
+        attendance: List<AttendanceRecord>
     ): StudentMonitoringSummary {
-        // 1. Chronological sorting is essential for trend and consistency analysis
-        val sortedEvidences = evidences.sortedBy { it.deadline }
-        val scoreMap = scores.associateBy { it.evidenceId }
+        val chronologicalEvidences = evidences.sortedBy { it.deadline }
+        val scoreLookup = scores.associateBy { it.evidenceId }
 
-        // 2. Derive basic indicators
-        val currentLevel = calculateCurrentLevel(sortedEvidences, scoreMap)
-        val trend = calculateTrend(sortedEvidences, scoreMap)
-        val isConsistent = calculateConsistency(sortedEvidences, scoreMap)
+        val learningCycles = groupEvidencesIntoCycles(chronologicalEvidences)
+        val activeCycle = learningCycles.lastOrNull() ?: emptyList()
+        val activeMonitoringEvidences = activeCycle.filter { it.type == EvidenceType.MONITORING }
 
-        // 3. Determine the diagnostic state
-        val state = determineState(sortedEvidences, scoreMap)
+        val missingSubmissionsCount = activeMonitoringEvidences.count { !scoreLookup.containsKey(it.evidenceId) }
+
+        val activeCycleGrades = activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
+        val monitoringPerformance = if (activeCycleGrades.isNotEmpty()) activeCycleGrades.average() else null
+
+        val studentAttendanceRecords = attendance.filter { it.studentId == studentId }
+        val totalSessionsCount = sessions.size
+        val absencesCount = studentAttendanceRecords.count { it.status == AttendanceStatus.ABSENT }
+        val absenceRate = if (totalSessionsCount > 0) (absencesCount.toDouble() / totalSessionsCount) * 100.0 else 0.0
+
+        val performanceDiscrepancy = calculateDiscrepancy(learningCycles, scoreLookup)
+
+        val operationalStatus = evaluateOperationalStatus(
+            missingSubmissionsCount = missingSubmissionsCount,
+            absenceRate = absenceRate,
+            activeMonitoringEvidences = activeMonitoringEvidences,
+            scoreLookup = scoreLookup
+        )
 
         return StudentMonitoringSummary(
             studentId = studentId,
             classId = classId,
-            currentLevel = currentLevel,
-            trend = trend,
-            isConsistent = isConsistent,
-            needsIntervention = state != MonitoringState.NORMAL,
-            state = state
+            regularity = missingSubmissionsCount,
+            performance = monitoringPerformance,
+            attendance = absenceRate,
+            discrepancy = performanceDiscrepancy,
+            state = operationalStatus
         )
     }
 
-    private fun calculateCurrentLevel(
-        evidences: List<Evidence>,
-        scoreMap: Map<String, EvidenceScore>
-    ): SkillLevel {
-        val lastEvidenceWithScore = evidences.lastOrNull { scoreMap.containsKey(it.evidenceId) }
-        return lastEvidenceWithScore?.let {
-            scoreMap[it.evidenceId]?.score?.toSkillLevel()
-        } ?: SkillLevel.NOT_APPLICABLE
-    }
+    /**
+     * Groups evidences into learning cycles based on chronological order.
+     *
+     * A cycle is defined as a sequence of Monitoring Evidences terminated by one Consolidation Evidence.
+     *
+     * @param evidences Sorted list of class evidences.
+     * @return A list of learning cycles, where each cycle is a list of evidences.
+     */
+    private fun groupEvidencesIntoCycles(evidences: List<Evidence>): List<List<Evidence>> {
+        val cycles = mutableListOf<List<Evidence>>()
+        var currentCycle = mutableListOf<Evidence>()
 
-    private fun calculateTrend(
-        evidences: List<Evidence>,
-        scoreMap: Map<String, EvidenceScore>
-    ): EvidenceTrend {
-        val validScores = evidences.mapNotNull { scoreMap[it.evidenceId]?.score }
-        if (validScores.size < 2) return EvidenceTrend.UNKNOWN
-
-        val current = validScores.last()
-        val previous = validScores[validScores.size - 2]
-
-        return when {
-            current > previous + 0.05 -> EvidenceTrend.IMPROVED
-            current < previous - 0.05 -> EvidenceTrend.WORSENED
-            else -> EvidenceTrend.STABLE
+        for (evidence in evidences) {
+            currentCycle.add(evidence)
+            if (evidence.type == EvidenceType.CONSOLIDATION) {
+                cycles.add(currentCycle)
+                currentCycle = mutableListOf()
+            }
         }
+        if (currentCycle.isNotEmpty()) {
+            cycles.add(currentCycle)
+        }
+        return cycles
     }
 
-    private fun calculateConsistency(
-        evidences: List<Evidence>,
-        scoreMap: Map<String, EvidenceScore>
-    ): Boolean {
-        // Analysis of the last 3 applicable evidences
-        val recentLevels = evidences.takeLast(3)
-            .mapNotNull { scoreMap[it.evidenceId]?.score?.toSkillLevel() }
+    /**
+     * Calculates the discrepancy between monitoring performance and consolidation grade.
+     *
+     * Uses the most recently completed cycle that contains a consolidation event.
+     *
+     * @param cycles List of grouped learning cycles.
+     * @param scoreLookup Map for student score retrieval.
+     * @return The difference (Pm - CE) or null if data is insufficient.
+     */
+    private fun calculateDiscrepancy(
+        cycles: List<List<Evidence>>,
+        scoreLookup: Map<String, EvidenceScore>
+    ): Double? {
+        val lastCompletedCycle = cycles.lastOrNull { cycle ->
+            cycle.any { it.type == EvidenceType.CONSOLIDATION }
+        } ?: return null
 
-        if (recentLevels.size < 2) return true
-        return recentLevels.distinct().size == 1
+        val consolidationEvidence = lastCompletedCycle.find { it.type == EvidenceType.CONSOLIDATION }
+        val consolidationGrade = consolidationEvidence?.let { scoreLookup[it.evidenceId]?.score }
+        
+        val monitoringAverage = lastCompletedCycle
+            .filter { it.type == EvidenceType.MONITORING }
+            .mapNotNull { scoreLookup[it.evidenceId]?.score }
+            .let { if (it.isNotEmpty()) it.average() else null }
+
+        return if (consolidationGrade != null && monitoringAverage != null) {
+            monitoringAverage - consolidationGrade
+        } else null
     }
 
-    private fun determineState(
-        evidences: List<Evidence>,
-        scoreMap: Map<String, EvidenceScore>
+    /**
+     * Determines the student's operational status based on trigger conditions.
+     *
+     * @param missingSubmissionsCount Number of missing submissions in the current cycle.
+     * @param absenceRate Accumulated absence percentage.
+     * @param activeMonitoringEvidences Monitoring evidences of the active cycle.
+     * @param scoreLookup Map for student score retrieval.
+     * @return The derived [MonitoringState].
+     */
+    private fun evaluateOperationalStatus(
+        missingSubmissionsCount: Int,
+        absenceRate: Double,
+        activeMonitoringEvidences: List<Evidence>,
+        scoreLookup: Map<String, EvidenceScore>
     ): MonitoringState {
-        if (evidences.isEmpty()) return MonitoringState.NORMAL
+        val performanceTrend = mutableListOf<Double>()
+        val gradesAccumulator = mutableListOf<Double>()
 
-        // Check RECOVERY: Low performance in a Consolidation evidence (like a final exam)
-        val lastConsolidation = evidences.lastOrNull { it.type == EvidenceType.CONSOLIDATION }
-        val consolidationScore = lastConsolidation?.let { scoreMap[it.evidenceId]?.score }
-        if (consolidationScore != null && consolidationScore.toSkillLevel() == SkillLevel.LOW) {
-            return MonitoringState.RECOVERY
+        for (evidence in activeMonitoringEvidences) {
+            scoreLookup[evidence.evidenceId]?.score?.let { grade ->
+                gradesAccumulator.add(grade)
+                performanceTrend.add(gradesAccumulator.average())
+            }
         }
 
-        // Check PRIORITY: Persistent difficulties or missing data (rhythm failure)
-        val recentEvidences = evidences.takeLast(3)
-        val lowCount = recentEvidences.count { 
-            scoreMap[it.evidenceId]?.score?.toSkillLevel() == SkillLevel.LOW 
-        }
-        val missingCount = recentEvidences.count { !scoreMap.containsKey(it.evidenceId) }
+        val currentPm = performanceTrend.lastOrNull() ?: 10.0
+        val previousPm = if (performanceTrend.size >= 2) performanceTrend[performanceTrend.size - 2] else 10.0
 
-        if (lowCount >= 2 || missingCount >= 2) {
-            return MonitoringState.PRIORITY
-        }
-
-        // Check REVIEW: Localized difficulty in a single monitoring evidence
-        val lastMonitoring = evidences.lastOrNull { it.type == EvidenceType.MONITORING }
-        val monitoringScore = lastMonitoring?.let { scoreMap[it.evidenceId]?.score }
-        if (monitoringScore != null && monitoringScore.toSkillLevel() == SkillLevel.LOW) {
-            return MonitoringState.REVIEW
+        val persistentLowPerformance = currentPm < MINIMUM_PASSING_GRADE && previousPm < MINIMUM_PASSING_GRADE
+        val criticalAttendance = absenceRate >= ATTENDANCE_CRITICAL_THRESHOLD
+        
+        if (missingSubmissionsCount >= 2 || persistentLowPerformance || criticalAttendance) {
+            return MonitoringState.CRITICAL
         }
 
-        return MonitoringState.NORMAL
+        val lowPerformanceSignal = currentPm < MINIMUM_PASSING_GRADE
+        val attentionAttendance = absenceRate >= ATTENDANCE_ATTENTION_THRESHOLD && absenceRate < ATTENDANCE_CRITICAL_THRESHOLD
+
+        if (missingSubmissionsCount == 1 || lowPerformanceSignal || attentionAttendance) {
+            return MonitoringState.ATTENTION
+        }
+
+        return MonitoringState.ON_TRACK
     }
 }
