@@ -31,7 +31,7 @@ import edu.jm.tabulavia.ui.theme.Amber
  * @param modifier Decorator for the grid layout.
  */
 @Composable
-fun TrackingSummaryCards(
+fun MonitoringSummaryCards(
     items: List<StudentDashboardItem>,
     modifier: Modifier = Modifier
 ) {

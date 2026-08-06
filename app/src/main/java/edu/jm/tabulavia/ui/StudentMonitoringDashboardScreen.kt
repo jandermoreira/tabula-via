@@ -1,15 +1,13 @@
 /**
- * StudentTrackingDashboardScreen.kt
+ * StudentMonitoringDashboardScreen.kt
  *
- * Screen that displays the pedagogical tracking dashboard for a class.
- * It provides a summary of students' tracking states and a detailed list.
+ * Screen that displays the pedagogical monitoring dashboard for a class.
+ * It provides a summary of students' monitoring states and a detailed list.
  */
 
 package edu.jm.tabulavia.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,7 +29,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,18 +38,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import edu.jm.tabulavia.model.EvidenceHistoryItem
 import edu.jm.tabulavia.model.StudentDashboardItem
-import edu.jm.tabulavia.model.StudentTrackingState
-import edu.jm.tabulavia.ui.theme.Amber
-import edu.jm.tabulavia.ui.theme.SkyBlue
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
- * Screen displaying the pedagogical tracking dashboard for a class.
+ * Screen displaying the pedagogical monitoring dashboard for a class.
  *
  * @param viewModel The shared ClassViewModel instance.
  * @param onNavigateBack Callback to navigate back to the previous screen.
@@ -61,7 +53,7 @@ import java.util.Locale
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentTrackingDashboardScreen(
+fun StudentMonitoringDashboardScreen(
     viewModel: ClassViewModel,
     onNavigateBack: () -> Unit,
     onStudentClick: (String) -> Unit
@@ -90,7 +82,7 @@ fun StudentTrackingDashboardScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-            TrackingSummaryCards(
+            MonitoringSummaryCards(
                 items = dashboardItems,
                 modifier = Modifier.padding(16.dp)
             )
@@ -101,7 +93,7 @@ fun StudentTrackingDashboardScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(dashboardItems, key = { it.student.studentId }) { item ->
-                    StudentTrackingRow(
+                    StudentMonitoringRow(
                         item = item,
                         onClick = { selectedItemForHistory = item }
                     )
