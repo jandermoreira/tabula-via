@@ -24,8 +24,8 @@ import edu.jm.tabulavia.model.StudentDashboardItem
 import edu.jm.tabulavia.ui.theme.Amber
 
 /**
- * A grid of summary cards showing the count of students in each tracking state.
- * Uses the project's theme colors and follows the pedagogical tracking specification.
+ * A grid of summary cards showing the count of students in each monitoring state.
+ * Uses the project's theme colors and follows the pedagogical monitoring specification.
  *
  * @param items The list of student dashboard items to summarize.
  * @param modifier Decorator for the grid layout.

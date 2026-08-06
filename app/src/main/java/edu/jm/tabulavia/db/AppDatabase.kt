@@ -31,10 +31,10 @@ import edu.jm.tabulavia.model.EvidenceType
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.SkillAssessment
 import edu.jm.tabulavia.model.SkillLevel
+import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.model.StudentSkill
 import edu.jm.tabulavia.model.StudentStatus
-import edu.jm.tabulavia.model.StudentTrackingState
 
 @Database(
     entities = [
@@ -175,15 +175,15 @@ class Converters {
     fun toEvidenceType(value: String) = EvidenceType.valueOf(value)
 
     /**
-     * Converts StudentTrackingState enum to String for storage.
+     * Converts MonitoringState enum to String for storage.
      */
     @androidx.room.TypeConverter
-    fun fromStudentTrackingState(value: StudentTrackingState) = value.name
+    fun fromMonitoringState(value: MonitoringState) = value.name
 
     /**
-     * Converts String back to StudentTrackingState enum.
+     * Converts String back to MonitoringState enum.
      */
     @androidx.room.TypeConverter
-    fun toStudentTrackingState(value: String) = StudentTrackingState.valueOf(value)
+    fun toMonitoringState(value: String) = MonitoringState.valueOf(value)
 }
 
