@@ -10,5 +10,6 @@ data class StudentMonitoringSummary(
     val performance: Double?,
     val attendance: Double,
     val discrepancy: Double?,
+    val hasDiscrepancyFlag: Boolean,
     val state: MonitoringState
 )

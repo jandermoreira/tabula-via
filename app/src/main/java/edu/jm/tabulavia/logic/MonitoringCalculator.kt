@@ -75,6 +75,7 @@ object MonitoringCalculator {
             performance = monitoringPerformance,
             attendance = absenceRate,
             discrepancy = performanceDiscrepancy,
+            hasDiscrepancyFlag = performanceDiscrepancy?.let { it >= 3.0 } ?: false,
             state = operationalStatus
         )
     }
@@ -136,6 +137,7 @@ object MonitoringCalculator {
 
     /**
      * Determines the student's operational status based on trigger conditions.
+     * Follows the pedagogical guidelines from monitoring.md.
      *
      * @param missingSubmissionsCount Number of missing submissions in the current cycle.
      * @param absenceRate Accumulated absence percentage.
@@ -149,30 +151,34 @@ object MonitoringCalculator {
         activeMonitoringEvidences: List<Evidence>,
         scoreLookup: Map<String, EvidenceScore>
     ): MonitoringState {
-        val performanceTrend = mutableListOf<Double>()
-        val gradesAccumulator = mutableListOf<Double>()
-
-        for (evidence in activeMonitoringEvidences) {
-            scoreLookup[evidence.evidenceId]?.score?.let { grade ->
-                gradesAccumulator.add(grade)
-                performanceTrend.add(gradesAccumulator.average())
-            }
-        }
-
-        val currentPm = performanceTrend.lastOrNull() ?: 10.0
-        val previousPm = if (performanceTrend.size >= 2) performanceTrend[performanceTrend.size - 2] else 10.0
-
-        val persistentLowPerformance = currentPm < MINIMUM_PASSING_GRADE && previousPm < MINIMUM_PASSING_GRADE
-        val criticalAttendance = absenceRate >= ATTENDANCE_CRITICAL_THRESHOLD
+        val individualGrades = activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
         
-        if (missingSubmissionsCount >= 2 || persistentLowPerformance || criticalAttendance) {
+        // Critical Triggers:
+        // - Two or more missing submissions
+        // - Pm < 6.0 in two consecutive Monitoring Evidences
+        // - Attendance risk (A >= 20%)
+        val hasTwoConsecutiveLowGrades = if (individualGrades.size >= 2) {
+            individualGrades.windowed(2).any { window -> 
+                window.all { it < MINIMUM_PASSING_GRADE } 
+            }
+        } else false
+        
+        val criticalAttendance = absenceRate >= ATTENDANCE_CRITICAL_THRESHOLD
+        val criticalRegularity = missingSubmissionsCount >= 2
+        
+        if (criticalRegularity || hasTwoConsecutiveLowGrades || criticalAttendance) {
             return MonitoringState.CRITICAL
         }
 
-        val lowPerformanceSignal = currentPm < MINIMUM_PASSING_GRADE
-        val attentionAttendance = absenceRate >= ATTENDANCE_ATTENTION_THRESHOLD && absenceRate < ATTENDANCE_CRITICAL_THRESHOLD
+        // Attention Triggers:
+        // - One missing submission
+        // - Pm < 6.0 caused by one Monitoring Evidence
+        // - Attendance attention (15% <= A < 20%)
+        val hasLowPerformanceSignal = individualGrades.any { it < MINIMUM_PASSING_GRADE }
+        val attentionAttendance = absenceRate >= ATTENDANCE_ATTENTION_THRESHOLD
+        val attentionRegularity = missingSubmissionsCount == 1
 
-        if (missingSubmissionsCount == 1 || lowPerformanceSignal || attentionAttendance) {
+        if (attentionRegularity || hasLowPerformanceSignal || attentionAttendance) {
             return MonitoringState.ATTENTION
         }
 
