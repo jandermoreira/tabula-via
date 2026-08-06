@@ -51,7 +51,9 @@ import edu.jm.tabulavia.repository.EvidenceRepository
 import edu.jm.tabulavia.repository.SaveAttendanceResult
 import edu.jm.tabulavia.repository.SkillRepository
 import edu.jm.tabulavia.repository.StudentRepository
-import edu.jm.tabulavia.utils.TrackingCalculator
+import edu.jm.tabulavia.logic.MonitoringCalculator
+import edu.jm.tabulavia.model.MonitoringState
+import edu.jm.tabulavia.model.StudentMonitoringSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -163,20 +165,27 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     val classSessions: StateFlow<List<ClassSession>> = _classSessions
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val dashboardItems: StateFlow<List<StudentDashboardItem>> =
+    val dashboardItems: StateFlow<List<StudentMonitoringSummary>> =
         _selectedClass.flatMapLatest { academicClass ->
             if (academicClass != null) {
                 combine(
                     studentRepository.getStudentsForClass(academicClass.classId),
                     evidenceRepository.getEvidences(academicClass.classId),
-                    evidenceRepository.getAllScoresByClass(academicClass.classId)
-                ) { students, evidences, allScores ->
+                    evidenceRepository.getAllScoresByClass(academicClass.classId),
+                    attendanceRepository.getClassSessionsFlow(academicClass.classId),
+                    attendanceRepository.getAttendanceRecordsForClassFlow(academicClass.classId)
+                ) { students, evidences, allScores, sessions, allAttendance ->
                     val scoresByStudent = allScores.groupBy { it.studentId }
+                    val attendanceByStudent = allAttendance.groupBy { it.studentId }
+                    
                     students.map { student ->
-                        TrackingCalculator.calculateDashboardItem(
-                            student = student,
+                        MonitoringCalculator.calculate(
+                            studentId = student.studentId,
+                            classId = academicClass.classId,
                             evidences = evidences,
-                            scores = scoresByStudent[student.studentId] ?: emptyList()
+                            scores = scoresByStudent[student.studentId] ?: emptyList(),
+                            sessions = sessions,
+                            attendance = attendanceByStudent[student.studentId] ?: emptyList()
                         )
                     }
                 }
