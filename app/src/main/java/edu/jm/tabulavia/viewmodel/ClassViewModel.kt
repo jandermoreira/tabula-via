@@ -449,44 +449,6 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
         // react to the change in _selectedClass.
         viewModelScope.launch {
             _selectedClass.value = classRepository.getClassById(classId)
-
-            // Logs para diagnóstico solicitados pelo usuário no momento do clique
-            try {
-                val students = studentRepository.getStudentsForClass(classId).first()
-                val evidences = evidenceRepository.getEvidences(classId).first()
-                val scores = evidenceRepository.getAllScoresByClass(classId).first()
-
-                Log.d("EvidenceDebug", "--- CLIQUE NA TURMA: DADOS DO BANCO LOCAL ($classId) ---")
-                Log.d("EvidenceDebug", "Alunos no banco: ${students.size}")
-                students.forEach {
-                    Log.d(
-                        "EvidenceDebug",
-                        "  Student: id=${it.studentId}, name=${it.effectiveName}, number=${it.studentNumber}"
-                    )
-                }
-
-                Log.d("EvidenceDebug", "Evidências no banco: ${evidences.size}")
-                evidences.forEach {
-                    Log.d(
-                        "EvidenceDebug",
-                        "  Evidence: id=${it.evidenceId}, name=${it.name}, type=${it.type}"
-                    )
-                }
-
-                Log.d("EvidenceDebug", "Notas (Scores) no banco: ${scores.size}")
-                scores.forEach {
-                    Log.d(
-                        "EvidenceDebug",
-                        "  Score: studentId=${it.studentId}, evidenceId=${it.evidenceId}, value=${it.score}"
-                    )
-                }
-                Log.d(
-                    "EvidenceDebug",
-                    "-------------------------------------------------------------"
-                )
-            } catch (e: Exception) {
-                Log.e("EvidenceDebug", "Erro ao buscar dados para log no clique: ${e.message}")
-            }
         }
     }
 
@@ -798,35 +760,6 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
      */
     fun loadActivitiesForClass(classId: String) {
         // Redundant with reactive activities flow
-    }
-
-    /**
-     * Diagnostic tool to log all evidences and scores for the current class.
-     */
-    fun logAllEvidencesAndScores(classId: String) {
-        viewModelScope.launch {
-            try {
-                Log.d("EvidenceDebug", "=== MANUAL LOG TRIGGERED for classId: $classId ===")
-
-                val evidences = evidenceRepository.getEvidences(classId).first()
-                Log.d("EvidenceDebug", "Evidences count: ${evidences.size}")
-                evidences.forEach { e ->
-                    Log.d("EvidenceDebug", "Evidence: evidenceId=${e.evidenceId}, classId=${e.classId}, name=${e.name}, deadline=${e.deadline}, type=${e.type}")
-                }
-
-                val allScores = evidenceRepository.getAllScoresByClass(classId).first()
-                Log.d("EvidenceDebug", "Scores count: ${allScores.size}")
-                allScores.forEach { s ->
-                    Log.d("EvidenceDebug", "EvidenceScore: evidenceId=${s.evidenceId}, studentId=${s.studentId}, score=${s.score}")
-                }
-
-                Log.d("EvidenceDebug", "=== END MANUAL LOG ===")
-                _userMessage.emit("Logs gerados no Logcat (EvidenceDebug)")
-            } catch (e: Exception) {
-                Log.e("EvidenceDebug", "Erro ao gerar logs manuais", e)
-                _userMessage.emit("Erro ao gerar logs: ${e.message}")
-            }
-        }
     }
 
     /**
