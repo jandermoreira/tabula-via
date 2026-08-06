@@ -47,63 +47,7 @@ import kotlinx.coroutines.launch
  * @param classId The unique identifier for the class.
  * @param viewModel The shared ClassViewModel instance.
  * @param onNavigateBack Callback to navigate back to the previous screen.
- * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
- */
-/**
- * Screen that lists available reports for a class.
- *
- * @param classId The unique identifier for the class.
- * @param viewModel The shared ClassViewModel instance.
- * @param onNavigateBack Callback to navigate back to the previous screen.
- * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
- */
-/**
- * Screen that lists available reports for a class.
- *
- * @param classId The unique identifier for the class.
- * @param viewModel The shared ClassViewModel instance.
- * @param onNavigateBack Callback to navigate back to the previous screen.
- * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
- */
-/**
- * Screen that lists available reports for a class.
- *
- * @param classId The unique identifier for the class.
- * @param viewModel The shared ClassViewModel instance.
- * @param onNavigateBack Callback to navigate back to the previous screen.
- * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
- */
-/**
- * Screen that lists available reports for a class.
- *
- * @param classId The unique identifier for the class.
- * @param viewModel The shared ClassViewModel instance.
- * @param onNavigateBack Callback to navigate back to the previous screen.
- * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
- */
-/**
- * Screen that lists available reports for a class.
- *
- * @param classId The unique identifier for the class.
- * @param viewModel The shared ClassViewModel instance.
- * @param onNavigateBack Callback to navigate back to the previous screen.
- * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
- */
-/**
- * Screen that lists available reports for a class.
- *
- * @param classId The unique identifier for the class.
- * @param viewModel The shared ClassViewModel instance.
- * @param onNavigateBack Callback to navigate back to the previous screen.
- * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
- */
-/**
- * Screen that lists available reports for a class.
- *
- * @param classId The unique identifier for the class.
- * @param viewModel The shared ClassViewModel instance.
- * @param onNavigateBack Callback to navigate back to the previous screen.
- * @param onNavigateToTracking Callback to navigate to the pedagogical tracking dashboard.
+ * @param onNavigateToMonitoring Callback to navigate to the pedagogical monitoring dashboard.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,7 +55,7 @@ fun ReportListScreen(
     classId: String,
     viewModel: ClassViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToTracking: () -> Unit
+    onNavigateToMonitoring: () -> Unit
 ) {
     var reportContent by remember { mutableStateOf<String?>(null) }
     var showDialog by remember { mutableStateOf(false) }
@@ -153,10 +97,10 @@ fun ReportListScreen(
             )
 
             DashboardCard(
-                title = "Acompanhamento Pedagógico",
+                title = "Monitoramento Pedagógico",
                 subtitle = "Diagnóstico inteligente de evidências",
                 icon = Icons.Default.Analytics,
-                onClick = onNavigateToTracking
+                onClick = onNavigateToMonitoring
             )
         }
     }
@@ -169,48 +113,6 @@ fun ReportListScreen(
     }
 }
 
-/**
- * Dialog displaying the generated attendance report with a copy-to-clipboard option.
- *
- * @param content The text content of the report.
- * @param onDismiss Callback when the dialog is dismissed.
- */
-/**
- * Dialog displaying the generated attendance report with a copy-to-clipboard option.
- *
- * @param content The text content of the report.
- * @param onDismiss Callback when the dialog is dismissed.
- */
-/**
- * Dialog displaying the generated attendance report with a copy-to-clipboard option.
- *
- * @param content The text content of the report.
- * @param onDismiss Callback when the dialog is dismissed.
- */
-/**
- * Dialog displaying the generated attendance report with a copy-to-clipboard option.
- *
- * @param content The text content of the report.
- * @param onDismiss Callback when the dialog is dismissed.
- */
-/**
- * Dialog displaying the generated attendance report with a copy-to-clipboard option.
- *
- * @param content The text content of the report.
- * @param onDismiss Callback when the dialog is dismissed.
- */
-/**
- * Dialog displaying the generated attendance report with a copy-to-clipboard option.
- *
- * @param content The text content of the report.
- * @param onDismiss Callback when the dialog is dismissed.
- */
-/**
- * Dialog displaying the generated attendance report with a copy-to-clipboard option.
- *
- * @param content The text content of the report.
- * @param onDismiss Callback when the dialog is dismissed.
- */
 /**
  * Dialog displaying the generated attendance report with a copy-to-clipboard option.
  *
