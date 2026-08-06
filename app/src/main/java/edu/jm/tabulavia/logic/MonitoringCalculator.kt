@@ -9,6 +9,8 @@ import edu.jm.tabulavia.model.EvidenceType
 import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.StudentMonitoringSummary
 
+import edu.jm.tabulavia.model.Student
+
 /**
  * Computes pedagogical monitoring indicators based on student work rhythm.
  *
@@ -25,7 +27,7 @@ object MonitoringCalculator {
     /**
      * Calculates the monitoring summary for a specific student within a class.
      *
-     * @param studentId The unique identifier for the student.
+     * @param student The student object.
      * @param classId The unique identifier for the academic class.
      * @param evidences All evidences defined for the class, used to identify learning cycles.
      * @param scores All scores recorded for the student across different evidences.
@@ -34,7 +36,7 @@ object MonitoringCalculator {
      * @return A [StudentMonitoringSummary] containing the derived metrics and operational status.
      */
     fun calculate(
-        studentId: String,
+        student: Student,
         classId: String,
         evidences: List<Evidence>,
         scores: List<EvidenceScore>,
@@ -53,7 +55,7 @@ object MonitoringCalculator {
         val activeCycleGrades = activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
         val monitoringPerformance = if (activeCycleGrades.isNotEmpty()) activeCycleGrades.average() else null
 
-        val studentAttendanceRecords = attendance.filter { it.studentId == studentId }
+        val studentAttendanceRecords = attendance.filter { it.studentId == student.studentId }
         val totalSessionsCount = sessions.size
         val absencesCount = studentAttendanceRecords.count { it.status == AttendanceStatus.ABSENT }
         val absenceRate = if (totalSessionsCount > 0) (absencesCount.toDouble() / totalSessionsCount) * 100.0 else 0.0
@@ -68,8 +70,7 @@ object MonitoringCalculator {
         )
 
         return StudentMonitoringSummary(
-            studentId = studentId,
-            classId = classId,
+            student = student,
             regularity = missingSubmissionsCount,
             performance = monitoringPerformance,
             attendance = absenceRate,

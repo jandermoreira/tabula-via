@@ -165,7 +165,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     val classSessions: StateFlow<List<ClassSession>> = _classSessions
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val dashboardItems: StateFlow<List<StudentMonitoringSummary>> =
+    val dashboardItems: StateFlow<List<StudentDashboardItem>> =
         _selectedClass.flatMapLatest { academicClass ->
             if (academicClass != null) {
                 combine(
@@ -179,13 +179,18 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     val attendanceByStudent = allAttendance.groupBy { it.studentId }
                     
                     students.map { student ->
-                        MonitoringCalculator.calculate(
-                            studentId = student.studentId,
+                        val summary = MonitoringCalculator.calculate(
+                            student = student,
                             classId = academicClass.classId,
                             evidences = evidences,
                             scores = scoresByStudent[student.studentId] ?: emptyList(),
                             sessions = sessions,
                             attendance = attendanceByStudent[student.studentId] ?: emptyList()
+                        )
+                        StudentDashboardItem(
+                            student = student,
+                            summary = summary,
+                            evidenceHistory = emptyList() // TODO: Map evidence history if needed
                         )
                     }
                 }

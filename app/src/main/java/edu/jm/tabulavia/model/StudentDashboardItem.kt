@@ -5,11 +5,7 @@ package edu.jm.tabulavia.model
  */
 data class StudentDashboardItem(
     val student: Student,
-    val state: StudentTrackingState,
-    val trend: EvidenceTrend,
-    val isConsistent: Boolean,
-    val currentLevel: SkillState,
-    val lastScore: Double? = null,
+    val summary: StudentMonitoringSummary,
     /**
      * Historical list of evidences and scores for the student.
      */

@@ -19,10 +19,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.StudentDashboardItem
-import edu.jm.tabulavia.model.StudentTrackingState
 import edu.jm.tabulavia.ui.theme.Amber
-import edu.jm.tabulavia.ui.theme.SkyBlue
 
 /**
  * A grid of summary cards showing the count of students in each tracking state.
@@ -36,10 +35,10 @@ fun TrackingSummaryCards(
     items: List<StudentDashboardItem>,
     modifier: Modifier = Modifier
 ) {
-    val counts = items.groupingBy { it.state }.eachCount()
+    val counts = items.groupingBy { it.summary.state }.eachCount()
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Fixed(3),
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -48,29 +47,22 @@ fun TrackingSummaryCards(
     ) {
         item {
             SummaryCard(
-                label = "Normal",
-                count = counts[StudentTrackingState.NORMAL] ?: 0,
+                label = "Em Dia",
+                count = counts[MonitoringState.ON_TRACK] ?: 0,
                 color = MaterialTheme.colorScheme.secondary
             )
         }
         item {
             SummaryCard(
-                label = "Revisão",
-                count = counts[StudentTrackingState.GUIDED_REVISION] ?: 0,
-                color = SkyBlue
-            )
-        }
-        item {
-            SummaryCard(
-                label = "Prioritário",
-                count = counts[StudentTrackingState.PRIORITIZED_TRACKING] ?: 0,
+                label = "Atenção",
+                count = counts[MonitoringState.ATTENTION] ?: 0,
                 color = Amber
             )
         }
         item {
             SummaryCard(
-                label = "Recuperação",
-                count = counts[StudentTrackingState.RECOVERY] ?: 0,
+                label = "Crítico",
+                count = counts[MonitoringState.CRITICAL] ?: 0,
                 color = MaterialTheme.colorScheme.error
             )
         }

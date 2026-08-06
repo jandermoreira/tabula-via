@@ -32,13 +32,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import edu.jm.tabulavia.model.EvidenceTrend
+import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.StudentDashboardItem
-import edu.jm.tabulavia.model.StudentTrackingState
 import edu.jm.tabulavia.ui.theme.Amber
-import edu.jm.tabulavia.ui.theme.SkyBlue
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToColor
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToEmoji
+import java.util.Locale
 
 /**
  * A row component for the class dashboard representing a student's tracking status.
@@ -77,56 +76,27 @@ fun StudentTrackingRow(
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold
                 )
+                val performanceText = item.summary.performance?.let {
+                    String.format(Locale.getDefault(), "Desempenho: %.1f", it)
+                } ?: "Sem desempenho"
                 Text(
-                    text = "Nível Atual: ${item.currentLevel.displayName}",
+                    text = "Regularidade: ${item.summary.regularity} faltas | $performanceText",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (item.isConsistent) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Consistente",
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                TrendIcon(trend = item.trend)
-                StateTag(state = item.state)
-            }
+            StateTag(state = item.summary.state)
         }
     }
 }
 
 @Composable
-private fun TrendIcon(trend: EvidenceTrend) {
-    val (icon, color) = when (trend) {
-        EvidenceTrend.IMPROVED -> Icons.AutoMirrored.Filled.TrendingUp to MaterialTheme.colorScheme.secondary
-        EvidenceTrend.STABLE -> Icons.AutoMirrored.Filled.TrendingFlat to MaterialTheme.colorScheme.onSurfaceVariant
-        EvidenceTrend.WORSENED -> Icons.AutoMirrored.Filled.TrendingDown to MaterialTheme.colorScheme.error
-        EvidenceTrend.UNKNOWN -> Icons.AutoMirrored.Filled.TrendingFlat to MaterialTheme.colorScheme.outline
-    }
-    Icon(
-        imageVector = icon,
-        contentDescription = null,
-        tint = color,
-        modifier = Modifier.size(20.dp)
-    )
-}
-
-@Composable
-private fun StateTag(state: StudentTrackingState) {
+private fun StateTag(state: MonitoringState) {
     val (label, color) = when (state) {
-        StudentTrackingState.NORMAL -> "Normal" to MaterialTheme.colorScheme.secondary
-        StudentTrackingState.GUIDED_REVISION -> "Revisão" to SkyBlue
-        StudentTrackingState.PRIORITIZED_TRACKING -> "Prioritário" to Amber
-        StudentTrackingState.RECOVERY -> "Recuperação" to MaterialTheme.colorScheme.error
+        MonitoringState.ON_TRACK -> "Em Dia" to MaterialTheme.colorScheme.secondary
+        MonitoringState.ATTENTION -> "Atenção" to Amber
+        MonitoringState.CRITICAL -> "Crítico" to MaterialTheme.colorScheme.error
     }
 
     Box(

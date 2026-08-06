@@ -5,8 +5,7 @@ package edu.jm.tabulavia.model
  * according to the Student Work Rhythm Monitoring guidelines.
  */
 data class StudentMonitoringSummary(
-    val studentId: String,
-    val classId: String,
+    val student: Student,
     val regularity: Int,
     val performance: Double?,
     val attendance: Double,
