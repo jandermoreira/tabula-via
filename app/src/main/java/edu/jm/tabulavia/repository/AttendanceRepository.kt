@@ -330,6 +330,11 @@ class AttendanceRepository(
     fun getClassSessionsFlow(classId: String) = attendanceDao.getClassSessionsFlow(classId)
 
     /**
+     * Retrieves all attendance records for a specific class as a reactive flow.
+     */
+    fun getAttendanceRecordsForClassFlow(classId: String) = attendanceDao.getAttendanceRecordsForClassFlow(classId)
+
+    /**
      * Removes a student's attendance records locally and updates remote sessions.
      * @param studentId The unique identifier of the student.
      * @param classId The unique identifier of the class.

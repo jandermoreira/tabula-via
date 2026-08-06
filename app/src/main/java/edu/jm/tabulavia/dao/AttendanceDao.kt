@@ -110,6 +110,12 @@ interface AttendanceDao {
     }
 
     /**
+     * Retrieves all attendance records for all sessions of a specific class as a reactive flow.
+     */
+    @Query("SELECT * FROM attendance_records WHERE sessionId IN (SELECT sessionId FROM class_sessions WHERE classId = :classId)")
+    fun getAttendanceRecordsForClassFlow(classId: String): Flow<List<AttendanceRecord>>
+
+    /**
      * Deletes all attendance records associated with a specific student ID.
      * Used when a student is removed from a class to maintain referential integrity.
      *
