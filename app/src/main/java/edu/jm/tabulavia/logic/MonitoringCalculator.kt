@@ -60,13 +60,14 @@ object MonitoringCalculator {
         val absencesCount = studentAttendanceRecords.count { it.status == AttendanceStatus.ABSENT }
         val absenceRate = if (totalSessionsCount > 0) (absencesCount.toDouble() / totalSessionsCount) * 100.0 else 0.0
 
-        val performanceDiscrepancy = calculateDiscrepancy(learningCycles, scoreLookup)
+        val performanceDiscrepancy = calculateDiscrepancy(monitoringPerformance, learningCycles, scoreLookup)
 
         val operationalStatus = evaluateOperationalStatus(
             missingSubmissionsCount = missingSubmissionsCount,
             absenceRate = absenceRate,
             activeMonitoringEvidences = activeMonitoringEvidences,
-            scoreLookup = scoreLookup
+            scoreLookup = scoreLookup,
+            discrepancy = performanceDiscrepancy
         )
 
         return StudentMonitoringSummary(
@@ -108,48 +109,50 @@ object MonitoringCalculator {
     /**
      * Calculates the discrepancy between monitoring performance and consolidation grade.
      *
-     * Uses the most recently completed cycle that contains a consolidation event.
+     * As per pedagogical correction: compares current active Pm with previous cycle's CE.
      *
+     * @param activeCyclePm The PM of the current active cycle.
      * @param cycles List of grouped learning cycles.
      * @param scoreLookup Map for student score retrieval.
-     * @return The difference (Pm - CE) or null if data is insufficient.
+     * @return The difference (Pm_active - CE_previous) or null if data is insufficient.
      */
     private fun calculateDiscrepancy(
+        activeCyclePm: Double?,
         cycles: List<List<Evidence>>,
         scoreLookup: Map<String, EvidenceScore>
     ): Double? {
-        val lastCompletedCycle = cycles.lastOrNull { cycle ->
-            cycle.any { it.type == EvidenceType.CONSOLIDATION }
-        } ?: return null
+        if (activeCyclePm == null || cycles.size < 2) return null
 
-        val consolidationEvidence = lastCompletedCycle.find { it.type == EvidenceType.CONSOLIDATION }
-        val consolidationGrade = consolidationEvidence?.let { scoreLookup[it.evidenceId]?.score }
+        // Active cycle is cycles.last(). We look for CE in previous cycles.
+        for (i in cycles.size - 2 downTo 0) {
+            val previousCycle = cycles[i]
+            val consolidationEvidence = previousCycle.find { it.type == EvidenceType.CONSOLIDATION }
+            val consolidationGrade = consolidationEvidence?.let { scoreLookup[it.evidenceId]?.score }
+            if (consolidationGrade != null) {
+                return activeCyclePm - consolidationGrade
+            }
+        }
         
-        val monitoringAverage = lastCompletedCycle
-            .filter { it.type == EvidenceType.MONITORING }
-            .mapNotNull { scoreLookup[it.evidenceId]?.score }
-            .let { if (it.isNotEmpty()) it.average() else null }
-
-        return if (consolidationGrade != null && monitoringAverage != null) {
-            monitoringAverage - consolidationGrade
-        } else null
+        return null
     }
 
     /**
      * Determines the student's operational status based on trigger conditions.
-     * Follows the pedagogical guidelines from monitoring.md.
+     * Follows the pedagogical guidelines from monitoring.md, including discrepancy alerts.
      *
      * @param missingSubmissionsCount Number of missing submissions in the current cycle.
      * @param absenceRate Accumulated absence percentage.
      * @param activeMonitoringEvidences Monitoring evidences of the active cycle.
      * @param scoreLookup Map for student score retrieval.
+     * @param discrepancy The calculated performance discrepancy ΔD.
      * @return The derived [MonitoringState].
      */
     private fun evaluateOperationalStatus(
         missingSubmissionsCount: Int,
         absenceRate: Double,
         activeMonitoringEvidences: List<Evidence>,
-        scoreLookup: Map<String, EvidenceScore>
+        scoreLookup: Map<String, EvidenceScore>,
+        discrepancy: Double?
     ): MonitoringState {
         val individualGrades = activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
         
@@ -157,6 +160,7 @@ object MonitoringCalculator {
         // - Two or more missing submissions
         // - Pm < 6.0 in two consecutive Monitoring Evidences
         // - Attendance risk (A >= 20%)
+        // - Critical discrepancy (ΔD >= 5.0)
         val hasTwoConsecutiveLowGrades = if (individualGrades.size >= 2) {
             individualGrades.windowed(2).any { window -> 
                 window.all { it < MINIMUM_PASSING_GRADE } 
@@ -165,8 +169,9 @@ object MonitoringCalculator {
         
         val criticalAttendance = absenceRate >= ATTENDANCE_CRITICAL_THRESHOLD
         val criticalRegularity = missingSubmissionsCount >= 2
+        val criticalDiscrepancy = discrepancy?.let { it >= 5.0 } ?: false
         
-        if (criticalRegularity || hasTwoConsecutiveLowGrades || criticalAttendance) {
+        if (criticalRegularity || hasTwoConsecutiveLowGrades || criticalAttendance || criticalDiscrepancy) {
             return MonitoringState.CRITICAL
         }
 
@@ -174,11 +179,13 @@ object MonitoringCalculator {
         // - One missing submission
         // - Pm < 6.0 caused by one Monitoring Evidence
         // - Attendance attention (15% <= A < 20%)
+        // - Attention discrepancy (ΔD >= 3.0)
         val hasLowPerformanceSignal = individualGrades.any { it < MINIMUM_PASSING_GRADE }
         val attentionAttendance = absenceRate >= ATTENDANCE_ATTENTION_THRESHOLD
         val attentionRegularity = missingSubmissionsCount == 1
+        val attentionDiscrepancy = discrepancy?.let { it >= 3.0 } ?: false
 
-        if (attentionRegularity || hasLowPerformanceSignal || attentionAttendance) {
+        if (attentionRegularity || hasLowPerformanceSignal || attentionAttendance || attentionDiscrepancy) {
             return MonitoringState.ATTENTION
         }
 

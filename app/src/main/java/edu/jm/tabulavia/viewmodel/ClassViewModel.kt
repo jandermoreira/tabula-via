@@ -52,6 +52,7 @@ import edu.jm.tabulavia.repository.SaveAttendanceResult
 import edu.jm.tabulavia.repository.SkillRepository
 import edu.jm.tabulavia.repository.StudentRepository
 import edu.jm.tabulavia.logic.MonitoringCalculator
+import edu.jm.tabulavia.model.EvidenceHistoryItem
 import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.StudentMonitoringSummary
 import kotlinx.coroutines.Dispatchers
@@ -179,20 +180,34 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     val attendanceByStudent = allAttendance.groupBy { it.studentId }
                     
                     students.map { student ->
+                        val studentScores = scoresByStudent[student.studentId] ?: emptyList()
                         val summary = MonitoringCalculator.calculate(
                             student = student,
                             classId = academicClass.classId,
                             evidences = evidences,
-                            scores = scoresByStudent[student.studentId] ?: emptyList(),
+                            scores = studentScores,
                             sessions = sessions,
                             attendance = attendanceByStudent[student.studentId] ?: emptyList()
                         )
+                        val evidenceHistory = studentScores.mapNotNull { score ->
+                            evidences.find { it.evidenceId == score.evidenceId }?.let { evidence ->
+                                EvidenceHistoryItem(
+                                    evidenceName = evidence.name,
+                                    deadline = evidence.deadline,
+                                    score = score.score
+                                )
+                            }
+                        }.sortedBy { it.deadline }
+
                         StudentDashboardItem(
                             student = student,
                             summary = summary,
-                            evidenceHistory = emptyList() // TODO: Map evidence history if needed
+                            evidenceHistory = evidenceHistory
                         )
-                    }
+                    }.sortedWith(
+                        compareByDescending<StudentDashboardItem> { it.summary.state.ordinal }
+                            .thenBy { it.student.effectiveName }
+                    )
                 }
             } else {
                 kotlinx.coroutines.flow.flowOf(emptyList())

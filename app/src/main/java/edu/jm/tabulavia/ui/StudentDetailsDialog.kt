@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -26,11 +27,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.SkillTrend
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.model.StudentMonitoringSummary
+import edu.jm.tabulavia.ui.theme.Amber
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.ClassViewModel
+import java.util.Locale
 
 @Composable
 fun StudentDetailsDialog(
@@ -41,11 +47,26 @@ fun StudentDetailsDialog(
 ) {
     MessageHandler(viewModel)
 
+    val dashboardItems by viewModel.dashboardItems.collectAsState()
+    val summary = dashboardItems.find { it.student.studentId == student.studentId }?.summary
     val skillSummaries by viewModel.studentSkillStatuses.collectAsState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(student.name) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(student.name)
+                if (summary?.hasDiscrepancyFlag == true) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Alerta de Discrepância",
+                        modifier = Modifier.size(20.dp),
+                        tint = Amber
+                    )
+                }
+            }
+        },
         text = {
             Column(
                 modifier = Modifier
@@ -68,6 +89,14 @@ fun StudentDetailsDialog(
                     }
                 }
 
+                if (summary != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Monitoramento (Ciclo Atual)", style = MaterialTheme.typography.titleMedium)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    MonitoringSummaryContent(summary)
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Habilidades", style = MaterialTheme.typography.titleMedium)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -75,8 +104,7 @@ fun StudentDetailsDialog(
                 if (skillSummaries.isEmpty()) {
                     Text("Nenhuma habilidade registrada para este aluno ou turma.")
                 } else {
-                    skillSummaries.forEach { skillStatus ->
-                        // Checking trend
+                    for (skillStatus in skillSummaries) {
                         val trendIcon = when (skillStatus.trend) {
                             SkillTrend.IMPROVING -> Icons.Default.ArrowUpward
                             SkillTrend.DECLINING -> Icons.Default.ArrowDownward
@@ -126,3 +154,57 @@ fun StudentDetailsDialog(
         }
     )
 }
+
+@Composable
+private fun MonitoringSummaryContent(summary: StudentMonitoringSummary) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Estado", style = MaterialTheme.typography.labelMedium)
+                val stateColor = when (summary.state) {
+                    MonitoringState.ON_TRACK -> MaterialTheme.colorScheme.primary
+                    MonitoringState.ATTENTION -> Amber
+                    MonitoringState.CRITICAL -> MaterialTheme.colorScheme.error
+                }
+                Text(
+                    text = when (summary.state) {
+                        MonitoringState.ON_TRACK -> "Em Dia"
+                        MonitoringState.ATTENTION -> "Atenção"
+                        MonitoringState.CRITICAL -> "Crítico"
+                    },
+                    color = stateColor,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Ritmo (Faltas)", style = MaterialTheme.typography.labelMedium)
+                Text("${summary.regularity}", style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Desempenho ($PM_SYMBOL)", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = summary.performance?.let { String.format(Locale.getDefault(), "%.1f", it) } ?: "N/A",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Discrepância ($DELTA_D_SYMBOL)", style = MaterialTheme.typography.labelMedium)
+                val discrepancyText = summary.discrepancy?.let { String.format(Locale.getDefault(), "%.1f", it) } ?: "N/A"
+                Text(
+                    text = discrepancyText,
+                    color = if (summary.hasDiscrepancyFlag) Amber else MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+    }
+}
+
+private const val PM_SYMBOL = "P\u2098"
+private const val DELTA_D_SYMBOL = "\u0394D"
