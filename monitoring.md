@@ -181,66 +181,50 @@ The indicator does not infer the cause of the discrepancy.
 | \(3.0 \le \Delta D < 5.0\) | Discrepancy requiring instructor analysis          | Attention |
 | \(\Delta D \ge 5 \)        | Critital discrepancy requiring instructor analysis | Critical  |
 
-# Operational Status
+# Intervention Actions
 
-Operational Status identifies students requiring intervention during the current learning cycle.
+The dashboard does not prescribe instructional decisions. Instead, it recommends generic
+intervention actions based on the status of each monitoring indicator. The recommended actions are
+intended exclusively to support instructor decision-making and follow the concept of
+*teacher-actionable insights* adopted in Learning Analytics research. :contentReference[oaicite:0]
+{index=0}
 
-| Status    | Trigger Condition                                                                                      | Instructor Action                                  |
-|-----------|--------------------------------------------------------------------------------------------------------|----------------------------------------------------|
-| On Track  | No missing submissions, \(P_M\ge6.0\), and \(A<15\%\)                                                  | No intervention.                                   |
-| Attention | One missing submission OR \(P_M<6.0\) caused by one Monitoring Evidence OR \(15\%\le A<20\%\)          | Standardized notification and attendance reminder. |
-| Critical  | Two or more missing submissions OR \(P_M<6.0\) in two consecutive Monitoring Evidences OR \(A\ge20\%\) | Individual meeting and formal risk registration.   |
+## Action Catalog
 
-# Additional Flags
+| ID  | Action                                                       |
+|-----|--------------------------------------------------------------|
+| A1  | Monitor the student in the next learning cycle.              |
+| A2  | Contact the student.                                         |
+| A3  | Verify possible academic or administrative difficulties.     |
+| A4  | Recommend review of the learning materials.                  |
+| A5  | Recommend completion or recovery of pending activities.      |
+| A6  | Provide individual feedback.                                 |
+| A7  | Schedule an individual meeting.                              |
+| A8  | Develop an individual recovery plan.                         |
+| A9  | Review the evidence collected during the learning cycle.     |
+| A10 | Refer the student to institutional support, when applicable. |
 
-Additional Flags do not replace the Operational Status.
+## Intervention Matrix
 
-They indicate situations requiring complementary investigation.
+| Indicator                   | Attention  | Critical        |
+|-----------------------------|------------|-----------------|
+| **Regularity**              | A1, A2, A5 | A2, A5, A7, A8  |
+| **Performance**             | A4, A6     | A4, A6, A7, A8  |
+| **Attendance**              | A2, A3     | A2, A3, A7, A10 |
+| **Performance Discrepancy** | A6, A9     | A6, A7, A9      |
 
-| Flag                        | Trigger            |
-|-----------------------------|--------------------|
-| **Performance Discrepancy** | \(\Delta D\ge3.0\) |
+## Operational Rules
 
-# Dashboard Architecture
+### On Track
 
-## Class Overview
+No individual intervention is recommended.
 
-Students are ordered by Operational Status:
+### Attention
 
-1. Critical
-2. Attention
-3. On Track
+Apply the actions associated with the corresponding indicator at the **Attention** level.
 
-Additional Flags are displayed independently.
+### Critical
 
-### Cards containers
+Apply the actions associated with the corresponding indicator at the **Critical** level with
+priority.
 
-| Field                   | Description                                                 |
-|-------------------------|-------------------------------------------------------------|
-| Student                 | Student effective name                                      |
-| Regularity              | Missing Monitoring Evidence submissions                     |
-| Performance             | Current Monitoring Performance                              |
-| Attendance              | Current attendance percentage                               |
-| Performance Discrepancy | Difference between Monitoring and Consolidation Performance |
-| Operational Status      | Current intervention priority                               |
-| Additional Flags        | Complementary alerts                                        |
-| Recommended Action      | Suggested instructor action                                 |
-
-## Student View
-
-Displays the current indicators:
-
-- Regularity;
-- Performance;
-- Attendance;
-- Performance Discrepancy.
-
-# Design Principles
-
-- Monitor observable work rhythm rather than learning state.
-- Use only evidence already produced during the class.
-- Keep indicators independent whenever possible.
-- Missing submissions and low performance represent different phenomena.
-- Consolidation Evidence is not used to calculate monitoring indicators.
-- Indicators are designed to generate operational instructor actions.
-- Automated indicators support, but never replace, instructor judgment.
