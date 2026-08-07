@@ -191,27 +191,25 @@ intended exclusively to support instructor decision-making and follow the concep
 
 ## Action Catalog
 
-| ID  | Action                                                       |
-|-----|--------------------------------------------------------------|
-| A1  | Monitor the student in the next learning cycle.              |
-| A2  | Contact the student.                                         |
-| A3  | Verify possible academic or administrative difficulties.     |
-| A4  | Recommend review of the learning materials.                  |
-| A5  | Recommend completion or recovery of pending activities.      |
-| A6  | Provide individual feedback.                                 |
-| A7  | Schedule an individual meeting.                              |
-| A8  | Develop an individual recovery plan.                         |
-| A9  | Review the evidence collected during the learning cycle.     |
-| A10 | Refer the student to institutional support, when applicable. |
+| ID | Action                                                       |
+|----|--------------------------------------------------------------|
+| A1 | Contact the student.                                         |
+| A2 | Verify possible academic or administrative difficulties.     |
+| A3 | Recommend review of the learning materials.                  |
+| A4 | Recommend completion or recovery of pending activities.      |
+| A5 | Provide individual feedback.                                 |
+| A6 | Schedule an individual meeting.                              |
+| A7 | Develop an individual recovery plan.                         |
+| A8 | Refer the student to institutional support, when applicable. |
 
 ## Intervention Matrix
 
-| Indicator                   | Attention  | Critical        |
-|-----------------------------|------------|-----------------|
-| **Regularity**              | A1, A2, A5 | A2, A5, A7, A8  |
-| **Performance**             | A4, A6     | A4, A6, A7, A8  |
-| **Attendance**              | A2, A3     | A2, A3, A7, A10 |
-| **Performance Discrepancy** | A6, A9     | A6, A7, A9      |
+| Indicator               | On Track | Attention | Critical       |
+|-------------------------|----------|-----------|----------------|
+| Regularity              | —        | A1, A4    | A1, A4, A6, A7 |
+| Performance             | —        | A3, A5    | A3, A5, A6, A7 |
+| Attendance              | —        | A1, A2    | A1, A2, A6, A8 |
+| Performance Discrepancy | —        | A5        | A2, A5, A6     |
 
 ## Operational Rules
 
