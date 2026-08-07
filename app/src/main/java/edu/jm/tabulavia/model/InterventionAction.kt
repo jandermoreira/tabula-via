@@ -13,14 +13,11 @@ package edu.jm.tabulavia.model
  * @property description The descriptive text of the action in Portuguese for UI display.
  */
 enum class InterventionAction(val id: String, val description: String) {
-    A1("A1", "Monitorar o estudante no próximo ciclo de aprendizagem."),
-    A2("A2", "Entrar em contato com o estudante."),
-    A3("A3", "Verificar possíveis dificuldades acadêmicas ou administrativas."),
-    A4("A4", "Recomendar revisão dos materiais de estudo."),
-    A5("A5", "Recomendar a conclusão ou recuperação de atividades pendentes."),
-    A6("A6", "Fornecer feedback individual."),
-    A7("A7", "Agendar uma reunião individual."),
-    A8("A8", "Elaborar um plano de recuperação individual."),
-    A9("A9", "Revisar as evidências coletadas durante o ciclo de aprendizagem."),
-    A10("A10", "Encaminhar o estudante para apoio institucional, quando aplicável.")
+    A1("A1", "Entrar em contato com o estudante."),
+    A2("A2", "Verificar possíveis dificuldades acadêmicas ou administrativas."),
+    A3("A3", "Recomendar revisão dos materiais de estudo."),
+    A4("A4", "Recomendar a conclusão ou recuperação de atividades pendentes."),
+    A5("A5", "Fornecer orientação ao estudante."),
+    A6("A6", "Elaborar um plano de recuperação individual."),
+    A7("A7", "Encaminhar o estudante para apoio institucional, quando aplicável."),
 }
