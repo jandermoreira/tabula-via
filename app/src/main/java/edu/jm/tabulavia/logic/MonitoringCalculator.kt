@@ -205,31 +205,27 @@ object MonitoringCalculator {
     /**
      * Calculates the discrepancy between monitoring performance and consolidation grade.
      *
-     * As per pedagogical correction: compares current active Pm with previous cycle's CE.
+     * Compares the current cycle's Pm with the Consolidation Evidence (CE) grade of the same cycle.
      *
      * @param activeCyclePm The PM of the current active cycle.
      * @param cycles List of grouped learning cycles.
      * @param scoreLookup Map for student score retrieval.
-     * @return The difference (Pm_active - CE_previous) or null if data is insufficient.
+     * @return The difference (Pm - CE) or 0.0 if data is insufficient.
      */
     private fun calculateDiscrepancy(
         activeCyclePm: Double?,
         cycles: List<List<Evidence>>,
         scoreLookup: Map<String, EvidenceScore>
-    ): Double? {
-        if (activeCyclePm == null || cycles.size < 2) return null
+    ): Double {
+        val activeCycle = cycles.lastOrNull() ?: return 0.0
+        val consolidationEvidence = activeCycle.find { it.type == EvidenceType.CONSOLIDATION }
+        val consolidationGrade = consolidationEvidence?.let { scoreLookup[it.evidenceId]?.score }
 
-        // Active cycle is cycles.last(). We look for CE in previous cycles.
-        for (i in cycles.size - 2 downTo 0) {
-            val previousCycle = cycles[i]
-            val consolidationEvidence = previousCycle.find { it.type == EvidenceType.CONSOLIDATION }
-            val consolidationGrade = consolidationEvidence?.let { scoreLookup[it.evidenceId]?.score }
-            if (consolidationGrade != null) {
-                return activeCyclePm - consolidationGrade
-            }
+        return if (activeCyclePm != null && consolidationGrade != null) {
+            activeCyclePm - consolidationGrade
+        } else {
+            0.0
         }
-        
-        return null
     }
 
     /**
