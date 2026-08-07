@@ -134,7 +134,7 @@ Measures the student's accumulated absence rate.
 \[
 A=
 \frac{\text{Accumulated Absences}}
-{\text{Classes Held}}
+{\text{Total Planned Sessions}}
 \times100
 \]
 
@@ -163,6 +163,8 @@ where
 
 - \(P_M\) is the Monitoring Performance of the completed cycle;
 - \(CE_k\) is the grade obtained in the corresponding Consolidation Evidence.
+
+This metric is used only with consolidation evidences.
 
 ### Objective
 

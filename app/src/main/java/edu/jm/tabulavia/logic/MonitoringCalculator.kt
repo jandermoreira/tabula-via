@@ -41,7 +41,9 @@ object MonitoringCalculator {
         evidences: List<Evidence>,
         scores: List<EvidenceScore>,
         sessions: List<ClassSession>,
-        attendance: List<AttendanceRecord>
+        attendance: List<AttendanceRecord>,
+        totalPlannedSessions: Int,
+        referenceTime: Long? = null
     ): List<edu.jm.tabulavia.model.EvidenceHistoryItem> {
         val chronologicalEvidences = evidences.sortedBy { it.deadline }
         val scoreLookup = scores.associateBy { it.evidenceId }
@@ -62,7 +64,9 @@ object MonitoringCalculator {
                 evidences = evidencesUntilNow,
                 scores = scoresUntilNow,
                 sessions = sessionsUntilNow,
-                attendance = attendanceUntilNow
+                attendance = attendanceUntilNow,
+                totalPlannedSessions = totalPlannedSessions,
+                referenceTime = currentEvidence.deadline
             )
 
             edu.jm.tabulavia.model.EvidenceHistoryItem(
@@ -91,8 +95,11 @@ object MonitoringCalculator {
         evidences: List<Evidence>,
         scores: List<EvidenceScore>,
         sessions: List<ClassSession>,
-        attendance: List<AttendanceRecord>
+        attendance: List<AttendanceRecord>,
+        totalPlannedSessions: Int,
+        referenceTime: Long? = null
     ): StudentMonitoringSummary {
+        val now = referenceTime ?: System.currentTimeMillis()
         val chronologicalEvidences = evidences.sortedBy { it.deadline }
         val scoreLookup = scores.associateBy { it.evidenceId }
 
@@ -100,15 +107,19 @@ object MonitoringCalculator {
         val activeCycle = learningCycles.lastOrNull() ?: emptyList()
         val activeMonitoringEvidences = activeCycle.filter { it.type == EvidenceType.MONITORING }
 
-        val missingSubmissionsCount = activeMonitoringEvidences.count { !scoreLookup.containsKey(it.evidenceId) }
+        val missingSubmissionsCount = activeMonitoringEvidences.count { 
+            it.deadline <= now && !scoreLookup.containsKey(it.evidenceId) 
+        }
 
         val activeCycleGrades = activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
         val monitoringPerformance = if (activeCycleGrades.isNotEmpty()) activeCycleGrades.average() else null
 
         val studentAttendanceRecords = attendance.filter { it.studentId == student.studentId }
-        val totalSessionsCount = sessions.size
-        val absencesCount = studentAttendanceRecords.count { it.status == AttendanceStatus.ABSENT }
-        val absenceRate = if (totalSessionsCount > 0) (absencesCount.toDouble() / totalSessionsCount) * 100.0 else 0.0
+        val sessionsUntilNow = sessions.filter { it.timestamp <= now }
+        val absencesCount = studentAttendanceRecords.count { record ->
+            sessionsUntilNow.any { it.sessionId == record.sessionId } && record.status == AttendanceStatus.ABSENT
+        }
+        val absenceRate = if (totalPlannedSessions > 0) (absencesCount.toDouble() / totalPlannedSessions) * 100.0 else 0.0
 
         val performanceDiscrepancy = calculateDiscrepancy(monitoringPerformance, learningCycles, scoreLookup)
 
@@ -117,7 +128,8 @@ object MonitoringCalculator {
             absenceRate = absenceRate,
             activeMonitoringEvidences = activeMonitoringEvidences,
             scoreLookup = scoreLookup,
-            discrepancy = performanceDiscrepancy
+            discrepancy = performanceDiscrepancy,
+            monitoringPerformance = monitoringPerformance
         )
 
         return StudentMonitoringSummary(
@@ -202,12 +214,14 @@ object MonitoringCalculator {
         absenceRate: Double,
         activeMonitoringEvidences: List<Evidence>,
         scoreLookup: Map<String, EvidenceScore>,
-        discrepancy: Double?
+        discrepancy: Double?,
+        monitoringPerformance: Double?
     ): MonitoringState {
         val individualGrades = activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
         
         // Critical Triggers:
         // - Two or more missing submissions
+        // - Pm < 4.0 (Way below expected rhythm)
         // - Pm < 6.0 in two consecutive Monitoring Evidences
         // - Attendance risk (A >= 20%)
         // - Critical discrepancy (ΔD >= 5.0)
@@ -217,11 +231,12 @@ object MonitoringCalculator {
             }
         } else false
         
+        val criticalPerformance = monitoringPerformance?.let { it < 4.0 } ?: false
         val criticalAttendance = absenceRate >= ATTENDANCE_CRITICAL_THRESHOLD
         val criticalRegularity = missingSubmissionsCount >= 2
         val criticalDiscrepancy = discrepancy?.let { it >= 5.0 } ?: false
         
-        if (criticalRegularity || hasTwoConsecutiveLowGrades || criticalAttendance || criticalDiscrepancy) {
+        if (criticalRegularity || criticalPerformance || hasTwoConsecutiveLowGrades || criticalAttendance || criticalDiscrepancy) {
             return MonitoringState.CRITICAL
         }
 

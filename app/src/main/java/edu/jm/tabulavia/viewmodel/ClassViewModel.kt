@@ -189,7 +189,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                             evidences = evidences,
                             scores = studentScores,
                             sessions = sessions,
-                            attendance = studentAttendance
+                            attendance = studentAttendance,
+                            totalPlannedSessions = academicClass.numberOfSessions
                         )
 
                         val summary = evidenceHistory.lastOrNull()?.snapshot ?: MonitoringCalculator.calculate(
@@ -198,7 +199,8 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                             evidences = evidences,
                             scores = studentScores,
                             sessions = sessions,
-                            attendance = studentAttendance
+                            attendance = studentAttendance,
+                            totalPlannedSessions = academicClass.numberOfSessions
                         )
 
                         StudentDashboardItem(
