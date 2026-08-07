@@ -1,6 +1,5 @@
 /**
- * Visual component that displays monitoring indicators as a sequence of icons.
- * Follows the visual identity where colors represent status and grey represents unavailable data.
+ * UI components for displaying monitoring indicators.
  */
 package edu.jm.tabulavia.ui
 
@@ -41,7 +40,13 @@ import kotlin.math.abs
 
 /**
  * Visual component that displays monitoring indicators as a sequence of icons.
+ *
  * Follows the visual identity where colors represent status and grey represents unavailable data.
+ *
+ * @param summary The monitoring summary data for the student.
+ * @param modifier The modifier to be applied to the layout.
+ * @param evidenceType The type of evidence (Monitoring or Consolidation) to filter indicators.
+ * @param showValues Whether to display numeric/text values alongside icons.
  */
 @Composable
 fun MonitoringIndicators(
@@ -120,6 +125,14 @@ fun MonitoringIndicators(
     }
 }
 
+/**
+ * Renders an individual indicator icon with optional text value.
+ *
+ * @param icon The vector icon to display.
+ * @param status The monitoring state that determines the icon color.
+ * @param modifier The modifier to be applied to the layout.
+ * @param value Optional text value to display below the icon.
+ */
 @Composable
 private fun IndicatorIcon(
     icon: ImageVector,
