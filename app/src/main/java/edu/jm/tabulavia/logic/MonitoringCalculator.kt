@@ -6,10 +6,10 @@ import edu.jm.tabulavia.model.ClassSession
 import edu.jm.tabulavia.model.Evidence
 import edu.jm.tabulavia.model.EvidenceScore
 import edu.jm.tabulavia.model.EvidenceType
+import edu.jm.tabulavia.model.InterventionAction
 import edu.jm.tabulavia.model.MonitoringState
-import edu.jm.tabulavia.model.StudentMonitoringSummary
-
 import edu.jm.tabulavia.model.Student
+import edu.jm.tabulavia.model.StudentMonitoringSummary
 
 /**
  * Computes pedagogical monitoring indicators based on student work rhythm.
@@ -162,6 +162,13 @@ object MonitoringCalculator {
             monitoringPerformance = monitoringPerformance
         )
 
+        val recommendedActions = determineInterventionActions(
+            regularityState = regularityState,
+            performanceState = performanceState,
+            attendanceState = attendanceState,
+            discrepancyState = discrepancyState
+        )
+
         return StudentMonitoringSummary(
             student = student,
             regularity = missingSubmissionsCount,
@@ -173,6 +180,7 @@ object MonitoringCalculator {
             discrepancy = performanceDiscrepancy,
             discrepancyState = discrepancyState,
             hasDiscrepancyFlag = performanceDiscrepancy?.let { it >= 3.0 } ?: false,
+            actions = recommendedActions,
             state = operationalStatus
         )
     }
@@ -285,5 +293,86 @@ object MonitoringCalculator {
         }
 
         return MonitoringState.ON_TRACK
+    }
+
+    /**
+     * Determines the recommended intervention actions based on indicator states.
+     *
+     * Follows the Intervention Matrix defined in the pedagogical guidelines.
+     *
+     * @param regularityState State of regularity.
+     * @param performanceState State of performance.
+     * @param attendanceState State of attendance.
+     * @param discrepancyState State of discrepancy.
+     * @return A deduplicated list of [InterventionAction] sorted by ID.
+     */
+    private fun determineInterventionActions(
+        regularityState: MonitoringState,
+        performanceState: MonitoringState?,
+        attendanceState: MonitoringState,
+        discrepancyState: MonitoringState?
+    ): List<InterventionAction> {
+        val actions = mutableSetOf<InterventionAction>()
+
+        // Regularity
+        when (regularityState) {
+            MonitoringState.ATTENTION -> {
+                actions.add(InterventionAction.A1)
+                actions.add(InterventionAction.A2)
+                actions.add(InterventionAction.A4)
+            }
+            MonitoringState.CRITICAL -> {
+                actions.add(InterventionAction.A1)
+                actions.add(InterventionAction.A2)
+                actions.add(InterventionAction.A4)
+                actions.add(InterventionAction.A6)
+            }
+            else -> {}
+        }
+
+        // Performance
+        when (performanceState) {
+            MonitoringState.ATTENTION -> {
+                actions.add(InterventionAction.A3)
+                actions.add(InterventionAction.A5)
+            }
+            MonitoringState.CRITICAL -> {
+                actions.add(InterventionAction.A3)
+                actions.add(InterventionAction.A5)
+                actions.add(InterventionAction.A6)
+            }
+            else -> {}
+        }
+
+        // Attendance
+        when (attendanceState) {
+            MonitoringState.ATTENTION -> {
+                actions.add(InterventionAction.A1)
+                actions.add(InterventionAction.A2)
+            }
+            MonitoringState.CRITICAL -> {
+                actions.add(InterventionAction.A1)
+                actions.add(InterventionAction.A2)
+                actions.add(InterventionAction.A6)
+                actions.add(InterventionAction.A7)
+            }
+            else -> {}
+        }
+
+        // Performance Discrepancy
+        when (discrepancyState) {
+            MonitoringState.ATTENTION -> {
+                actions.add(InterventionAction.A5)
+            }
+            MonitoringState.CRITICAL -> {
+                actions.add(InterventionAction.A1)
+                actions.add(InterventionAction.A2)
+                actions.add(InterventionAction.A5)
+                actions.add(InterventionAction.A6)
+            }
+            else -> {}
+        }
+
+        return actions.sortedBy { it.id }
     }
 }
