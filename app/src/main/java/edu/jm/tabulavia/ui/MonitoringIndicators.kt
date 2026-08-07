@@ -98,24 +98,25 @@ fun MonitoringIndicators(
                     summary.attendance
                 ) else null
             )
-        }
-
+        } else
         // Performance Discrepancy (Only for Consolidation or if explicitly requested via summary flag)
-        if (evidenceType == EvidenceType.CONSOLIDATION || (evidenceType == null && summary.hasDiscrepancyFlag)) {
-            Spacer(modifier = Modifier.width(if (showValues) 12.dp else 8.dp))
-            IndicatorIcon(
-                icon = Icons.Default.SwapHorizontalCircle,
-                status = summary.discrepancyState,
-                value = if (showValues) summary.discrepancy?.let {
-                    String.format(
-                        Locale.US,
-                        "%s%.1f pontos",
-                        if (it > 0) "+" else "-",
-                        abs(it)
-                    )
-                } else null
-            )
-        }
+            if (evidenceType == EvidenceType.CONSOLIDATION || (evidenceType == null && summary.hasDiscrepancyFlag)) {
+                Spacer(modifier = Modifier.width(if (showValues) 12.dp else 8.dp))
+                IndicatorIcon(
+                    icon = Icons.Default.SwapHorizontalCircle,
+                    status = summary.discrepancyState,
+                    value = if (showValues) summary.discrepancy?.let {
+                        if (it == 0.0)
+                            "Sem queda"
+                        else
+                            String.format(
+                                Locale.US,
+                                "Queda %.1f pts",
+                                abs(it)
+                            )
+                    } else null
+                )
+            }
     }
 }
 
