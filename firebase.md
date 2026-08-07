@@ -4,11 +4,12 @@
 
 - [1. Data Standards](#1-data-standards)
 - [2. Collection Hierarchy](#2-collection-hierarchy)
-  - [Collection: `classes`](#collection-classes)
-  - [Collection: `students`](#collection-students)
-  - [Collection: `skills`](#collection-skills)
-  - [Collection: `activities`](#collection-activities)
-  - [Collection: `evidences`](#collection-evidences)
+    - [Collection: `classes`](#collection-classes)
+    - [Collection: `students`](#collection-students)
+    - [Collection: `skills`](#collection-skills)
+    - [Collection: `activities`](#collection-activities)
+    - [Collection: `evidences`](#collection-evidences)
+    - [Collection: `sessions`](#collection-sessions)
 
 ---
 
@@ -18,8 +19,10 @@ The database follows the conventions below.
 
 ## Identifiers (IDs)
 
-- All primary keys are Strings containing either a UUID v4 or a unique identifier provided by Moodle.
-- The document ID in the collection must be identical to the corresponding ID field stored inside the document.
+- All primary keys are Strings containing either a UUID v4 or a unique identifier provided by
+  Moodle.
+- The document ID in the collection must be identical to the corresponding ID field stored inside
+  the document.
 
 ## Date and Time
 
@@ -42,7 +45,8 @@ Data is organized by user and by class.
 /users/{userEmail}/
 ```
 
-`userEmail` is the email address of the user authenticated through Google OAuth. This ensures consistency across different clients (scraper and Android app) using the same authentication email.
+`userEmail` is the email address of the user authenticated through Google OAuth. This ensures
+consistency across different clients (scraper and Android app) using the same authentication email.
 
 ---
 
@@ -60,13 +64,14 @@ Stores class information.
 
 ### Fields
 
-| Field            | Type    | Description                                       |
-|------------------|---------|---------------------------------------------------|
-| classId          | String  | Unique class identifier.                          |
-| name             | String  | Course or class name.                             |
-| academicYear     | String  | Academic year (e.g. `"2026"`).                    |
-| period           | String  | Academic period/semester (e.g. `"1st Semester"`). |
-| numberOfSessions | Number  | Total number of planned sessions.                 |
+| Field            | Type   | Description                                       |
+|------------------|--------|---------------------------------------------------|
+| classId          | String | Unique class identifier.                          |
+| name             | String | Course or class name.                             |
+| academicYear     | String | Academic year (e.g. `"2026"`).                    |
+| period           | String | Academic period/semester (e.g. `"1st Semester"`). |
+| numberOfSessions | Number | Total number of planned sessions.                 |
+
 ---
 
 ## Collection: `students`
@@ -191,4 +196,35 @@ The document name must be the `evidenceId`.
 | deadline   | Number | Submission deadline in milliseconds since the Unix Epoch.              |
 | type       | String | `"MONITORING"` or `"CONSOLIDATION"`.                                   |
 | scores     | Map    | Evidence scores for each student in the format `{ studentId: score }`. |
+
+---
+
+## Collection: `sessions`
+
+Class subcollection.
+
+Stores records of class sessions and student attendance.
+
+### Path
+
+```text
+/users/{userEmail}/classes/{classId}/sessions/
+```
+
+### Document ID
+
+```text
+{sessionId}
+```
+
+(UUID v4)
+
+### Fields
+
+| Field      | Type   | Description                                                                                              |
+|------------|--------|----------------------------------------------------------------------------------------------------------|
+| sessionId  | String | Unique session identifier.                                                                               |
+| classId    | String | Reference to the parent class.                                                                           |
+| timestamp  | Number | Session date and time in milliseconds.                                                                   |
+| attendance | Map    | Student attendance status in the format `{ studentId: status }`. Values: `PRESENT`, `ABSENT`, `EXCUSED`. |
 
