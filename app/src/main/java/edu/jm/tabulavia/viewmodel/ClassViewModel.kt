@@ -181,23 +181,25 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     
                     students.map { student ->
                         val studentScores = scoresByStudent[student.studentId] ?: emptyList()
-                        val summary = MonitoringCalculator.calculate(
+                        val studentAttendance = attendanceByStudent[student.studentId] ?: emptyList()
+
+                        val evidenceHistory = MonitoringCalculator.calculateHistory(
                             student = student,
                             classId = academicClass.classId,
                             evidences = evidences,
                             scores = studentScores,
                             sessions = sessions,
-                            attendance = attendanceByStudent[student.studentId] ?: emptyList()
+                            attendance = studentAttendance
                         )
-                        val evidenceHistory = studentScores.mapNotNull { score ->
-                            evidences.find { it.evidenceId == score.evidenceId }?.let { evidence ->
-                                EvidenceHistoryItem(
-                                    evidenceName = evidence.name,
-                                    deadline = evidence.deadline,
-                                    score = score.score
-                                )
-                            }
-                        }.sortedBy { it.deadline }
+
+                        val summary = evidenceHistory.lastOrNull()?.snapshot ?: MonitoringCalculator.calculate(
+                            student = student,
+                            classId = academicClass.classId,
+                            evidences = evidences,
+                            scores = studentScores,
+                            sessions = sessions,
+                            attendance = studentAttendance
+                        )
 
                         StudentDashboardItem(
                             student = student,
@@ -1637,6 +1639,13 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     )
                 }
 
+                // Collect evidences and their scores
+                val evidences = db.evidenceDao().getEvidencesByClassList(classId)
+                val evidenceScores = mutableListOf<EvidenceScore>()
+                evidences.forEach { evidence ->
+                    evidenceScores.addAll(db.evidenceDao().getScoresByEvidence(evidence.evidenceId))
+                }
+
                 val backup = ClassBackup(
                     clazz = academicClass,
                     students = students,
@@ -1647,7 +1656,9 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     skills = skills,
                     highlightedSkills = highlightedSkills,
                     assessments = assessments,
-                    studentSkills = studentSkills
+                    studentSkills = studentSkills,
+                    evidences = evidences,
+                    evidenceScores = evidenceScores
                 )
 
                 // Serialize using Kotlinx Serialization
@@ -1734,6 +1745,13 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     val newId = UUID.randomUUID().toString()
                     activityIdMap[activity.activityId] = newId
                     activity.copy(activityId = newId, classId = newClassId)
+                }
+
+                val evidenceIdMap = mutableMapOf<String, String>()
+                val restoredEvidences = backup.evidences.map { evidence ->
+                    val newId = UUID.randomUUID().toString()
+                    evidenceIdMap[evidence.evidenceId] = newId
+                    evidence.copy(evidenceId = newId, classId = newClassId)
                 }
 
                 // 2. Consolidated Local Database Transaction
@@ -1836,6 +1854,23 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                     }
                     if (restoredStudentSkills.isNotEmpty()) {
                         db.skillDao().insertOrUpdateSkills(restoredStudentSkills)
+                    }
+
+                    // 2.6 Evidences and Scores
+                    if (restoredEvidences.isNotEmpty()) {
+                        restoredEvidences.forEach { db.evidenceDao().insertEvidence(it) }
+
+                        val restoredScores = backup.evidenceScores.mapNotNull { score ->
+                            val newEvId = evidenceIdMap[score.evidenceId]
+                            val newStudId = studentIdMap[score.studentId]
+                            if (newEvId != null && newStudId != null) {
+                                score.copy(evidenceId = newEvId, studentId = newStudId)
+                            } else null
+                        }
+
+                        if (restoredScores.isNotEmpty()) {
+                            db.evidenceDao().insertScores(restoredScores)
+                        }
                     }
                 }
 
@@ -1978,6 +2013,33 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                         studentSkillBatch.set(studentSkillsRef.document(docId), studentSkill)
                     }
                     studentSkillBatch.commit().await()
+                }
+
+                // 3.9 Sync Evidences Subcollection
+                if (restoredEvidences.isNotEmpty()) {
+                    val evidenceBatch = Firebase.firestore.batch()
+                    val evidencesRef = userClassesRef.document(newClassId).collection("evidences")
+
+                    restoredEvidences.forEach { evidence ->
+                        val scoresForThisEv = backup.evidenceScores
+                            .filter { it.evidenceId == backup.evidences.find { e -> e.name == evidence.name }?.evidenceId }
+                            .mapNotNull { score ->
+                                studentIdMap[score.studentId]?.let { newStudId ->
+                                    newStudId to score.score
+                                }
+                            }.toMap()
+
+                        val firestoreEvidence = mapOf(
+                            "evidenceId" to evidence.evidenceId,
+                            "classId" to newClassId,
+                            "name" to evidence.name,
+                            "deadline" to evidence.deadline,
+                            "type" to evidence.type.name,
+                            "scores" to scoresForThisEv
+                        )
+                        evidenceBatch.set(evidencesRef.document(evidence.evidenceId), firestoreEvidence)
+                    }
+                    evidenceBatch.commit().await()
                 }
 
                 withContext(Dispatchers.Main) {
