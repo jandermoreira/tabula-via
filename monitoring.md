@@ -150,8 +150,8 @@ A=
 
 ### Definition
 
-Measures the difference between the student's Monitoring Performance during a learning cycle and the
-corresponding Consolidation Evidence.
+Measures the difference between the student's Monitoring Performance and the Consolidation Evidence
+belonging to the same learning cycle.
 
 ### Calculation
 
@@ -161,8 +161,8 @@ corresponding Consolidation Evidence.
 
 where
 
-- \(P_M\) is the Monitoring Performance of the completed cycle;
-- \(CE_k\) is the grade obtained in the corresponding Consolidation Evidence.
+- \(P_M\) is the Monitoring Performance of the same cycle;
+- \(CE_k\) is the grade obtained in the corresponding Consolidation Evidence of that cycle.
 
 This metric is used only with consolidation evidences.
 
