@@ -183,46 +183,46 @@ The indicator does not infer the cause of the discrepancy.
 
 # Intervention Actions
 
-The dashboard does not prescribe instructional decisions. Instead, it recommends generic
-intervention actions based on the status of each monitoring indicator. The recommended actions are
-intended exclusively to support instructor decision-making and follow the concept of
-*teacher-actionable insights* adopted in Learning Analytics research. :contentReference[oaicite:0]
-{index=0}
+The dashboard provides recommended actions to support instructor decision-making.
+Actions are intended to be concrete interventions that can be performed with or
+for the student. Diagnostic activities and dashboard-analysis activities are not
+included in the action catalog.
 
 ## Action Catalog
 
-| ID | Action                                                       |
-|----|--------------------------------------------------------------|
-| A1 | Contact the student.                                         |
-| A2 | Verify possible academic or administrative difficulties.     |
-| A3 | Recommend review of the learning materials.                  |
-| A4 | Recommend completion or recovery of pending activities.      |
-| A5 | Provide individual feedback.                                 |
-| A6 | Schedule an individual meeting.                              |
-| A7 | Develop an individual recovery plan.                         |
-| A8 | Refer the student to institutional support, when applicable. |
+| ID | Action                                                        | Meaning                                                                                                            |
+|:---|:--------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------|
+| A1 | Contact the student.                                          | Initiate direct communication regarding the identified issue.                                                      |
+| A2 | Investigate possible academic or administrative difficulties. | Explore the root causes affecting the student's academic progress or administrative standing.                      |
+| A3 | Recommend review of the learning materials.                   | Direct the student to review relevant instructional content.                                                       |
+| A4 | Recommend completion or recovery of pending activities.       | Direct the student to complete missing or recovery activities.                                                     |
+| A5 | Provide individualized feedback.                              | Provide specific feedback about the student's performance, participation, or work process.                         |
+| A6 | Develop an individual recovery plan.                          | Define a structured set of recovery activities and expectations for the student.                                   |
+| A7 | Refer the student to institutional support, when applicable.  | Direct the student to an appropriate institutional support service when the situation requires additional support. |
 
 ## Intervention Matrix
 
-| Indicator               | On Track | Attention | Critical       |
-|-------------------------|----------|-----------|----------------|
-| Regularity              | —        | A1, A4    | A1, A4, A6, A7 |
-| Performance             | —        | A3, A5    | A3, A5, A6, A7 |
-| Attendance              | —        | A1, A2    | A1, A2, A6, A8 |
-| Performance Discrepancy | —        | A5        | A2, A5, A6     |
+| Indicator                   | On Track | Attention  | Critical       |
+|:----------------------------|:---------|:-----------|:---------------|
+| **Regularity**              | —        | A1, A2, A4 | A1, A2, A4, A6 |
+| **Performance**             | —        | A3, A5     | A3, A5, A6     |
+| **Attendance**              | —        | A1, A2     | A1, A2, A6, A7 |
+| **Performance Discrepancy** | —        | A5         | A1, A2, A5, A6 |
 
-## Operational Rules
+## Status Interpretation
 
 ### On Track
 
-No individual intervention is recommended.
+No individual intervention is recommended. Continue routine monitoring.
 
 ### Attention
 
-Apply the actions associated with the corresponding indicator at the **Attention** level.
+The dashboard recommends the actions associated with the indicator at the
+Attention level. The instructor decides whether and how to perform the
+recommended intervention.
 
 ### Critical
 
-Apply the actions associated with the corresponding indicator at the **Critical** level with
-priority.
-
+The dashboard recommends the actions associated with the indicator at the
+Critical level as a priority. The instructor decides whether and how to perform
+the recommended intervention.
