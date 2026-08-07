@@ -137,7 +137,7 @@ Stores assessment criteria defined for the class.
 
 Class subcollection.
 
-Stores records of activities or class sessions.
+Stores records of activities.
 
 ### Path
 
