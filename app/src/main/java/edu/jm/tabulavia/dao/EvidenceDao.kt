@@ -43,6 +43,12 @@ interface EvidenceDao {
     fun getEvidencesByClass(classId: String): Flow<List<Evidence>>
 
     /**
+     * Retrieves all evidences for a specific class as a list.
+     */
+    @Query("SELECT * FROM evidences WHERE classId = :classId ORDER BY deadline ASC")
+    suspend fun getEvidencesByClassList(classId: String): List<Evidence>
+
+    /**
      * Retrieves all scores for a specific evidence.
      */
     @Query("SELECT * FROM evidence_scores WHERE evidenceId = :evidenceId")

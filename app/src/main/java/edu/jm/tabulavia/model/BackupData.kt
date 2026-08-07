@@ -43,7 +43,13 @@ data class ClassBackup(
     val assessments: List<SkillAssessment> = emptyList(),
 
     /** Consolidated skill levels for each student. */
-    val studentSkills: List<StudentSkill> = emptyList()
+    val studentSkills: List<StudentSkill> = emptyList(),
+
+    /** Evidences recorded for this class. */
+    val evidences: List<Evidence> = emptyList(),
+
+    /** Scores associated with the evidences. */
+    val evidenceScores: List<EvidenceScore> = emptyList()
 )
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -78,5 +84,11 @@ data class BackupData(
     val activityHighlightedSkills: List<ActivityHighlightedSkill> = emptyList(),
 
     /** Consolidated skill levels for each student. */
-    val studentSkills: List<StudentSkill> = emptyList()
+    val studentSkills: List<StudentSkill> = emptyList(),
+
+    /** Evidences recorded in the system. */
+    val evidences: List<Evidence> = emptyList(),
+
+    /** Scores associated with the evidences. */
+    val evidenceScores: List<EvidenceScore> = emptyList()
 )
