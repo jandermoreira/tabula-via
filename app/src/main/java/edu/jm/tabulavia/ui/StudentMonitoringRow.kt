@@ -24,16 +24,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.StudentDashboardItem
-import edu.jm.tabulavia.ui.theme.Amber
+import edu.jm.tabulavia.ui.theme.Attention
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToColor
 import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToEmoji
-import java.util.Locale
 
 /**
  * A row component for the class dashboard representing a student's monitoring status.
@@ -79,7 +77,7 @@ fun StudentMonitoringRow(
                             imageVector = Icons.Default.Warning,
                             contentDescription = "Alerta de Discrepância",
                             modifier = Modifier.size(16.dp),
-                            tint = Amber
+                            tint = Attention
                         )
                     }
                 }
@@ -98,7 +96,7 @@ fun StudentMonitoringRow(
 private fun StateTag(state: MonitoringState) {
     val (label, color) = when (state) {
         MonitoringState.ON_TRACK -> "Em Dia" to MaterialTheme.colorScheme.secondary
-        MonitoringState.ATTENTION -> "Atenção" to Amber
+        MonitoringState.ATTENTION -> "Atenção" to Attention
         MonitoringState.CRITICAL -> "Crítico" to MaterialTheme.colorScheme.error
     }
 

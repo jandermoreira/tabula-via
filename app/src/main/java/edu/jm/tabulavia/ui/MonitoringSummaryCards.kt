@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.StudentDashboardItem
-import edu.jm.tabulavia.ui.theme.Amber
+import edu.jm.tabulavia.ui.theme.Attention
 
 /**
  * A grid of summary cards showing the count of students in each monitoring state.
@@ -56,7 +56,7 @@ fun MonitoringSummaryCards(
             SummaryCard(
                 label = "Atenção",
                 count = counts[MonitoringState.ATTENTION] ?: 0,
-                color = Amber
+                color = Attention
             )
         }
         item {

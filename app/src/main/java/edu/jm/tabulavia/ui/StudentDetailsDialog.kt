@@ -37,8 +37,7 @@ import edu.jm.tabulavia.model.EvidenceHistoryItem
 import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.SkillTrend
 import edu.jm.tabulavia.model.Student
-import edu.jm.tabulavia.model.StudentMonitoringSummary
-import edu.jm.tabulavia.ui.theme.Amber
+import edu.jm.tabulavia.ui.theme.Attention
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.ClassViewModel
 import java.util.Locale
@@ -69,7 +68,7 @@ fun StudentDetailsDialog(
                         imageVector = Icons.Default.Warning,
                         contentDescription = "Alerta de Discrepância",
                         modifier = Modifier.size(20.dp),
-                        tint = Amber
+                        tint = Attention
                     )
                 }
             }
@@ -179,6 +178,7 @@ private fun EvidenceHistoryRow(item: EvidenceHistoryItem) {
                 MonitoringIndicators(
                     summary = item.snapshot,
                     evidenceType = item.type,
+                    showValues = true,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -189,7 +189,7 @@ private fun EvidenceHistoryRow(item: EvidenceHistoryItem) {
                 }
                 val stateColor = when (item.snapshot.state) {
                     MonitoringState.ON_TRACK -> MaterialTheme.colorScheme.secondary
-                    MonitoringState.ATTENTION -> Amber
+                    MonitoringState.ATTENTION -> Attention
                     MonitoringState.CRITICAL -> MaterialTheme.colorScheme.error
                 }
                 Text(
@@ -215,7 +215,7 @@ private fun IndicatorMiniLabel(
     } ?: "N/A"
 
     val color =
-        if (isDiscrepancy && value != null && value >= 3.0) Amber else MaterialTheme.colorScheme.onSurfaceVariant
+        if (isDiscrepancy && value != null && value >= 3.0) Attention else MaterialTheme.colorScheme.onSurfaceVariant
 
     Column {
         Text(label, style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
