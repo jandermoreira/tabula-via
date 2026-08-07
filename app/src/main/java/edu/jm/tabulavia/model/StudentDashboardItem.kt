@@ -20,5 +20,6 @@ data class EvidenceHistoryItem(
     val evidenceName: String,
     val deadline: Long,
     val score: Double?,
+    val type: EvidenceType,
     val snapshot: StudentMonitoringSummary
 )

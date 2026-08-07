@@ -83,13 +83,9 @@ fun StudentMonitoringRow(
                         )
                     }
                 }
-                val performanceText = item.summary.performance?.let {
-                    String.format(Locale.getDefault(), "Desempenho: %.1f", it)
-                } ?: "Sem desempenho"
-                Text(
-                    text = "Regularidade: ${item.summary.regularity} faltas | $performanceText",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                MonitoringIndicators(
+                    summary = item.summary,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
 

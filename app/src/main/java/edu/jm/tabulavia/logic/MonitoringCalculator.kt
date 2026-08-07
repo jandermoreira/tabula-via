@@ -73,6 +73,7 @@ object MonitoringCalculator {
                 evidenceName = currentEvidence.name,
                 deadline = currentEvidence.deadline,
                 score = scoreLookup[currentEvidence.evidenceId]?.score,
+                type = currentEvidence.type,
                 snapshot = snapshot
             )
         }
@@ -123,21 +124,54 @@ object MonitoringCalculator {
 
         val performanceDiscrepancy = calculateDiscrepancy(monitoringPerformance, learningCycles, scoreLookup)
 
+        val regularityState = when {
+            missingSubmissionsCount >= 2 -> MonitoringState.CRITICAL
+            missingSubmissionsCount == 1 -> MonitoringState.ATTENTION
+            else -> MonitoringState.ON_TRACK
+        }
+
+        val performanceState = monitoringPerformance?.let {
+            when {
+                it < 4.0 -> MonitoringState.CRITICAL
+                it < 6.0 -> MonitoringState.ATTENTION
+                else -> MonitoringState.ON_TRACK
+            }
+        }
+
+        val attendanceState = when {
+            absenceRate >= ATTENDANCE_CRITICAL_THRESHOLD -> MonitoringState.CRITICAL
+            absenceRate >= ATTENDANCE_ATTENTION_THRESHOLD -> MonitoringState.ATTENTION
+            else -> MonitoringState.ON_TRACK
+        }
+
+        val discrepancyState = performanceDiscrepancy?.let {
+            when {
+                it >= 5.0 -> MonitoringState.CRITICAL
+                it >= 3.0 -> MonitoringState.ATTENTION
+                else -> MonitoringState.ON_TRACK
+            }
+        }
+
         val operationalStatus = evaluateOperationalStatus(
-            missingSubmissionsCount = missingSubmissionsCount,
-            absenceRate = absenceRate,
+            regularityState = regularityState,
+            performanceState = performanceState,
+            attendanceState = attendanceState,
+            discrepancyState = discrepancyState,
             activeMonitoringEvidences = activeMonitoringEvidences,
             scoreLookup = scoreLookup,
-            discrepancy = performanceDiscrepancy,
             monitoringPerformance = monitoringPerformance
         )
 
         return StudentMonitoringSummary(
             student = student,
             regularity = missingSubmissionsCount,
+            regularityState = regularityState,
             performance = monitoringPerformance,
+            performanceState = performanceState,
             attendance = absenceRate,
+            attendanceState = attendanceState,
             discrepancy = performanceDiscrepancy,
+            discrepancyState = discrepancyState,
             hasDiscrepancyFlag = performanceDiscrepancy?.let { it >= 3.0 } ?: false,
             state = operationalStatus
         )
@@ -202,55 +236,55 @@ object MonitoringCalculator {
      * Determines the student's operational status based on trigger conditions.
      * Follows the pedagogical guidelines from monitoring.md, including discrepancy alerts.
      *
-     * @param missingSubmissionsCount Number of missing submissions in the current cycle.
-     * @param absenceRate Accumulated absence percentage.
+     * @param regularityState State of regularity.
+     * @param performanceState State of performance.
+     * @param attendanceState State of attendance.
+     * @param discrepancyState State of discrepancy.
      * @param activeMonitoringEvidences Monitoring evidences of the active cycle.
      * @param scoreLookup Map for student score retrieval.
-     * @param discrepancy The calculated performance discrepancy ΔD.
+     * @param monitoringPerformance Current average Pm.
      * @return The derived [MonitoringState].
      */
     private fun evaluateOperationalStatus(
-        missingSubmissionsCount: Int,
-        absenceRate: Double,
+        regularityState: MonitoringState,
+        performanceState: MonitoringState?,
+        attendanceState: MonitoringState,
+        discrepancyState: MonitoringState?,
         activeMonitoringEvidences: List<Evidence>,
         scoreLookup: Map<String, EvidenceScore>,
-        discrepancy: Double?,
         monitoringPerformance: Double?
     ): MonitoringState {
         val individualGrades = activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
         
         // Critical Triggers:
-        // - Two or more missing submissions
-        // - Pm < 4.0 (Way below expected rhythm)
-        // - Pm < 6.0 in two consecutive Monitoring Evidences
-        // - Attendance risk (A >= 20%)
-        // - Critical discrepancy (ΔD >= 5.0)
+        // - Two or more missing submissions (Regularity Critical)
+        // - Pm < 4.0 (Performance Critical)
+        // - Pm < 6.0 in two consecutive Monitoring Evidences (Specific rule)
+        // - Attendance risk (Attendance Critical)
+        // - Critical discrepancy (Discrepancy Critical)
         val hasTwoConsecutiveLowGrades = if (individualGrades.size >= 2) {
             individualGrades.windowed(2).any { window -> 
                 window.all { it < MINIMUM_PASSING_GRADE } 
             }
         } else false
         
-        val criticalPerformance = monitoringPerformance?.let { it < 4.0 } ?: false
-        val criticalAttendance = absenceRate >= ATTENDANCE_CRITICAL_THRESHOLD
-        val criticalRegularity = missingSubmissionsCount >= 2
-        val criticalDiscrepancy = discrepancy?.let { it >= 5.0 } ?: false
-        
-        if (criticalRegularity || criticalPerformance || hasTwoConsecutiveLowGrades || criticalAttendance || criticalDiscrepancy) {
+        if (regularityState == MonitoringState.CRITICAL || 
+            performanceState == MonitoringState.CRITICAL || 
+            hasTwoConsecutiveLowGrades || 
+            attendanceState == MonitoringState.CRITICAL || 
+            discrepancyState == MonitoringState.CRITICAL) {
             return MonitoringState.CRITICAL
         }
 
         // Attention Triggers:
-        // - One missing submission
-        // - Pm < 6.0 caused by one Monitoring Evidence
-        // - Attendance attention (15% <= A < 20%)
-        // - Attention discrepancy (ΔD >= 3.0)
-        val hasLowPerformanceSignal = individualGrades.any { it < MINIMUM_PASSING_GRADE }
-        val attentionAttendance = absenceRate >= ATTENDANCE_ATTENTION_THRESHOLD
-        val attentionRegularity = missingSubmissionsCount == 1
-        val attentionDiscrepancy = discrepancy?.let { it >= 3.0 } ?: false
-
-        if (attentionRegularity || hasLowPerformanceSignal || attentionAttendance || attentionDiscrepancy) {
+        // - One missing submission (Regularity Attention)
+        // - Pm < 6.0 caused by one Monitoring Evidence (Performance Attention)
+        // - Attendance attention (Attendance Attention)
+        // - Attention discrepancy (Discrepancy Attention)
+        if (regularityState == MonitoringState.ATTENTION || 
+            performanceState == MonitoringState.ATTENTION || 
+            attendanceState == MonitoringState.ATTENTION || 
+            discrepancyState == MonitoringState.ATTENTION) {
             return MonitoringState.ATTENTION
         }
 

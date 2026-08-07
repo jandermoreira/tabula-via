@@ -5,8 +5,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Assignment
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.QueryStats
@@ -29,18 +28,14 @@ import edu.jm.tabulavia.ui.theme.Amber
 @Composable
 fun MonitoringIndicators(
     summary: StudentMonitoringSummary,
-    evidenceType: EvidenceType? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    evidenceType: EvidenceType? = null
 ) {
     Row(modifier = modifier) {
         // Regularity (Missing submissions)
         IndicatorIcon(
-            icon = Icons.Default.Assignment,
-            status = when {
-                summary.regularity >= 2 -> MonitoringState.CRITICAL
-                summary.regularity == 1 -> MonitoringState.ATTENTION
-                else -> MonitoringState.ON_TRACK
-            }
+            icon = Icons.AutoMirrored.Filled.Assignment,
+            status = summary.regularityState
         )
         
         Spacer(modifier = Modifier.width(8.dp))
@@ -48,12 +43,7 @@ fun MonitoringIndicators(
         // Performance (Pm)
         IndicatorIcon(
             icon = Icons.Default.QueryStats,
-            status = when {
-                summary.performance == null -> null
-                summary.performance < 4.0 -> MonitoringState.CRITICAL
-                summary.performance < 6.0 -> MonitoringState.ATTENTION
-                else -> MonitoringState.ON_TRACK
-            }
+            status = summary.performanceState
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -61,11 +51,7 @@ fun MonitoringIndicators(
         // Attendance (A)
         IndicatorIcon(
             icon = Icons.Default.EventAvailable,
-            status = when {
-                summary.attendance >= 20.0 -> MonitoringState.CRITICAL
-                summary.attendance >= 15.0 -> MonitoringState.ATTENTION
-                else -> MonitoringState.ON_TRACK
-            }
+            status = summary.attendanceState
         )
 
         // Performance Discrepancy (Only for Consolidation or if explicitly requested via summary flag)
@@ -73,12 +59,7 @@ fun MonitoringIndicators(
             Spacer(modifier = Modifier.width(8.dp))
             IndicatorIcon(
                 icon = Icons.Default.Gavel,
-                status = when {
-                    summary.discrepancy == null -> null
-                    summary.discrepancy >= 5.0 -> MonitoringState.CRITICAL
-                    summary.discrepancy >= 3.0 -> MonitoringState.ATTENTION
-                    else -> MonitoringState.ON_TRACK
-                }
+                status = summary.discrepancyState
             )
         }
     }

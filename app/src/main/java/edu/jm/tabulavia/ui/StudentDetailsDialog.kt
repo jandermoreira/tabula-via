@@ -172,13 +172,15 @@ private fun EvidenceHistoryRow(item: EvidenceHistoryItem) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(modifier = Modifier.fillMaxWidth()) {
-                IndicatorMiniLabel(PM_SYMBOL, item.snapshot.performance)
-                Spacer(modifier = Modifier.width(12.dp))
-                IndicatorMiniLabel(DELTA_D_SYMBOL, item.snapshot.discrepancy, isDiscrepancy = true)
-                Spacer(modifier = Modifier.width(12.dp))
-                IndicatorMiniLabel("A", item.snapshot.attendance, isPercentage = true)
-                Spacer(modifier = Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MonitoringIndicators(
+                    summary = item.snapshot,
+                    evidenceType = item.type,
+                    modifier = Modifier.weight(1f)
+                )
 
                 val stateLabel = when (item.snapshot.state) {
                     MonitoringState.ON_TRACK -> "OK"
@@ -186,7 +188,7 @@ private fun EvidenceHistoryRow(item: EvidenceHistoryItem) {
                     MonitoringState.CRITICAL -> "CRI"
                 }
                 val stateColor = when (item.snapshot.state) {
-                    MonitoringState.ON_TRACK -> MaterialTheme.colorScheme.primary
+                    MonitoringState.ON_TRACK -> MaterialTheme.colorScheme.secondary
                     MonitoringState.ATTENTION -> Amber
                     MonitoringState.CRITICAL -> MaterialTheme.colorScheme.error
                 }
