@@ -40,10 +40,11 @@ val Stone = Color(0xFF97A39B)
 /**
  * Semantic
  */
-val Crimson = Color(0xFFBA1A1A)
-val Rose = Color(0xFFFFDAD6)
-val Amber = Color(0xFFE6A700)
+val Alert = Color(0xFFBA1A1A)
+val Attention = Color(0xFFE6A700)
+val Regular = Color(0xFF205F22)
 val SkyBlue = Color(0xFF1976D2)
+val Rose = Color(0xFFFFDAD6)
 
 /**
  * Misc
