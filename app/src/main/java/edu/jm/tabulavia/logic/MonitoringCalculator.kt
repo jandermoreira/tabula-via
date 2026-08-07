@@ -25,6 +25,56 @@ object MonitoringCalculator {
     private const val ATTENDANCE_CRITICAL_THRESHOLD = 20.0
 
     /**
+     * Calculates the chronological history of monitoring indicators for a student.
+     *
+     * @param student The student object.
+     * @param classId The unique identifier for the academic class.
+     * @param evidences All evidences defined for the class.
+     * @param scores All scores recorded for the student.
+     * @param sessions All class sessions held to date.
+     * @param attendance The student's individual attendance records.
+     * @return A list of [EvidenceHistoryItem] representing the evolution of indicators.
+     */
+    fun calculateHistory(
+        student: Student,
+        classId: String,
+        evidences: List<Evidence>,
+        scores: List<EvidenceScore>,
+        sessions: List<ClassSession>,
+        attendance: List<AttendanceRecord>
+    ): List<edu.jm.tabulavia.model.EvidenceHistoryItem> {
+        val chronologicalEvidences = evidences.sortedBy { it.deadline }
+        val scoreLookup = scores.associateBy { it.evidenceId }
+
+        return chronologicalEvidences.map { currentEvidence ->
+            val evidencesUntilNow = chronologicalEvidences.filter { it.deadline <= currentEvidence.deadline }
+            val scoresUntilNow = scores.filter { score -> 
+                evidencesUntilNow.any { it.evidenceId == score.evidenceId }
+            }
+            val sessionsUntilNow = sessions.filter { it.timestamp <= currentEvidence.deadline }
+            val attendanceUntilNow = attendance.filter { record ->
+                sessionsUntilNow.any { it.sessionId == record.sessionId }
+            }
+
+            val snapshot = calculate(
+                student = student,
+                classId = classId,
+                evidences = evidencesUntilNow,
+                scores = scoresUntilNow,
+                sessions = sessionsUntilNow,
+                attendance = attendanceUntilNow
+            )
+
+            edu.jm.tabulavia.model.EvidenceHistoryItem(
+                evidenceName = currentEvidence.name,
+                deadline = currentEvidence.deadline,
+                score = scoreLookup[currentEvidence.evidenceId]?.score,
+                snapshot = snapshot
+            )
+        }
+    }
+
+    /**
      * Calculates the monitoring summary for a specific student within a class.
      *
      * @param student The student object.

@@ -1,5 +1,6 @@
 package edu.jm.tabulavia.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,8 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import edu.jm.tabulavia.model.EvidenceHistoryItem
 import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.SkillTrend
 import edu.jm.tabulavia.model.Student
@@ -48,7 +53,9 @@ fun StudentDetailsDialog(
     MessageHandler(viewModel)
 
     val dashboardItems by viewModel.dashboardItems.collectAsState()
-    val summary = dashboardItems.find { it.student.studentId == student.studentId }?.summary
+    val dashboardItem = dashboardItems.find { it.student.studentId == student.studentId }
+    val summary = dashboardItem?.summary
+    val history = dashboardItem?.evidenceHistory ?: emptyList()
     val skillSummaries by viewModel.studentSkillStatuses.collectAsState()
 
     AlertDialog(
@@ -71,7 +78,7 @@ fun StudentDetailsDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 450.dp)
+                    .heightIn(max = 550.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -80,21 +87,33 @@ fun StudentDetailsDialog(
                         Text(student.studentNumber, style = MaterialTheme.typography.bodyLarge)
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Frequência", style = MaterialTheme.typography.labelMedium)
+                        Text("Frequência Atual", style = MaterialTheme.typography.labelMedium)
                         if (attendancePercentage != null) {
-                            Text("%.0f%%".format(attendancePercentage), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "%.0f%%".format(attendancePercentage),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                         } else {
-                            Text("N/A", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "N/A",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                         }
                     }
                 }
 
-                if (summary != null) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Monitoramento (Ciclo Atual)", style = MaterialTheme.typography.titleMedium)
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Evolução do Monitoramento", style = MaterialTheme.typography.titleMedium)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                    MonitoringSummaryContent(summary)
+                if (history.isEmpty()) {
+                    Text("Nenhuma evidência registrada.")
+                } else {
+                    history.forEach { item ->
+                        EvidenceHistoryRow(item)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -102,47 +121,14 @@ fun StudentDetailsDialog(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 if (skillSummaries.isEmpty()) {
-                    Text("Nenhuma habilidade registrada para este aluno ou turma.")
+                    Text("Nenhuma habilidade registrada.")
                 } else {
                     for (skillStatus in skillSummaries) {
-                        val trendIcon = when (skillStatus.trend) {
-                            SkillTrend.IMPROVING -> Icons.Default.ArrowUpward
-                            SkillTrend.DECLINING -> Icons.Default.ArrowDownward
-                            SkillTrend.STABLE -> Icons.Default.DragHandle
-                        }
-                        val trendTint = when (skillStatus.trend) {
-                            SkillTrend.IMPROVING -> MaterialTheme.colorScheme.primary
-                            SkillTrend.DECLINING -> MaterialTheme.colorScheme.error
-                            SkillTrend.STABLE -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(vertical = 6.dp)
-                                .fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = trendIcon,
-                                contentDescription = "Tendência: ${skillStatus.trend.name}",
-                                tint = trendTint,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Column {
-                                Text(
-                                    text = skillStatus.skillName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = skillStatus.currentLevel.displayName,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
+                        SkillStatusRow(
+                            skillStatus.trend,
+                            skillStatus.skillName,
+                            skillStatus.currentLevel.displayName
+                        )
                     }
                 }
             }
@@ -156,52 +142,124 @@ fun StudentDetailsDialog(
 }
 
 @Composable
-private fun MonitoringSummaryContent(summary: StudentMonitoringSummary) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Estado", style = MaterialTheme.typography.labelMedium)
-                val stateColor = when (summary.state) {
+private fun EvidenceHistoryRow(item: EvidenceHistoryItem) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.evidenceName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = item.score?.let { String.format(Locale.getDefault(), "%.1f", it) }
+                        ?: "Faltante",
+                    color = if (item.score == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                IndicatorMiniLabel(PM_SYMBOL, item.snapshot.performance)
+                Spacer(modifier = Modifier.width(12.dp))
+                IndicatorMiniLabel(DELTA_D_SYMBOL, item.snapshot.discrepancy, isDiscrepancy = true)
+                Spacer(modifier = Modifier.width(12.dp))
+                IndicatorMiniLabel("A", item.snapshot.attendance, isPercentage = true)
+                Spacer(modifier = Modifier.weight(1f))
+
+                val stateLabel = when (item.snapshot.state) {
+                    MonitoringState.ON_TRACK -> "OK"
+                    MonitoringState.ATTENTION -> "ATN"
+                    MonitoringState.CRITICAL -> "CRI"
+                }
+                val stateColor = when (item.snapshot.state) {
                     MonitoringState.ON_TRACK -> MaterialTheme.colorScheme.primary
                     MonitoringState.ATTENTION -> Amber
                     MonitoringState.CRITICAL -> MaterialTheme.colorScheme.error
                 }
                 Text(
-                    text = when (summary.state) {
-                        MonitoringState.ON_TRACK -> "Em Dia"
-                        MonitoringState.ATTENTION -> "Atenção"
-                        MonitoringState.CRITICAL -> "Crítico"
-                    },
+                    text = stateLabel,
                     color = stateColor,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyLarge
+                    fontWeight = FontWeight.Black,
+                    fontSize = 12.sp
                 )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Ritmo (Faltas)", style = MaterialTheme.typography.labelMedium)
-                Text("${summary.regularity}", style = MaterialTheme.typography.bodyLarge)
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(8.dp))
+@Composable
+private fun IndicatorMiniLabel(
+    label: String,
+    value: Double?,
+    isPercentage: Boolean = false,
+    isDiscrepancy: Boolean = false
+) {
+    val formattedValue = value?.let {
+        if (isPercentage) "%.0f%%".format(it) else "%.1f".format(it)
+    } ?: "N/A"
 
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Desempenho ($PM_SYMBOL)", style = MaterialTheme.typography.labelMedium)
-                Text(
-                    text = summary.performance?.let { String.format(Locale.getDefault(), "%.1f", it) } ?: "N/A",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Discrepância ($DELTA_D_SYMBOL)", style = MaterialTheme.typography.labelMedium)
-                val discrepancyText = summary.discrepancy?.let { String.format(Locale.getDefault(), "%.1f", it) } ?: "N/A"
-                Text(
-                    text = discrepancyText,
-                    color = if (summary.hasDiscrepancyFlag) Amber else MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
+    val color =
+        if (isDiscrepancy && value != null && value >= 3.0) Amber else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
+        Text(
+            formattedValue,
+            style = MaterialTheme.typography.bodySmall,
+            color = color,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun SkillStatusRow(trend: SkillTrend, name: String, level: String) {
+    val trendIcon = when (trend) {
+        SkillTrend.IMPROVING -> Icons.Default.ArrowUpward
+        SkillTrend.DECLINING -> Icons.Default.ArrowDownward
+        SkillTrend.STABLE -> Icons.Default.DragHandle
+    }
+    val trendTint = when (trend) {
+        SkillTrend.IMPROVING -> MaterialTheme.colorScheme.primary
+        SkillTrend.DECLINING -> MaterialTheme.colorScheme.error
+        SkillTrend.STABLE -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(vertical = 6.dp)
+            .fillMaxWidth()
+    ) {
+        Icon(
+            imageVector = trendIcon,
+            contentDescription = null,
+            tint = trendTint,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column {
+            Text(text = name, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = level,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

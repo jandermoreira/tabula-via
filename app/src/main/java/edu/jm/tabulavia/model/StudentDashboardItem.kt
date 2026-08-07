@@ -13,10 +13,12 @@ data class StudentDashboardItem(
 )
 
 /**
- * Represents a single evidence entry in the student's history.
+ * Represents a single evidence entry in the student's history,
+ * including a snapshot of indicators at that point in time.
  */
 data class EvidenceHistoryItem(
     val evidenceName: String,
     val deadline: Long,
-    val score: Double
+    val score: Double?,
+    val snapshot: StudentMonitoringSummary
 )

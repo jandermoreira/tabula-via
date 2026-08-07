@@ -3,11 +3,13 @@ package edu.jm.tabulavia.model
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
+import kotlinx.serialization.Serializable
 
 /**
  * Stores individual student scores for a specific evidence.
  * Maps the 'scores' Map from Firestore into a relational structure.
  */
+@Serializable
 @Entity(
     tableName = "evidence_scores",
     primaryKeys = ["evidenceId", "studentId"],
