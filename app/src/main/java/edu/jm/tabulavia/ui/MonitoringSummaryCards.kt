@@ -1,6 +1,10 @@
 package edu.jm.tabulavia.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,14 +35,22 @@ import edu.jm.tabulavia.ui.theme.Attention
  * Uses the project's theme colors and follows the pedagogical monitoring specification.
  *
  * @param items The list of student dashboard items to summarize.
+ * @param selectedState The currently selected monitoring state filter.
+ * @param onStateClick Callback when a state card is clicked.
  * @param modifier Decorator for the grid layout.
  */
 @Composable
 fun MonitoringSummaryCards(
     items: List<StudentDashboardItem>,
+    selectedState: MonitoringState?,
+    onStateClick: (MonitoringState?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val counts = items.groupingBy { it.summary.state }.eachCount()
+    val hasAttentionOrCritical = (counts[MonitoringState.ATTENTION] ?: 0) > 0 ||
+            (counts[MonitoringState.CRITICAL] ?: 0) > 0
+
+    if (!hasAttentionOrCritical) return
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
@@ -49,21 +64,36 @@ fun MonitoringSummaryCards(
             SummaryCard(
                 label = "Em Dia",
                 count = counts[MonitoringState.ON_TRACK] ?: 0,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.secondary,
+                isSelected = selectedState == MonitoringState.ON_TRACK,
+                isAnySelected = selectedState != null,
+                onClick = {
+                    onStateClick(if (selectedState == MonitoringState.ON_TRACK) null else MonitoringState.ON_TRACK)
+                }
             )
         }
         item {
             SummaryCard(
                 label = "Atenção",
                 count = counts[MonitoringState.ATTENTION] ?: 0,
-                color = Attention
+                color = Attention,
+                isSelected = selectedState == MonitoringState.ATTENTION,
+                isAnySelected = selectedState != null,
+                onClick = {
+                    onStateClick(if (selectedState == MonitoringState.ATTENTION) null else MonitoringState.ATTENTION)
+                }
             )
         }
         item {
             SummaryCard(
                 label = "Crítico",
                 count = counts[MonitoringState.CRITICAL] ?: 0,
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.colorScheme.error,
+                isSelected = selectedState == MonitoringState.CRITICAL,
+                isAnySelected = selectedState != null,
+                onClick = {
+                    onStateClick(if (selectedState == MonitoringState.CRITICAL) null else MonitoringState.CRITICAL)
+                }
             )
         }
     }
@@ -76,12 +106,20 @@ fun MonitoringSummaryCards(
 private fun SummaryCard(
     label: String,
     count: Int,
-    color: Color
+    color: Color,
+    isSelected: Boolean,
+    isAnySelected: Boolean,
+    onClick: () -> Unit
 ) {
+    val displayColor = if (isAnySelected && !isSelected) Color.Gray else color
+    val borderStroke = if (isSelected) BorderStroke(2.dp, color) else null
+
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(color.copy(alpha = 0.12f))
+            .background(displayColor.copy(alpha = 0.12f))
+            .then(if (borderStroke != null) Modifier.border(borderStroke, RoundedCornerShape(12.dp)) else Modifier)
+            .clickable { onClick() }
             .padding(16.dp)
     ) {
         Column {
@@ -89,14 +127,25 @@ private fun SummaryCard(
                 text = count.toString(),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Black,
-                color = color
+                color = displayColor
             )
             Text(
                 text = label.uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = color,
+                color = displayColor,
                 letterSpacing = 1.sp
+            )
+        }
+
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remover filtro",
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp),
+                tint = color
             )
         }
     }

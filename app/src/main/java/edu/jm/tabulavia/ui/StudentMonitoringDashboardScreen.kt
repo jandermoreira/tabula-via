@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import edu.jm.tabulavia.model.AttendanceStatus
+import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.Student
 import edu.jm.tabulavia.utils.MessageHandler
 import edu.jm.tabulavia.viewmodel.ClassViewModel
@@ -67,6 +68,7 @@ fun StudentMonitoringDashboardScreen(
 
     // Selection state
     var targetStudent by remember { mutableStateOf<Student?>(null) }
+    var selectedStateFilter by remember { mutableStateOf<MonitoringState?>(null) }
 
     // Data observation
     val dashboardItems by viewModel.dashboardItems.collectAsState()
@@ -95,7 +97,10 @@ fun StudentMonitoringDashboardScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddStudentDialog = true }) {
+            FloatingActionButton(onClick = {
+                viewModel.prepareNewStudent()
+                showAddStudentDialog = true
+            }) {
                 Icon(
                     imageVector = Icons.Default.PersonAdd,
                     contentDescription = "Adicionar Aluno"
@@ -110,15 +115,23 @@ fun StudentMonitoringDashboardScreen(
         ) {
             MonitoringSummaryCards(
                 items = dashboardItems,
+                selectedState = selectedStateFilter,
+                onStateClick = { selectedStateFilter = it },
                 modifier = Modifier.padding(16.dp)
             )
+
+            val filteredAndSortedItems = remember(dashboardItems, selectedStateFilter) {
+                dashboardItems
+                    .filter { selectedStateFilter == null || it.summary.state == selectedStateFilter }
+                    .sortedBy { it.student.effectiveName }
+            }
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 16.dp, bottom = 88.dp, start = 16.dp, end = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(dashboardItems, key = { it.student.studentId }) { item ->
+                items(filteredAndSortedItems, key = { it.student.studentId }) { item ->
                     val status = todaysAttendance[item.student.studentId] ?: AttendanceStatus.PRESENT
                     StudentMonitoringRow(
                         item = item,

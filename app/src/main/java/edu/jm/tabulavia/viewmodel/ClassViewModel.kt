@@ -509,6 +509,17 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
     // --- Student Management Logic ---
 
     /**
+     * Resets student form fields for a new entry.
+     */
+    fun prepareNewStudent() {
+        studentName = ""
+        studentDisplayName = ""
+        studentNumber = ""
+        rawStudentListData = ""
+        _selectedStudentDetails.value = null
+    }
+
+    /**
      * Populates form fields for student editing.
      */
     fun selectStudentForEditing(student: Student) {
