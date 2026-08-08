@@ -49,13 +49,13 @@ fun SyncingOverlay(isVisible: Boolean) {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Sincronizando...",
+                    text = "Verificando por alterações nos dados...",
                     color = Color.White,
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Seja paciente :-)",
+                    text = "Seja paciente com a sinconização :-)",
                     color = Color.White,
                     style = MaterialTheme.typography.bodyLarge
                 )
