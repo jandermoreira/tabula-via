@@ -173,14 +173,6 @@ class MainActivity : ComponentActivity() {
                                 })
                         }
 
-                        composable(
-                            route = "studentList/{classId}",
-                            arguments = listOf(navArgument("classId") { type = NavType.StringType })
-                        ) {
-                            StudentListScreen(
-                                viewModel = classViewModel,
-                                onNavigateBack = { navController.popBackStack() })
-                        }
 
                         composable(
                             route = "classSkills/{classId}",

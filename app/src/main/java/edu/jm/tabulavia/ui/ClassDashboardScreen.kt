@@ -160,15 +160,6 @@ fun ClassDashboardScreen(
                     title = "Alunos",
                     subtitle = "${students.size} alunos cadastrados",
                     icon = Icons.Default.Group,
-                    onClick = { navController.navigate("studentList/$classId") }
-                )
-            }
-
-            item(span = { GridItemSpan(2) }) {
-                DashboardCard(
-                    title = "Alunos",
-                    subtitle = "${students.size} alunos cadastrados",
-                    icon = Icons.Default.Group,
                     onClick = { navController.navigate("monitoringDashboard/$classId") }
                 )
             }

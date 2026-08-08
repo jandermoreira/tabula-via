@@ -5,7 +5,9 @@
 
 package edu.jm.tabulavia.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +29,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.MonitoringState
 import edu.jm.tabulavia.model.StudentDashboardItem
 import edu.jm.tabulavia.ui.theme.Attention
@@ -38,16 +43,40 @@ import edu.jm.tabulavia.utils.EmojiColorHelper.mapIdToEmoji
  * Reuses EmojiWithBlob from StudentItem.kt to maintain visual consistency.
  *
  * @param item The dashboard data for the student.
+ * @param status The current attendance status for the student.
  * @param onClick Action to perform when the row is selected.
+ * @param onLongClick Action to perform when the row is long-pressed.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun StudentMonitoringRow(
     item: StudentDashboardItem,
-    onClick: () -> Unit
+    status: AttendanceStatus,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
+    val (backgroundColor, itemAlpha) = when (status) {
+        AttendanceStatus.PRESENT -> mapIdToColor(item.student.studentNumber) to 1f
+        AttendanceStatus.ABSENT -> Color.Yellow to 0.8f
+        AttendanceStatus.EXCUSED -> Color.Gray to 0.8f
+    }
+
+    val emojiColor =
+        if (status == AttendanceStatus.ABSENT) Color.Gray else MaterialTheme.colorScheme.onSurface
+
     TabulaCard(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(itemAlpha)
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
+                } else Modifier
+            ),
+        onClick = if (onLongClick == null) onClick else null
     ) {
         Row(
             modifier = Modifier
@@ -58,7 +87,9 @@ fun StudentMonitoringRow(
             // Reusing existing component from StudentItem.kt
             EmojiWithBlob(
                 emoji = mapIdToEmoji(item.student.studentNumber),
-                backgroundColor = mapIdToColor(item.student.studentNumber),
+                backgroundColor = backgroundColor,
+                color = emojiColor,
+                isDashed = status != AttendanceStatus.PRESENT,
                 modifier = Modifier.size(48.dp)
             )
 
