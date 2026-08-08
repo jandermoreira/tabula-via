@@ -166,6 +166,15 @@ fun ClassDashboardScreen(
 
             item(span = { GridItemSpan(2) }) {
                 DashboardCard(
+                    title = "Alunos",
+                    subtitle = "${students.size} alunos cadastrados",
+                    icon = Icons.Default.Group,
+                    onClick = { navController.navigate("monitoringDashboard/$classId") }
+                )
+            }
+
+            item(span = { GridItemSpan(2) }) {
+                DashboardCard(
                     title = "Frequência",
                     subtitle = "Histórico de frequência",
                     icon = Icons.AutoMirrored.Filled.FactCheck,

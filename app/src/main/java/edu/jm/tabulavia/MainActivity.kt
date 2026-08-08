@@ -232,13 +232,10 @@ class MainActivity : ComponentActivity() {
                         composable(
                             route = "reportList/{classId}",
                             arguments = listOf(navArgument("classId") { type = NavType.StringType })
-                        ) { backStackEntry ->
-                            val classId = backStackEntry.arguments?.getString("classId") ?: ""
+                        ) {
                             ReportListScreen(
-                                classId = classId,
                                 viewModel = classViewModel,
-                                onNavigateBack = { navController.popBackStack() },
-                                onNavigateToMonitoring = { navController.navigate("monitoringDashboard/$classId") }
+                                onNavigateBack = { navController.popBackStack() }
                             )
                         }
 
