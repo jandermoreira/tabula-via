@@ -106,7 +106,6 @@ fun MonitoringIndicators(
         } else
         // Performance Discrepancy (Only for Consolidation or if explicitly requested via summary flag)
             if (evidenceType == EvidenceType.CONSOLIDATION || (evidenceType == null && summary.hasDiscrepancyFlag)) {
-                Spacer(modifier = Modifier.width(if (showValues) 12.dp else 8.dp))
                 IndicatorIcon(
                     icon = Icons.Default.SwapHorizontalCircle,
                     status = summary.discrepancyState,
