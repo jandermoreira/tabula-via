@@ -4,13 +4,15 @@
 package edu.jm.tabulavia.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
@@ -56,8 +58,9 @@ fun MonitoringIndicators(
     showValues: Boolean = false
 ) {
     Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically
+        modifier = modifier.then(if (showValues) Modifier.fillMaxWidth() else Modifier),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         val effectiveType = evidenceType ?: summary.activeEvidenceType ?: EvidenceType.MONITORING
 
@@ -75,10 +78,9 @@ fun MonitoringIndicators(
                             "%d atraso(s)",
                             summary.regularity
                         )
-                else null
+                else null,
+                modifier = if (showValues) Modifier.weight(1f) else Modifier
             )
-
-            Spacer(modifier = Modifier.width(if (showValues) 12.dp else 8.dp))
 
             // Performance (Pm)
             IndicatorIcon(
@@ -90,10 +92,9 @@ fun MonitoringIndicators(
                         "Média %.1f",
                         it
                     )
-                } else null
+                } else null,
+                modifier = if (showValues) Modifier.weight(1f) else Modifier
             )
-
-            Spacer(modifier = Modifier.width(if (showValues) 12.dp else 8.dp))
 
             // Attendance (A)
             IndicatorIcon(
@@ -103,7 +104,8 @@ fun MonitoringIndicators(
                     Locale.US,
                     "Ausências %.0f%%",
                     summary.attendance
-                ) else null
+                ) else null,
+                modifier = if (showValues) Modifier.weight(1f) else Modifier
             )
         } else {
             // Performance Discrepancy (Only for Consolidation)
@@ -119,7 +121,8 @@ fun MonitoringIndicators(
                             "Queda %.1f pts",
                             abs(it)
                         )
-                } else null
+                } else null,
+                modifier = if (showValues) Modifier.weight(1f) else Modifier
             )
         }
     }
@@ -147,35 +150,31 @@ private fun IndicatorIcon(
         null -> Color.LightGray
     }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Box(
         modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(4.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .background(color.copy(alpha = 0.12f))
-                .padding(4.dp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(18.dp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(18.dp)
+            )
+            if (value != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = value,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
                 )
-                if (value != null) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = value,
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
-                    )
-                }
             }
         }
     }
