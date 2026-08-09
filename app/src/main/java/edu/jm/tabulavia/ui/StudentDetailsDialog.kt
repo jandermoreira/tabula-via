@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -53,7 +52,6 @@ fun StudentDetailsDialog(
 
     val dashboardItems by viewModel.dashboardItems.collectAsState()
     val dashboardItem = dashboardItems.find { it.student.studentId == student.studentId }
-    val summary = dashboardItem?.summary
     val history = dashboardItem?.evidenceHistory ?: emptyList()
     val skillSummaries by viewModel.studentSkillStatuses.collectAsState()
 
@@ -62,15 +60,6 @@ fun StudentDetailsDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(student.name)
-                if (summary?.hasDiscrepancyFlag == true) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Alerta de Discrepância",
-                        modifier = Modifier.size(20.dp),
-                        tint = Attention
-                    )
-                }
             }
         },
         text = {

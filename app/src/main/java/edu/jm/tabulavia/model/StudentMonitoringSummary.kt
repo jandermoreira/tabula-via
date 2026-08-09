@@ -20,6 +20,7 @@ package edu.jm.tabulavia.model
  * @property discrepancyState The state classification for discrepancy, if applicable.
  * @property hasDiscrepancyFlag Indicates if the discrepancy exceeds the attention threshold.
  * @property actions List of recommended intervention actions based on the current state.
+ * @property activeEvidenceType The type of the last processed evidence that determined the current state.
  * @property state The overall operational monitoring state of the student.
  */
 data class StudentMonitoringSummary(
@@ -34,5 +35,6 @@ data class StudentMonitoringSummary(
     val discrepancyState: MonitoringState?,
     val hasDiscrepancyFlag: Boolean,
     val actions: List<InterventionAction> = emptyList(),
+    val activeEvidenceType: EvidenceType? = null,
     val state: MonitoringState
 )

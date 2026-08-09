@@ -152,6 +152,8 @@ object MonitoringCalculator {
             }
         }
 
+        val activeEvidenceType = chronologicalEvidences.lastOrNull { it.deadline <= now }?.type
+
         val operationalStatus = evaluateOperationalStatus(
             regularityState = regularityState,
             performanceState = performanceState,
@@ -181,6 +183,7 @@ object MonitoringCalculator {
             discrepancyState = discrepancyState,
             hasDiscrepancyFlag = performanceDiscrepancy?.let { it >= 3.0 } ?: false,
             actions = recommendedActions,
+            activeEvidenceType = activeEvidenceType,
             state = operationalStatus
         )
     }

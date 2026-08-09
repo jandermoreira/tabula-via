@@ -59,7 +59,9 @@ fun MonitoringIndicators(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (evidenceType == EvidenceType.MONITORING) {
+        val effectiveType = evidenceType ?: summary.activeEvidenceType ?: EvidenceType.MONITORING
+
+        if (effectiveType == EvidenceType.MONITORING) {
             // Regularity (Missing submissions)
             IndicatorIcon(
                 icon = Icons.AutoMirrored.Filled.Assignment,
@@ -103,24 +105,23 @@ fun MonitoringIndicators(
                     summary.attendance
                 ) else null
             )
-        } else
-        // Performance Discrepancy (Only for Consolidation or if explicitly requested via summary flag)
-            if (evidenceType == EvidenceType.CONSOLIDATION || (evidenceType == null && summary.hasDiscrepancyFlag)) {
-                IndicatorIcon(
-                    icon = Icons.Default.SwapHorizontalCircle,
-                    status = summary.discrepancyState,
-                    value = if (showValues) summary.discrepancy?.let {
-                        if (it == 0.0)
-                            "Sem queda"
-                        else
-                            String.format(
-                                Locale.US,
-                                "Queda %.1f pts",
-                                abs(it)
-                            )
-                    } else null
-                )
-            }
+        } else {
+            // Performance Discrepancy (Only for Consolidation)
+            IndicatorIcon(
+                icon = Icons.Default.SwapHorizontalCircle,
+                status = summary.discrepancyState,
+                value = if (showValues) summary.discrepancy?.let {
+                    if (it == 0.0)
+                        "Sem queda"
+                    else
+                        String.format(
+                            Locale.US,
+                            "Queda %.1f pts",
+                            abs(it)
+                        )
+                } else null
+            )
+        }
     }
 }
 
