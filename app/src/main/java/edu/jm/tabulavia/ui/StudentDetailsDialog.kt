@@ -151,7 +151,7 @@ private fun EvidenceHistoryRow(item: EvidenceHistoryItem) {
                 )
                 Text(
                     text = item.score?.let { String.format(Locale.getDefault(), "%.1f", it) }
-                        ?: "Faltante",
+                        ?: "Sem nota",
                     color = if (item.score == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
@@ -171,10 +171,12 @@ private fun EvidenceHistoryRow(item: EvidenceHistoryItem) {
                     modifier = Modifier.weight(1f)
                 )
 
+                Spacer(modifier = Modifier.width(12.dp))
+
                 val stateLabel = when (item.snapshot.state) {
-                    MonitoringState.ON_TRACK -> "OK"
-                    MonitoringState.ATTENTION -> "ATN"
-                    MonitoringState.CRITICAL -> "CRI"
+                    MonitoringState.ON_TRACK -> " EM DIA"
+                    MonitoringState.ATTENTION -> "ATENÇÃO"
+                    MonitoringState.CRITICAL -> "CRÍTICO"
                 }
                 val stateColor = when (item.snapshot.state) {
                     MonitoringState.ON_TRACK -> MaterialTheme.colorScheme.secondary
