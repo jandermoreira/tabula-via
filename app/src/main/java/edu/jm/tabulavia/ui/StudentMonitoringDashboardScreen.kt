@@ -80,7 +80,7 @@ fun StudentMonitoringDashboardScreen(
     Scaffold(
         topBar = {
             val titleText = selectedClass?.let {
-                "${it.name} ${it.academicYear}/${it.period} - Acompanhamento"
+                "${it.name} ${it.academicYear}/${it.period}"
             } ?: "Acompanhamento"
 
             TabulaTopBar(
