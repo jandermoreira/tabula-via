@@ -53,7 +53,7 @@ fun StudentMonitoringRow(
 ) {
     val (backgroundColor, itemAlpha) = when (status) {
         AttendanceStatus.PRESENT -> mapIdToColor(item.student.studentNumber) to 1f
-        AttendanceStatus.ABSENT -> Color.Yellow to 0.8f
+        AttendanceStatus.ABSENT -> Color.Gray to 0.6f
         AttendanceStatus.EXCUSED -> Color.Gray to 0.8f
     }
 
@@ -99,10 +99,11 @@ fun StudentMonitoringRow(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                MonitoringIndicators(
-                    summary = item.summary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                if (item.evidenceHistory.isNotEmpty())
+                    MonitoringIndicators(
+                        summary = item.summary,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
             }
 
             if (item.summary.actions.isNotEmpty()) {
