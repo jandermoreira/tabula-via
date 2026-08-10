@@ -23,6 +23,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
 import edu.jm.tabulavia.db.DatabaseProvider
+import edu.jm.tabulavia.logic.MonitoringCalculator
 import edu.jm.tabulavia.model.AcademicClass
 import edu.jm.tabulavia.model.Activity
 import edu.jm.tabulavia.model.ActivityHighlightedSkill
@@ -32,7 +33,6 @@ import edu.jm.tabulavia.model.AttendanceStatus
 import edu.jm.tabulavia.model.ClassBackup
 import edu.jm.tabulavia.model.ClassSession
 import edu.jm.tabulavia.model.ClassSkill
-import edu.jm.tabulavia.model.Evidence
 import edu.jm.tabulavia.model.EvidenceScore
 import edu.jm.tabulavia.model.GroupMember
 import edu.jm.tabulavia.model.SkillAssessment
@@ -51,10 +51,6 @@ import edu.jm.tabulavia.repository.EvidenceRepository
 import edu.jm.tabulavia.repository.SaveAttendanceResult
 import edu.jm.tabulavia.repository.SkillRepository
 import edu.jm.tabulavia.repository.StudentRepository
-import edu.jm.tabulavia.logic.MonitoringCalculator
-import edu.jm.tabulavia.model.EvidenceHistoryItem
-import edu.jm.tabulavia.model.MonitoringState
-import edu.jm.tabulavia.model.StudentMonitoringSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -66,7 +62,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -193,7 +188,7 @@ class ClassViewModel(application: Application) : BaseAndroidViewModel(applicatio
                             totalPlannedSessions = academicClass.numberOfSessions
                         )
 
-                        val summary = evidenceHistory.lastOrNull()?.snapshot ?: MonitoringCalculator.calculate(
+                        val summary = MonitoringCalculator.calculate(
                             student = student,
                             classId = academicClass.classId,
                             evidences = evidences,

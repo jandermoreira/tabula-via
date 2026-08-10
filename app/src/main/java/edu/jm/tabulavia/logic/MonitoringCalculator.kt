@@ -45,11 +45,16 @@ object MonitoringCalculator {
         totalPlannedSessions: Int,
         referenceTime: Long? = null
     ): List<edu.jm.tabulavia.model.EvidenceHistoryItem> {
-        val chronologicalEvidences = evidences.sortedBy { it.deadline }
+        val now = referenceTime ?: System.currentTimeMillis()
         val scoreLookup = scores.associateBy { it.evidenceId }
+        
+        // Only consider evidences that have passed or have been evaluated
+        val relevantEvidences = evidences.filter { 
+            it.deadline <= now || scoreLookup.containsKey(it.evidenceId)
+        }.sortedBy { it.deadline }
 
-        return chronologicalEvidences.map { currentEvidence ->
-            val evidencesUntilNow = chronologicalEvidences.filter { it.deadline <= currentEvidence.deadline }
+        return relevantEvidences.map { currentEvidence ->
+            val evidencesUntilNow = relevantEvidences.filter { it.deadline <= currentEvidence.deadline }
             val scoresUntilNow = scores.filter { score -> 
                 evidencesUntilNow.any { it.evidenceId == score.evidenceId }
             }
@@ -101,10 +106,14 @@ object MonitoringCalculator {
         referenceTime: Long? = null
     ): StudentMonitoringSummary {
         val now = referenceTime ?: System.currentTimeMillis()
-        val chronologicalEvidences = evidences.sortedBy { it.deadline }
         val scoreLookup = scores.associateBy { it.evidenceId }
+        
+        // Filter evidences to only those that have occurred or were already graded
+        val relevantEvidences = evidences.filter {
+            it.deadline <= now || scoreLookup.containsKey(it.evidenceId)
+        }.sortedBy { it.deadline }
 
-        val learningCycles = groupEvidencesIntoCycles(chronologicalEvidences)
+        val learningCycles = groupEvidencesIntoCycles(relevantEvidences)
         val activeCycle = learningCycles.lastOrNull() ?: emptyList()
         val activeMonitoringEvidences = activeCycle.filter { it.type == EvidenceType.MONITORING }
 
@@ -152,7 +161,7 @@ object MonitoringCalculator {
             }
         }
 
-        val activeEvidenceType = chronologicalEvidences.lastOrNull { it.deadline <= now }?.type
+        val activeEvidenceType = relevantEvidences.lastOrNull { it.deadline <= now }?.type
 
         val operationalStatus = evaluateOperationalStatus(
             regularityState = regularityState,
