@@ -107,7 +107,7 @@ object MonitoringCalculator {
     ): StudentMonitoringSummary {
         val now = referenceTime ?: System.currentTimeMillis()
         val scoreLookup = scores.associateBy { it.evidenceId }
-        
+
         // Filter evidences to only those that have occurred or were already graded
         val relevantEvidences = evidences.filter {
             it.deadline <= now || scoreLookup.containsKey(it.evidenceId)
@@ -117,21 +117,25 @@ object MonitoringCalculator {
         val activeCycle = learningCycles.lastOrNull() ?: emptyList()
         val activeMonitoringEvidences = activeCycle.filter { it.type == EvidenceType.MONITORING }
 
-        val missingSubmissionsCount = activeMonitoringEvidences.count { 
-            it.deadline <= now && !scoreLookup.containsKey(it.evidenceId) 
+        val missingSubmissionsCount = activeMonitoringEvidences.count {
+            it.deadline <= now && !scoreLookup.containsKey(it.evidenceId)
         }
 
-        val activeCycleGrades = activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
-        val monitoringPerformance = if (activeCycleGrades.isNotEmpty()) activeCycleGrades.average() else null
+        val activeCycleGrades =
+            activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
+        val monitoringPerformance =
+            if (activeCycleGrades.isNotEmpty()) activeCycleGrades.average() else null
 
-        val studentAttendanceRecords = attendance.filter { it.studentId == student.studentId }
-        val sessionsUntilNow = sessions.filter { it.timestamp <= now }
-        val absencesCount = studentAttendanceRecords.count { record ->
-            sessionsUntilNow.any { it.sessionId == record.sessionId } && record.status == AttendanceStatus.ABSENT
+        val absencesCount = attendance.count { record ->
+            record.studentId == student.studentId &&
+                    record.status == AttendanceStatus.ABSENT &&
+                    sessions.any { it.sessionId == record.sessionId }
         }
-        val absenceRate = if (totalPlannedSessions > 0) (absencesCount.toDouble() / totalPlannedSessions) * 100.0 else 0.0
+        val absenceRate =
+            if (totalPlannedSessions > 0) (absencesCount.toDouble() / totalPlannedSessions) * 100.0 else 0.0
 
-        val performanceDiscrepancy = calculateDiscrepancy(monitoringPerformance, learningCycles, scoreLookup)
+        val performanceDiscrepancy =
+            calculateDiscrepancy(monitoringPerformance, learningCycles, scoreLookup)
 
         val regularityState = when {
             missingSubmissionsCount >= 2 -> MonitoringState.CRITICAL
@@ -270,8 +274,9 @@ object MonitoringCalculator {
         scoreLookup: Map<String, EvidenceScore>,
         monitoringPerformance: Double?
     ): MonitoringState {
-        val individualGrades = activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
-        
+        val individualGrades =
+            activeMonitoringEvidences.mapNotNull { scoreLookup[it.evidenceId]?.score }
+
         // Critical Triggers:
         // - Two or more missing submissions (Regularity Critical)
         // - Pm < 4.0 (Performance Critical)
@@ -279,16 +284,17 @@ object MonitoringCalculator {
         // - Attendance risk (Attendance Critical)
         // - Critical discrepancy (Discrepancy Critical)
         val hasTwoConsecutiveLowGrades = if (individualGrades.size >= 2) {
-            individualGrades.windowed(2).any { window -> 
-                window.all { it < MINIMUM_PASSING_GRADE } 
+            individualGrades.windowed(2).any { window ->
+                window.all { it < MINIMUM_PASSING_GRADE }
             }
         } else false
-        
-        if (regularityState == MonitoringState.CRITICAL || 
-            performanceState == MonitoringState.CRITICAL || 
-            hasTwoConsecutiveLowGrades || 
-            attendanceState == MonitoringState.CRITICAL || 
-            discrepancyState == MonitoringState.CRITICAL) {
+
+        if (regularityState == MonitoringState.CRITICAL ||
+            performanceState == MonitoringState.CRITICAL ||
+            hasTwoConsecutiveLowGrades ||
+            attendanceState == MonitoringState.CRITICAL ||
+            discrepancyState == MonitoringState.CRITICAL
+        ) {
             return MonitoringState.CRITICAL
         }
 
@@ -297,10 +303,11 @@ object MonitoringCalculator {
         // - Pm < 6.0 caused by one Monitoring Evidence (Performance Attention)
         // - Attendance attention (Attendance Attention)
         // - Attention discrepancy (Discrepancy Attention)
-        if (regularityState == MonitoringState.ATTENTION || 
-            performanceState == MonitoringState.ATTENTION || 
-            attendanceState == MonitoringState.ATTENTION || 
-            discrepancyState == MonitoringState.ATTENTION) {
+        if (regularityState == MonitoringState.ATTENTION ||
+            performanceState == MonitoringState.ATTENTION ||
+            attendanceState == MonitoringState.ATTENTION ||
+            discrepancyState == MonitoringState.ATTENTION
+        ) {
             return MonitoringState.ATTENTION
         }
 
@@ -333,12 +340,14 @@ object MonitoringCalculator {
                 actions.add(InterventionAction.A2)
                 actions.add(InterventionAction.A4)
             }
+
             MonitoringState.CRITICAL -> {
                 actions.add(InterventionAction.A1)
                 actions.add(InterventionAction.A2)
                 actions.add(InterventionAction.A4)
                 actions.add(InterventionAction.A6)
             }
+
             else -> {}
         }
 
@@ -348,11 +357,13 @@ object MonitoringCalculator {
                 actions.add(InterventionAction.A3)
                 actions.add(InterventionAction.A5)
             }
+
             MonitoringState.CRITICAL -> {
                 actions.add(InterventionAction.A3)
                 actions.add(InterventionAction.A5)
                 actions.add(InterventionAction.A6)
             }
+
             else -> {}
         }
 
@@ -362,12 +373,14 @@ object MonitoringCalculator {
                 actions.add(InterventionAction.A1)
                 actions.add(InterventionAction.A2)
             }
+
             MonitoringState.CRITICAL -> {
                 actions.add(InterventionAction.A1)
                 actions.add(InterventionAction.A2)
                 actions.add(InterventionAction.A6)
                 actions.add(InterventionAction.A7)
             }
+
             else -> {}
         }
 
@@ -376,12 +389,14 @@ object MonitoringCalculator {
             MonitoringState.ATTENTION -> {
                 actions.add(InterventionAction.A5)
             }
+
             MonitoringState.CRITICAL -> {
                 actions.add(InterventionAction.A1)
                 actions.add(InterventionAction.A2)
                 actions.add(InterventionAction.A5)
                 actions.add(InterventionAction.A6)
             }
+
             else -> {}
         }
 

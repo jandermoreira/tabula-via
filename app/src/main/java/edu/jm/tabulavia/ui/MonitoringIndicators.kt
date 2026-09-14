@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
@@ -69,16 +70,17 @@ fun MonitoringIndicators(
             IndicatorIcon(
                 icon = Icons.AutoMirrored.Filled.Assignment,
                 status = summary.regularityState,
-                value = if (showValues)
+                formattedValue = if (showValues)
                     if (summary.regularity == 0)
                         "Em dia"
                     else
                         String.format(
                             Locale.US,
-                            "%d atraso(s)",
+                            "%d",
                             summary.regularity
                         )
                 else null,
+                label = if (showValues) "Atraso(s)" else null,
                 modifier = if (showValues) Modifier.weight(1f) else Modifier
             )
 
@@ -86,13 +88,14 @@ fun MonitoringIndicators(
             IndicatorIcon(
                 icon = Icons.Default.QueryStats,
                 status = summary.performanceState,
-                value = if (showValues) summary.performance?.let {
+                formattedValue = if (showValues) summary.performance?.let {
                     String.format(
                         Locale.US,
-                        "Média %.1f",
+                        "%.1f",
                         it
                     )
                 } else null,
+                label = if (showValues) "Média" else null,
                 modifier = if (showValues) Modifier.weight(1f) else Modifier
             )
 
@@ -100,11 +103,12 @@ fun MonitoringIndicators(
             IndicatorIcon(
                 icon = Icons.Default.EventAvailable,
                 status = summary.attendanceState,
-                value = if (showValues) String.format(
+                formattedValue = if (showValues) String.format(
                     Locale.US,
-                    "Ausências %.0f%%",
+                    "%.0f%%",
                     summary.attendance
                 ) else null,
+                label = if (showValues) "Faltas" else null,
                 modifier = if (showValues) Modifier.weight(1f) else Modifier
             )
         } else {
@@ -112,16 +116,17 @@ fun MonitoringIndicators(
             IndicatorIcon(
                 icon = Icons.Default.SwapHorizontalCircle,
                 status = summary.discrepancyState,
-                value = if (showValues) summary.discrepancy?.let {
+                formattedValue = if (showValues) summary.discrepancy?.let {
                     if (it == 0.0)
                         "Sem queda"
                     else
                         String.format(
                             Locale.US,
-                            "Queda %.1f pts",
+                            "%.1f pts",
                             abs(it)
                         )
                 } else null,
+                label = if (showValues) "Queda" else null,
                 modifier = if (showValues) Modifier.weight(1f) else Modifier
             )
         }
@@ -134,20 +139,22 @@ fun MonitoringIndicators(
  * @param icon The vector icon to display.
  * @param status The monitoring state that determines the icon color.
  * @param modifier The modifier to be applied to the layout.
- * @param value Optional text value to display below the icon.
+ * @param formattedValue Optional text value to display with the icon.
+ * @param formattedValue Optional text label to display below the icon.
  */
 @Composable
 private fun IndicatorIcon(
     icon: ImageVector,
     status: MonitoringState?,
     modifier: Modifier = Modifier,
-    value: String? = null
+    formattedValue: String? = null,
+    label: String? = null
 ) {
     val color = when (status) {
         MonitoringState.ON_TRACK -> Regular
         MonitoringState.ATTENTION -> Attention
         MonitoringState.CRITICAL -> Alert
-        null -> Color.LightGray
+        null -> Color.Gray
     }
 
     Box(
@@ -160,22 +167,34 @@ private fun IndicatorIcon(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(18.dp)
-            )
-            if (value != null) {
-                Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                if (formattedValue != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = formattedValue,
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+            Spacer(Modifier.height(1.dp))
+            if (label != null)
                 Text(
-                    text = value,
+                    text = label,
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     fontSize = 11.sp
                 )
-            }
         }
     }
 }
